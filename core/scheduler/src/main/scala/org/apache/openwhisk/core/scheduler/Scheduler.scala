@@ -18,8 +18,10 @@
 package org.apache.openwhisk.core.scheduler
 
 import akka.Done
-import akka.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown, Props}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.util.Timeout
+import akka.pattern.ask
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
@@ -30,8 +32,20 @@ import org.apache.openwhisk.core.ack.{MessagingActiveAck, UserEventSender}
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.database.{ActivationStoreProvider, NoDocumentException, UserContext}
 import org.apache.openwhisk.core.entity._
+import org.apache.openwhisk.core.etcd.EtcdKV.{QueueKeys, SchedulerKeys}
+import org.apache.openwhisk.core.etcd.EtcdType.ByteStringToString
 import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
-import org.apache.openwhisk.core.service.{LeaseKeepAliveService, WatcherService}
+import org.apache.openwhisk.core.scheduler.container.{ContainerManager, CreationJobManager}
+import org.apache.openwhisk.core.scheduler.grpc.ActivationServiceImpl
+import org.apache.openwhisk.core.scheduler.queue.{
+  DurationCheckerProvider,
+  MemoryQueue,
+  QueueManager,
+  QueueSize,
+  SchedulingDecisionMaker
+}
+import org.apache.openwhisk.core.service.{DataManagementService, EtcdWorker, LeaseKeepAliveService, WatcherService}
+import org.apache.openwhisk.grpc.ActivationServiceHandler
 import org.apache.openwhisk.http.BasicHttpService
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory
@@ -43,6 +57,8 @@ import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import pureconfig.generic.auto._
+
+import scala.collection.JavaConverters
 
 class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerEndpoints)(implicit config: WhiskConfig,
                                                                                           actorSystem: ActorSystem,
@@ -77,24 +93,53 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
       case Failure(t)   => logging.error(this, s"failed to save activation $activation, error: ${t.getMessage}")
     }
   }
-  val durationCheckerProvider = "" // TODO: TBD
-  val durationChecker = "" // TODO: TBD
+  val durationCheckerProvider = SpiLoader.get[DurationCheckerProvider]
+  val durationChecker = durationCheckerProvider.instance(actorSystem, logging)
 
   override def getState: Future[(List[(SchedulerInstanceId, Int)], Int)] = {
-    Future.successful((List((schedulerId, 0)), 0)) // TODO: TBD, after etcdClient is ready, can implement it
+    logging.info(this, s"getting the queue states")
+    etcdClient
+      .getPrefix(s"${QueueKeys.inProgressPrefix}/${QueueKeys.queuePrefix}")
+      .map(res => {
+        JavaConverters
+          .asScalaIteratorConverter(res.getKvsList.iterator())
+          .asScala
+          .map(kv => ByteStringToString(kv.getValue))
+          .count(_ == schedulerId.asString)
+      })
+      .flatMap { creationCount =>
+        etcdClient
+          .get(SchedulerKeys.scheduler(schedulerId))
+          .map(res => {
+            JavaConverters
+              .asScalaIteratorConverter(res.getKvsList.iterator())
+              .asScala
+              .map { kv =>
+                SchedulerStates.parse(kv.getValue).getOrElse(SchedulerStates(schedulerId, -1, schedulerEndpoints))
+              }
+              .map { schedulerState =>
+                (schedulerState.sid, schedulerState.queueSize)
+              }
+              .toList
+          })
+          .map { list =>
+            (list, creationCount)
+          }
+      }
   }
 
   override def getQueueSize: Future[Int] = {
-    Future.successful(0) // TODO: TBD, after queueManager is ready, can implement it
+    queueManager.ask(QueueSize)(Timeout(5.seconds)).mapTo[Int]
   }
 
   override def getQueueStatusData: Future[List[StatusData]] = {
-    Future.successful(List(StatusData("ns", "fqn", 0, "Running", "data"))) // TODO: TBD, after queueManager is ready, can implement it
+    queueManager.ask(StatusQuery)(Timeout(5.seconds)).mapTo[Future[List[StatusData]]].flatten
   }
 
   override def disable(): Unit = {
     logging.info(this, s"Gracefully shutting down the scheduler")
-    // TODO: TBD, after containerManager and queueManager are ready, can implement it
+    containerManager ! GracefulShutdown
+    queueManager ! GracefulShutdown
   }
 
   private def getUserLimit(invocationNamespace: String): Future[Int] = {
@@ -113,27 +158,67 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
       }
   }
 
-  private val etcdWorkerFactory = "" // TODO: TBD
+  private val etcdWorkerFactory = (f: ActorRefFactory) => f.actorOf(EtcdWorker.props(etcdClient, leaseService))
 
   /**
    * This component is in charge of storing data to ETCD.
    * Even if any error happens we can assume the data will be eventually available in the ETCD by this component.
    */
-  val dataManagementService = "" // TODO: TBD
+  val dataManagementService: ActorRef =
+    actorSystem.actorOf(DataManagementService.props(watcherService, etcdWorkerFactory))
 
-  val creationJobManagerFactory = "" // TODO: TBD
+  val feedFactory = (f: ActorRefFactory,
+                     description: String,
+                     topic: String,
+                     maxActiveAcksPerPoll: Int,
+                     processAck: Array[Byte] => Future[Unit]) => {
+    val consumer = msgProvider.getConsumer(config, topic, topic, maxActiveAcksPerPoll)
+    f.actorOf(Props(new MessageFeed(description, logging, consumer, maxActiveAcksPerPoll, 1.second, processAck)))
+  }
+
+  val creationJobManagerFactory: ActorRefFactory => ActorRef =
+    factory => {
+      factory.actorOf(CreationJobManager.props(feedFactory, schedulerId, dataManagementService))
+    }
 
   /**
    * This component is responsible for creating containers for a given action.
    * It relies on the creationJobManager to manage the container creation job.
    */
-  val containerManager = "" // TODO: TBD
+  val containerManager: ActorRef =
+    actorSystem.actorOf(
+      ContainerManager.props(creationJobManagerFactory, msgProvider, schedulerId, etcdClient, config, watcherService))
 
   /**
    * This is a factory to create memory queues.
    * In the new architecture, each action is given its own dedicated queue.
    */
-  val memoryQueueFactory = "" // TODO: TBD
+  val memoryQueueFactory
+    : (ActorRefFactory, String, FullyQualifiedEntityName, DocRevision, WhiskActionMetaData) => ActorRef =
+    (factory, invocationNamespace, fqn, revision, actionMetaData) => {
+      // Todo: Change this to SPI
+      val decisionMaker = factory.actorOf(SchedulingDecisionMaker.props(invocationNamespace, fqn))
+
+      factory.actorOf(
+        MemoryQueue.props(
+          etcdClient,
+          durationChecker,
+          fqn,
+          producer,
+          config,
+          invocationNamespace,
+          revision,
+          schedulerEndpoints,
+          actionMetaData,
+          dataManagementService,
+          watcherService,
+          containerManager,
+          decisionMaker,
+          schedulerId: SchedulerInstanceId,
+          ack,
+          store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+          getUserLimit: String => Future[Int]))
+    }
 
   val topic = s"${Scheduler.topicPrefix}scheduler${schedulerId.asString}"
   val schedulerConsumer =
@@ -144,9 +229,22 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
   /**
    * This is one of the major components which take charge of managing queues and coordinating requests among the scheduler, controllers, and invokers.
    */
-  val queueManager = "" // TODO: TBD
+  val queueManager = actorSystem.actorOf(
+    QueueManager.props(
+      entityStore,
+      WhiskActionMetaData.get,
+      etcdClient,
+      schedulerEndpoints,
+      schedulerId,
+      dataManagementService,
+      watcherService,
+      ack,
+      store: (TransactionId, WhiskActivation, UserContext) => Future[Any],
+      memoryQueueFactory,
+      schedulerConsumer),
+    QueueManager.actorName)
 
-  //val serviceHandlers: HttpRequest => Future[HttpResponse] = ActivationServiceHandler.apply(ActivationServiceImpl())  TODO: TBD
+  val serviceHandlers: HttpRequest => Future[HttpResponse] = ActivationServiceHandler.apply(ActivationServiceImpl())
 }
 
 case class CmdLineArgs(uniqueName: Option[String] = None, id: Option[Int] = None, displayedName: Option[String] = None)

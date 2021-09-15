@@ -37,7 +37,7 @@ class AverageRingBuffer(private val maxSize: Int) {
 
   def nonEmpty: Boolean = elements.nonEmpty
 
-  def  average: Double = {
+  def average: Double = {
     val size = elements.size
     if (size > 2) {
       (sum - max - min) / (size - 2)

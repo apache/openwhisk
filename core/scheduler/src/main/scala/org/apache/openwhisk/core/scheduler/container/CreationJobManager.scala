@@ -45,7 +45,7 @@ case object GetPoolStatus
 
 case class JobEntry(action: FullyQualifiedEntityName, timer: Cancellable)
 
-class CreationJobManager(feedFactory: (ActorRefFactory, String, Int, Array[Byte] => Future[Unit]) => ActorRef,
+class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Array[Byte] => Future[Unit]) => ActorRef,
                          schedulerInstanceId: SchedulerInstanceId,
                          dataManagementService: ActorRef)(implicit actorSystem: ActorSystem, logging: Logging)
     extends Actor {
@@ -201,7 +201,7 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, Int, Array[Byte]
   private val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
   private val topic = s"${topicPrefix}creationAck${schedulerInstanceId.asString}"
   private val maxActiveAcksPerPoll = 128
-  private val ackFeed = feedFactory(actorSystem, topic, maxActiveAcksPerPoll, processAcknowledgement)
+  private val ackFeed = feedFactory(actorSystem, "creationAck", topic, maxActiveAcksPerPoll, processAcknowledgement)
 
   def processAcknowledgement(bytes: Array[Byte]): Future[Unit] = {
     Future(ContainerCreationAckMessage.parse(new String(bytes, StandardCharsets.UTF_8)))
@@ -224,7 +224,7 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, Int, Array[Byte]
 }
 
 object CreationJobManager {
-  def props(feedFactory: (ActorRefFactory, String, Int, Array[Byte] => Future[Unit]) => ActorRef,
+  def props(feedFactory: (ActorRefFactory, String, String, Int, Array[Byte] => Future[Unit]) => ActorRef,
             schedulerInstanceId: SchedulerInstanceId,
             dataManagementService: ActorRef)(implicit actorSystem: ActorSystem, logging: Logging) =
     Props(new CreationJobManager(feedFactory, schedulerInstanceId, dataManagementService))
