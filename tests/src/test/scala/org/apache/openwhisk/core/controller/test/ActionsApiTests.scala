@@ -899,7 +899,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
+    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS), (swiftAction, SWIFT5), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1076,7 +1076,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((nodeAction, NODEJS), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
+    val actions = Seq((nodeAction, NODEJS), (swiftAction, SWIFT5), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1183,7 +1183,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((nodeAction, NODEJS), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
+    val actions = Seq((nodeAction, NODEJS), (swiftAction, SWIFT5), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>

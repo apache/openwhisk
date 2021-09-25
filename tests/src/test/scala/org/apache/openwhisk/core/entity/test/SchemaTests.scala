@@ -502,8 +502,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     val json = Seq[JsObject](
       JsObject("kind" -> "nodejs:14".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
       JsObject("kind" -> "nodejs:14".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
-      JsObject("kind" -> "swift:4.2".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
-      JsObject("kind" -> "swift:4.2".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson),
+      JsObject("kind" -> "swift:5.3".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
+      JsObject("kind" -> "swift:5.3".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson),
       JsObject("kind" -> "nodejs:14".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
 
     val execs = json.map { e =>
@@ -668,7 +668,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson, "binary" -> false.toJson))
     assert(execs(1) == JsObject("kind" -> "nodejs:14".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
     assert(execs(2) == JsObject("kind" -> "nodejs:14".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
-    assert(execs(3) == JsObject("kind" -> "swift:4.2".toJson, "code" -> "swift".toJson, "binary" -> false.toJson))
+    assert(execs(3) == JsObject("kind" -> "swift:5.3".toJson, "code" -> "swift".toJson, "binary" -> false.toJson))
   }
 
   behavior of "Parameter"

@@ -36,7 +36,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   ExecManifest.initialize(config) should be a 'success
 
   protected val NODEJS = "nodejs:14"
-  protected val SWIFT4 = "swift:4.2"
+  protected val SWIFT5 = "swift:5.3"
   protected val BLACKBOX = "blackbox"
   protected val JAVA_DEFAULT = "java:8"
 
@@ -101,7 +101,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   protected def swift(code: String, main: Option[String] = None) = {
     val attachment = attFmt[String].read(code.trim.toJson)
-    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT4).get
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT5).get
 
     CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
   }

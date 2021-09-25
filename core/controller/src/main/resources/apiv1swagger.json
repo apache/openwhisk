@@ -2010,7 +2010,6 @@
             "go:1.15",
             "go:default",
             "sequence",
-            "swift:4.2",
             "swift:5.1",
             "swift:5.3",
             "swift:5.4",
