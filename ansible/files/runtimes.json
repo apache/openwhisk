@@ -241,22 +241,6 @@
                 }
             }
         ],
-        "ballerina": [
-            {
-                "kind": "ballerina:0.990",
-                "default": true,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-ballerina-v0.990.2",
-                    "tag": "nightly"
-                },
-                "deprecated": false,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            }
-        ],
         "rust": [
             {
                 "kind": "rust:1.34",

@@ -49,7 +49,6 @@ This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. Se
 
 | Module | Description | Module Status |
 |---	|---	|---    |
-| [openwhisk-runtime-ballerina](https://github.com/apache/openwhisk-runtime-ballerina) | Apache OpenWhisk Runtime Ballerina supports Apache OpenWhisk functions written in Ballerina | [![Build Status](https://travis-ci.com/apache/openwhisk-runtime-ballerina.svg?branch=master)](https://travis-ci.com/apache/openwhisk-runtime-ballerina) |
 | [openwhisk-runtime-deno](https://github.com/apache/openwhisk-runtime-deno) | Apache OpenWhisk Runtime Deno supports Apache OpenWhisk functions written in Deno | [![Build Status](https://travis-ci.com/apache/openwhisk-runtime-deno.svg?branch=master)](https://travis-ci.com/apache/openwhisk-runtime-deno) |
 | [openwhisk-runtime-docker](https://github.com/apache/openwhisk-runtime-docker) | Apache OpenWhisk SDK for building Docker "blackbox" runtimes | [![Build Status](https://travis-ci.com/apache/openwhisk-runtime-docker.svg?branch=master)](https://travis-ci.com/apache/openwhisk-runtime-docker) |
 | [openwhisk-runtime-dotnet](https://github.com/apache/openwhisk-runtime-dotnet) | Apache OpenWhisk Runtime .Net supports Apache OpenWhisk functions written in .Net languages | [![Build Status](https://travis-ci.com/apache/openwhisk-runtime-dotnet.svg?branch=master)](https://travis-ci.com/apache/openwhisk-runtime-dotnet) |
@@ -131,6 +130,7 @@ This page is generated via script `./gradlew :tools:dev:renderModuleDetails`. Se
 | [openwhisk-package-template](https://github.com/apache/openwhisk-package-template) | [DEPRECATED] - This is a template to be use when creating new packages for OpenWhisk |
 | [openwhisk-playground](https://github.com/apache/openwhisk-playground) | [DEPRECATED] - This library provides functionality of executing a snippet of source code as OpenWhisk action for OpenWhisk Xcode Source Editor Extension |
 | [openwhisk-podspecs](https://github.com/apache/openwhisk-podspecs) | [DEPRECATED] - CocoaPods Podspecs repo for openwhisk-client-swift |
+| [openwhisk-runtime-ballerina](https://github.com/apache/openwhisk-runtime-ballerina) | Apache OpenWhisk Runtime Ballerina supports Apache OpenWhisk functions written in Ballerina |
 | [openwhisk-sample-matos](https://github.com/apache/openwhisk-sample-matos) | [DEPRECATED] - sample application with Message Hub and Object Store |
 | [openwhisk-sample-slackbot](https://github.com/apache/openwhisk-sample-slackbot) | [DEPRECATED] - A proof-of-concept Slackbot to invoke OpenWhisk actions. |
 | [openwhisk-selfserve-test](https://github.com/apache/openwhisk-selfserve-test) | [DEPRECATED] - Apache openwhisk |
