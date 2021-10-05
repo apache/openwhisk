@@ -19,7 +19,7 @@
 
 # OpenWhisk
 
-[![Build Status](https://travis-ci.com/apache/openwhisk.svg?branch=master)](https://travis-ci.com/apache/openwhisk)
+[![Build Status](https://travis-ci.com/apache/openwhisk.svg?branch=master)](https://travis-ci.com/github/apache/openwhisk)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 [![Join Slack](https://img.shields.io/badge/join-slack-9B69A0.svg)](https://openwhisk-team.slack.com/)
 [![codecov](https://codecov.io/gh/apache/openwhisk/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/openwhisk)
