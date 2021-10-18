@@ -35,6 +35,7 @@ case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
 trait ActivationStore {
 
   protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
+  protected val disableStoreNonBlockingResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreNonBlockingResult)
   protected val unstoredLogsEnabledConfig = loadConfigOrThrow[Boolean](ConfigKeys.unstoredLogsEnabled)
 
   /**
@@ -42,6 +43,8 @@ trait ActivationStore {
    *
    * @param activation activation to store
    * @param isBlockingActivation is activation blocking
+   * @param disableBlockingStore do not store activation if successful and blocking
+   * @param disableNonBlockingStore do not store activation if successful and non-blocking
    * @param context user and request context
    * @param transid transaction ID for request
    * @param notifier cache change notifier
@@ -49,7 +52,8 @@ trait ActivationStore {
    */
   def storeAfterCheck(activation: WhiskActivation,
                       isBlockingActivation: Boolean,
-                      disableStore: Option[Boolean],
+                      disableBlockingStore: Option[Boolean],
+                      disableNonBlockingStore: Option[Boolean],
                       context: UserContext)(implicit transid: TransactionId,
                                             notifier: Option[CacheChangeNotification],
                                             logging: Logging): Future[DocInfo] = {
@@ -58,7 +62,8 @@ trait ActivationStore {
           activation.response.isSuccess,
           isBlockingActivation,
           transid.meta.extraLogging,
-          disableStore.getOrElse(disableStoreResultConfig))) {
+          disableBlockingStore.getOrElse(disableStoreResultConfig),
+          disableNonBlockingStore.getOrElse(disableStoreNonBlockingResultConfig))) {
 
       store(activation, context)
     } else {
@@ -186,14 +191,15 @@ trait ActivationStore {
    * @param isSuccess is successful activation
    * @param isBlocking is blocking activation
    * @param debugMode is logging header set to "on" for the invocation
-   * @param disableStore is disable store configured
+   * @param disableBlockingStore is disable store configured
    * @return Should the activation be stored to the database
    */
   private def shouldStoreActivation(isSuccess: Boolean,
                                     isBlocking: Boolean,
                                     debugMode: Boolean,
-                                    disableStore: Boolean): Boolean = {
-    !isSuccess || !isBlocking || debugMode || !disableStore
+                                    disableBlockingStore: Boolean,
+                                    disableNonBlockingStore: Boolean): Boolean = {
+    !isSuccess || (!isBlocking && !disableNonBlockingStore) || debugMode || !disableBlockingStore
   }
 }
 

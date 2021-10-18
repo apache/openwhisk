@@ -128,8 +128,9 @@ protected trait ControllerTestCommon
     activation: WhiskActivation,
     isBlockingActivation: Boolean,
     disableStore: Boolean,
+    disableNonBlockingStore: Boolean,
     context: UserContext)(implicit transid: TransactionId, timeout: Duration = 10 seconds): DocInfo = {
-    val docFuture = activationStore.storeAfterCheck(activation, isBlockingActivation, Some(disableStore), context)(
+    val docFuture = activationStore.storeAfterCheck(activation, isBlockingActivation, Some(disableStore), Some(disableNonBlockingStore), context)(
       transid,
       notifier = None,
       logging)
