@@ -199,7 +199,7 @@ trait ActivationStore {
                                     debugMode: Boolean,
                                     disableBlockingStore: Boolean,
                                     disableNonBlockingStore: Boolean): Boolean = {
-    !isSuccess || (!isBlocking && !disableNonBlockingStore) || debugMode || !disableBlockingStore
+    !isSuccess  || debugMode || (!isBlocking && !disableNonBlockingStore) || (isBlocking && !disableBlockingStore)
   }
 }
 
