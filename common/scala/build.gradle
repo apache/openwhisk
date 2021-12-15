@@ -46,7 +46,7 @@ dependencies {
 
     compile "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:1.1.2"
 
-    compile "ch.qos.logback:logback-classic:1.2.3"
+    compile "ch.qos.logback:logback-classic:1.2.8"
     compile "org.slf4j:jcl-over-slf4j:1.7.25"
     compile "org.slf4j:log4j-over-slf4j:1.7.25"
     compile "commons-codec:commons-codec:1.9"
