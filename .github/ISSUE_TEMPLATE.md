@@ -1,5 +1,5 @@
 <!--
-We use the issue tracker for bugs and feature requests. For general questions and discussion please use http://slack.openwhisk.org/ or https://openwhisk.apache.org/contact.html instead.
+We use the issue tracker for bugs and feature requests. For general questions and discussion please use https://openwhisk.apache.org/slack.html or https://openwhisk.apache.org/community.html instead.
 
 Do NOT share passwords, credentials or other confidential information.
 
