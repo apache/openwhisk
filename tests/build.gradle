@@ -72,7 +72,7 @@ ext.testSets = [
             "org/apache/openwhisk/core/cli/test/**",
             "org/apache/openwhisk/core/limits/**",
             "org/apache/openwhisk/core/scheduler/**",
-            "org/apache/openwhisk/core/loadBalancer/test/FPCPoolBalancerTests",
+            "org/apache/openwhisk/core/loadBalancer/test/*FPCPoolBalancerTests*",
             "org/apache/openwhisk/common/etcd/**",
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
@@ -92,7 +92,7 @@ ext.testSets = [
             "org/apache/openwhisk/common/etcd/**",
             "org/apache/openwhisk/core/containerpool/v2/test/**",
             "org/apache/openwhisk/core/scheduler/**",
-            "org/apache/openwhisk/core/loadBalancer/test/FPCPoolBalancerTests",
+            "org/apache/openwhisk/core/loadBalancer/test/*FPCPoolBalancerTests*",
             "org/apache/openwhisk/core/service/**",
         ]
     ],
