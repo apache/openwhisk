@@ -61,6 +61,8 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   protected[loadBalancer] val activationPromises =
     TrieMap[ActivationId, Promise[Either[ActivationId, WhiskActivation]]]()
   protected val activationsPerNamespace = TrieMap[UUID, LongAdder]()
+  protected val activationsPerController = TrieMap[ControllerInstanceId, LongAdder]()
+  protected val activationsPerInvoker = TrieMap[InvokerInstanceId, LongAdder]()
   protected val totalActivations = new LongAdder()
   protected val totalBlackBoxActivationMemory = new LongAdder()
   protected val totalManagedActivationMemory = new LongAdder()
@@ -83,6 +85,14 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   override def activeActivationsFor(namespace: UUID): Future[Int] =
     Future.successful(activationsPerNamespace.get(namespace).map(_.intValue).getOrElse(0))
   override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue)
+  override def activeActivationsByController(controller: String): Future[Int] =
+    Future.successful(activationsPerController.get(ControllerInstanceId(controller)).map(_.intValue()).getOrElse(0))
+  override def activeActivationsByController: Future[List[ActivationId]] =
+    Future.successful(activationSlots.keySet.toList)
+  override def activeActivationsByInvoker(invoker: String): Future[Int] =
+    Future.successful(
+      activationsPerInvoker.get(InvokerInstanceId(invoker.toInt, userMemory = 0.MB)).map(_.intValue()).getOrElse(0))
+  override def close: Unit = activationFeed ! GracefulShutdown
 
   /**
    * Calculate the duration within which a completion ack must be received for an activation.
@@ -126,6 +136,11 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
 
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
 
+    activationsPerController.getOrElseUpdate(controllerInstance, new LongAdder()).increment()
+    activationsPerInvoker
+      .getOrElseUpdate(InvokerInstanceId(instance.instance, userMemory = 0.MB), new LongAdder())
+      .increment()
+
     // Completion Ack must be received within the calculated time.
     val completionAckTimeout = calculateCompletionAckTimeout(action.limits.timeout.duration)
 
@@ -162,7 +177,8 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           action.fullyQualifiedName(true),
           timeoutHandler,
           isBlackboxInvocation,
-          msg.blocking)
+          msg.blocking,
+          controllerInstance)
       })
 
     resultPromise

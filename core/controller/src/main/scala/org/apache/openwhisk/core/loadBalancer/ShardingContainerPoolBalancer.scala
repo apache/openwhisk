@@ -627,4 +627,5 @@ case class ActivationEntry(id: ActivationId,
                            fullyQualifiedEntityName: FullyQualifiedEntityName,
                            timeoutHandler: Cancellable,
                            isBlackbox: Boolean,
-                           isBlocking: Boolean)
+                           isBlocking: Boolean,
+                           controllerId: ControllerInstanceId = ControllerInstanceId("0"))
