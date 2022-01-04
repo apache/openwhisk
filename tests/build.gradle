@@ -75,6 +75,7 @@ ext.testSets = [
             "org/apache/openwhisk/common/etcd/**",
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
+            "org/apache/openwhisk/core/loadBalancer/test/*FPCPoolBalancerTests*",
             "org/apache/openwhisk/testEntities/**",
             "invokerShoot/**"
         ]
@@ -90,6 +91,7 @@ ext.testSets = [
         "includes" : [
             "org/apache/openwhisk/common/etcd/**",
             "org/apache/openwhisk/core/containerpool/v2/test/**",
+            "org/apache/openwhisk/core/loadBalancer/test/*FPCPoolBalancerTests*",
             "org/apache/openwhisk/core/scheduler/**",
             "org/apache/openwhisk/core/service/**",
         ]
