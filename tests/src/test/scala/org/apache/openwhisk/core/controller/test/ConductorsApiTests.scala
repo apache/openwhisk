@@ -320,7 +320,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   // fake load balancer to emulate a handful of actions
   class FakeLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionContext)
-    extends DegenerateLoadBalancerService(config) {
+      extends DegenerateLoadBalancerService(config) {
 
     private def respond(action: ExecutableWhiskActionMetaData, msg: ActivationMessage, result: JsObject) = {
       val response =
