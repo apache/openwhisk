@@ -90,8 +90,6 @@ jobs:
         - TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 2m
         - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 4 1 2 2m
         - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 4 1 2 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 100 110 2 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 100 110 2 2m
         - OPENWHISK_HOST="172.17.0.1" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ApiV1Simulation
         - OPENWHISK_HOST="172.17.0.1" MEAN_RESPONSE_TIME="1000" API_KEY="$(cat ansible/files/auth.guest)" EXCLUDED_KINDS="python:default,java:default,swift:default" PAUSE_BETWEEN_INVOKES="100" ./gradlew gatlingRun-org.apache.openwhisk.LatencySimulation
         - OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
