@@ -304,6 +304,11 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         totalActivationMemory.add(entry.memoryLimit.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
 
+        activationsPerController.get(entry.controllerId).foreach(_.decrement())
+        activationsPerInvoker
+          .get(InvokerInstanceId(entry.invokerName.instance, userMemory = 0.MB))
+          .foreach(_.decrement())
+
         invoker.foreach(releaseInvoker(_, entry))
 
         if (!forced) {
