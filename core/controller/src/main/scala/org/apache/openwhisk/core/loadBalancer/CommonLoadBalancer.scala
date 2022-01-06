@@ -306,7 +306,6 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         activationsPerInvoker
           .get(InvokerInstanceId(entry.invokerName.instance, userMemory = 0.MB))
           .foreach(_.decrement())
-        invoker.foreach(releaseInvoker(_, entry))
 
         invoker.foreach(releaseInvoker(_, entry))
 
