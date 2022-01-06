@@ -308,8 +308,6 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           .foreach(_.decrement())
         invoker.foreach(releaseInvoker(_, entry))
 
-        invoker.foreach(releaseInvoker(_, entry))
-
         if (!forced) {
           entry.timeoutHandler.cancel()
           // notice here that the activationPromises is not touched, because the expectation is that
