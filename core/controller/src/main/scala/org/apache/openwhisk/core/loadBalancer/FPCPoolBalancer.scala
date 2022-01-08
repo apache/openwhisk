@@ -161,7 +161,7 @@ class FPCPoolBalancer(config: WhiskConfig,
           case Success(_) =>
             logging.info(
               this,
-              s"Create queue successfully for $invocationNamespace/$fullyQualifiedEntityName on ${scheduler.sid}")
+              s"Created queue successfully for $invocationNamespace/$fullyQualifiedEntityName on ${scheduler.sid}")
           case Failure(t) =>
             logging.error(
               this,
