@@ -297,7 +297,7 @@ class FPCPoolBalancer(config: WhiskConfig,
 
       case _ =>
         activationFeed ! MessageFeed.Processed
-        logging.error(this, s"Unexpected Acknowledgment message received by loadbalancer: $raw")
+        logging.warn(this, s"Unexpected Acknowledgment message received by loadbalancer: $raw")
     }
   }
 
@@ -672,25 +672,6 @@ object FPCPoolBalancer extends LoadBalancerProvider {
    *
    */
   def rng(mod: Int): Int = ThreadLocalRandom.current().nextInt(mod)
-
-  /**
-   * Assign an invoker to a message
-   *
-   * @param invokers Invoker pool
-   * @param minMemory Minimum memory for all invokers
-   * @return Assigned an invoker
-   */
-  // TODO add input/output example
-  def schedule(invokers: IndexedSeq[InvokerHealth], minMemory: ByteSize): Option[InvokerInstanceId] = {
-    val availableInvokers = invokers.filter(i => i.status.isUsable && i.id.userMemory >= minMemory)
-    val numInvokers = availableInvokers.size
-    if (numInvokers > 0) {
-      val invoker = availableInvokers(rng(numInvokers))
-      Some(invoker.id)
-    } else {
-      None
-    }
-  }
 
   /**
    * Assign a scheduler to a message, return the scheduler which has least queues
