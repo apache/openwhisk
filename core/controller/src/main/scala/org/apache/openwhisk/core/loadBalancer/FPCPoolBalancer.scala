@@ -182,7 +182,7 @@ class FPCPoolBalancer(config: WhiskConfig,
               .getOrElse {
                 logging.error(
                   this,
-                  s"failed to create queue for $invocationNamespace/$fullyQualifiedEntityName, no scheduler endpoint available related activations may failed")
+                  s"failed to create queue for $invocationNamespace/$fullyQualifiedEntityName, no scheduler endpoint available related activations may fail")
               }
         } else
       logging.error(
