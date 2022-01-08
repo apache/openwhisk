@@ -625,7 +625,7 @@ class FPCPoolBalancer(config: WhiskConfig,
      *
      * Action Throttle true      -> 429
      *                 false     -> Pass (wait 429, Container already exist)
-     *                 not exist -> Namespace Throttled true      -> 429 (Cannot more create container)
+     *                 not exist -> Namespace Throttled true      -> 429 (Cannot create more containers)
      *                                                  false     -> Pass
      *                                                  not exist -> Pass
      */
