@@ -187,7 +187,7 @@ class FPCPoolBalancer(config: WhiskConfig,
         } else
       logging.error(
         this,
-        s"failed to create queue for $invocationNamespace/$fullyQualifiedEntityName, related activations may failed")
+        s"failed to create queue for $invocationNamespace/$fullyQualifiedEntityName, related activations may fail")
   }
 
   /**
