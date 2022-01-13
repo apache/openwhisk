@@ -64,8 +64,6 @@ object FPCInvokerReactive extends InvokerProvider {
     poolConfig: ContainerPoolConfig,
     limitsConfig: ConcurrencyLimitConfig)(implicit actorSystem: ActorSystem, logging: Logging): InvokerCore =
     new FPCInvokerReactive(config, instance, producer, poolConfig, limitsConfig)
-
-  var invokerHealthManagerActor: Option[ActorRef] = None
 }
 
 class FPCInvokerReactive(config: WhiskConfig,
@@ -217,7 +215,7 @@ class FPCInvokerReactive(config: WhiskConfig,
   private val invokerHealthManager =
     actorSystem.actorOf(
       InvokerHealthManager.props(instance, healthContainerProxyFactory, dataManagementService, entityStore))
-  FPCInvokerReactive.invokerHealthManagerActor = Some(invokerHealthManager)
+
   invokerHealthManager ! Enable
 
   private def activationClientFactory(etcd: EtcdClient)(
