@@ -684,7 +684,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }
   }
 
-  it should "return activation empty when db store is set to not application failures" in {
+  it should "return activation empty when db store is set to not application failures and activation is application failure" in {
     implicit val tid = transid()
     val activation =
       WhiskActivation(
@@ -694,7 +694,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         ActivationId.generate(),
         start = Instant.now,
         end = Instant.now,
-        response = ActivationResponse.whiskError("activation error"))
+        response = ActivationResponse.applicationError("activation error"))
 
     storeActivation(
       activation,
@@ -705,6 +705,35 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
     Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
+    }
+  }
+
+  it should "get activation result by id when db store is set to not application failures failures and activation is unsuccessful" in {
+    implicit val tid = transid()
+    val activation =
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now,
+        response = ActivationResponse.whiskError("activation error"))
+    try {
+      storeActivation(
+        activation,
+        true,
+        ActivationStoreLevel.STORE_FAILURES_NOT_APPLICATION_ERRORS,
+        ActivationStoreLevel.STORE_FAILURES_NOT_APPLICATION_ERRORS,
+        context)
+
+      Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[JsObject]
+        response should be(activation.response.toExtendedJson)
+      }
+    } finally {
+      deleteActivation(ActivationId(activation.docid.asString), context)
     }
   }
 
