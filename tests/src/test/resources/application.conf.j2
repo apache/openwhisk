@@ -140,13 +140,15 @@ whisk {
 
     scheduler {
         protocol = "{{ scheduler.protocol }}"
+        grpc {
+            tls = "{{ scheduler.grpc.tls | default('false') | lower }}"
+        }
         queue-manager {
             max-scheduling-time     = "{{ scheduler.queueManager.maxSchedulingTime }}"
             max-retries-to-get-queue    = "{{ scheduler.queueManager.maxRetriesToGetQueue }}"
         }
         max-peek = "{{ scheduler.maxPeek }}"
     }
-
 }
 
 #test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)

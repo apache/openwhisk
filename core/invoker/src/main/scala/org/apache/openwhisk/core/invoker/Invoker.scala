@@ -220,6 +220,7 @@ trait InvokerProvider extends Spi {
 trait InvokerCore {
   def enable(): Route
   def disable(): Route
+  def backfillPrewarm(): Route
 }
 
 /**

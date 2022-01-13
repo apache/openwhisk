@@ -35,12 +35,14 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       concurrentInvocations: Option[Int] = None,
                       firesPerMinute: Option[Int] = None,
                       allowedKinds: Option[Set[String]] = None,
-                      storeActivations: Option[Boolean] = None)
+                      storeActivations: Option[Boolean] = None,
+                      warmedContainerKeepingCount: Option[Int] = None,
+                      warmedContainerKeepingTimeout: Option[String] = None)
 
 object UserLimits extends DefaultJsonProtocol {
   val standardUserLimits = UserLimits()
 
-  implicit val serdes = jsonFormat5(UserLimits.apply)
+  implicit val serdes = jsonFormat7(UserLimits.apply)
 }
 
 protected[core] case class Namespace(name: EntityName, uuid: UUID)

@@ -510,6 +510,8 @@ object LoggingMarkers {
         "initiator" -> invocationNamespace,
         "namespace" -> namespace,
         "action" -> action))(MeasurementUnit.none)
+  def INVOKER_CONTAINER_CREATE(action: String, state: String) =
+    LogMarkerToken(invoker, "creation", counter, None, Map("action" -> action, "state" -> state))(MeasurementUnit.none)
   val INVOKER_CONTAINER_HEALTH = LogMarkerToken(invoker, "containerHealth", start)(MeasurementUnit.time.milliseconds)
   val INVOKER_CONTAINER_HEALTH_FAILED_WARM =
     LogMarkerToken(invoker, "containerHealthFailed", counter, Some("warm"), Map("containerState" -> "warm"))(
