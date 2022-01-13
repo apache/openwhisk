@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.database
 
 import java.time.Instant
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpRequest
 import spray.json.JsObject
@@ -33,9 +32,13 @@ import scala.concurrent.Future
 case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
 
 trait ActivationStore {
-
+  /* DEPRECATED: disableStoreResult config is now deprecated replaced with blocking activation store level */
   protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
-  protected val disableStoreNonBlockingResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreNonBlockingResult)
+  protected val storeBlockingResultLevelConfig =
+    if (disableStoreResultConfig) ActivationStoreLevel.STORE_FAILURES
+    else ActivationStoreLevel.valueOf(loadConfigOrThrow[String](ConfigKeys.storeBlockingResultLevel))
+  protected val storeNonBlockingResultLevelConfig =
+    ActivationStoreLevel.valueOf(loadConfigOrThrow[String](ConfigKeys.storeNonBlockingResultLevel))
   protected val unstoredLogsEnabledConfig = loadConfigOrThrow[Boolean](ConfigKeys.unstoredLogsEnabled)
 
   /**
@@ -44,7 +47,7 @@ trait ActivationStore {
    * @param activation activation to store
    * @param isBlockingActivation is activation blocking
    * @param disableBlockingStore do not store activation if successful and blocking
-   * @param disableNonBlockingStore do not store activation if successful and non-blocking
+   * @param nonBlockingStoreLevel do not store activation if successful and non-blocking
    * @param context user and request context
    * @param transid transaction ID for request
    * @param notifier cache change notifier
@@ -52,18 +55,18 @@ trait ActivationStore {
    */
   def storeAfterCheck(activation: WhiskActivation,
                       isBlockingActivation: Boolean,
-                      disableBlockingStore: Option[Boolean],
-                      disableNonBlockingStore: Option[Boolean],
+                      blockingStoreLevel: Option[ActivationStoreLevel.Value],
+                      nonBlockingStoreLevel: Option[ActivationStoreLevel.Value],
                       context: UserContext)(implicit transid: TransactionId,
                                             notifier: Option[CacheChangeNotification],
                                             logging: Logging): Future[DocInfo] = {
     if (context.user.limits.storeActivations.getOrElse(true) &&
         shouldStoreActivation(
-          activation.response.isSuccess,
+          activation,
           isBlockingActivation,
           transid.meta.extraLogging,
-          disableBlockingStore.getOrElse(disableStoreResultConfig),
-          disableNonBlockingStore.getOrElse(disableStoreNonBlockingResultConfig))) {
+          blockingStoreLevel.getOrElse(storeBlockingResultLevelConfig),
+          nonBlockingStoreLevel.getOrElse(storeNonBlockingResultLevelConfig))) {
 
       store(activation, context)
     } else {
@@ -188,18 +191,29 @@ trait ActivationStore {
    * - an activation in debug mode
    * - activation stores is not disabled via a configuration parameter
    *
-   * @param isSuccess is successful activation
+   * @param activation to check
    * @param isBlocking is blocking activation
    * @param debugMode is logging header set to "on" for the invocation
-   * @param disableBlockingStore is disable store configured
+   * @param blockingStoreLevel level of activation status to store for blocking invocations
+   * @param nonBlockingStoreLevel level of activation status to store for blocking invocations
    * @return Should the activation be stored to the database
    */
-  private def shouldStoreActivation(isSuccess: Boolean,
+  private def shouldStoreActivation(activation: WhiskActivation,
                                     isBlocking: Boolean,
                                     debugMode: Boolean,
-                                    disableBlockingStore: Boolean,
-                                    disableNonBlockingStore: Boolean): Boolean = {
-    !isSuccess  || debugMode || (!isBlocking && !disableNonBlockingStore) || (isBlocking && !disableBlockingStore)
+                                    blockingStoreLevel: ActivationStoreLevel.Value,
+                                    nonBlockingStoreLevel: ActivationStoreLevel.Value): Boolean = {
+    def shouldStoreOnLevel(storageLevel: ActivationStoreLevel.Value): Boolean = {
+      storageLevel match {
+        case ActivationStoreLevel.STORE_ALWAYS   => true
+        case ActivationStoreLevel.STORE_FAILURES => !activation.response.isSuccess
+        case ActivationStoreLevel.STORE_FAILURES_NOT_APPLICATION_ERRORS =>
+          !activation.response.isSuccess && !activation.response.isApplicationError
+      }
+    }
+
+    debugMode || (isBlocking && shouldStoreOnLevel(blockingStoreLevel)) || (!isBlocking && shouldStoreOnLevel(
+      nonBlockingStoreLevel))
   }
 }
 
