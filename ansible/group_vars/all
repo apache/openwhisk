@@ -465,6 +465,8 @@ etcd_connect_string: "{% set ret = [] %}\
 
 scheduler:
   protocol: "{{ scheduler_protocol | default('http') }}"
+  grpc:
+    tls: "{{ scheduler_grpc_tls | default(false) }}"
   maxPeek: "{{ scheduler_max_peek | default(128) }}"
   queueManager:
     maxSchedulingTime: "{{ scheduler_maxSchedulingTime | default('20 second') }}"

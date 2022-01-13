@@ -130,6 +130,10 @@ class TestInvokerReactive extends InvokerCore with BasicHttpService {
     complete("")
   }
 
+  override def backfillPrewarm(): Route = {
+    complete("")
+  }
+
   def reset(): Unit = {
     enableCount = 0
     disableCount = 0

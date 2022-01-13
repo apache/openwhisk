@@ -95,6 +95,7 @@ class CreationJobManagerTests
   }
 
   def feedFactory(actorRefFactory: ActorRefFactory,
+                  description: String,
                   topic: String,
                   maxActiveAcksPerPoll: Int,
                   handler: Array[Byte] => Future[Unit]): ActorRef = {

@@ -117,7 +117,7 @@ class FunctionPullingContainerProxyTests
       false,
       1.second)
 
-  val timeoutConfig = ContainerProxyTimeoutConfig(5.seconds, 5.seconds)
+  val timeoutConfig = ContainerProxyTimeoutConfig(5.seconds, 5.seconds, 5.seconds)
 
   val messageTransId = TransactionId(TransactionId.testing.meta.id)
 
