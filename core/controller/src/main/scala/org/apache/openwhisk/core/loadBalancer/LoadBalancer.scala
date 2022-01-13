@@ -55,6 +55,15 @@ trait LoadBalancer {
   /** Gets the number of in-flight activations for a specific user. */
   def activeActivationsFor(namespace: UUID): Future[Int]
 
+  /** Gets the number of in-flight activations for a specific controller. */
+  def activeActivationsByController(controller: String): Future[Int]
+
+  /** Gets the in-flight activations */
+  def activeActivationsByController: Future[List[ActivationId]]
+
+  /** Gets the number of in-flight activations for a specific invoker. */
+  def activeActivationsByInvoker(invoker: String): Future[Int]
+
   /** Gets the number of in-flight activations in the system. */
   def totalActiveActivations: Future[Int]
 
@@ -63,6 +72,9 @@ trait LoadBalancer {
 
   /** Gets the throttling for given action. */
   def checkThrottle(namespace: EntityPath, action: String): Boolean = false
+
+  /** Close the load balancer */
+  def close: Unit = {}
 }
 
 /**

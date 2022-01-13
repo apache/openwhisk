@@ -617,6 +617,7 @@ case class ShardingContainerPoolBalancerConfig(managedFraction: Double,
  * @param timeoutHandler times out completion of this activation, should be canceled on good paths
  * @param isBlackbox true if the invoked action is a blackbox action, otherwise false (managed action)
  * @param isBlocking true if the action is invoked in a blocking fashion, i.e. "somebody" waits for the result
+ * @param controllerId id of the controller that this activation comes from
  */
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
@@ -627,4 +628,5 @@ case class ActivationEntry(id: ActivationId,
                            fullyQualifiedEntityName: FullyQualifiedEntityName,
                            timeoutHandler: Cancellable,
                            isBlackbox: Boolean,
-                           isBlocking: Boolean)
+                           isBlocking: Boolean,
+                           controllerId: ControllerInstanceId = ControllerInstanceId("0"))
