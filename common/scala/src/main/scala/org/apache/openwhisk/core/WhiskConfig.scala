@@ -303,5 +303,5 @@ object ConfigKeys {
 
   val whiskClusterName = "whisk.cluster.name"
 
-  val dataManagementServiceRetryInterval = "whisk.scheduler.data-management-service.retryInterval"
+  val dataManagementServiceRetryInterval = "whisk.scheduler.data-management-service.retry-interval"
 }
