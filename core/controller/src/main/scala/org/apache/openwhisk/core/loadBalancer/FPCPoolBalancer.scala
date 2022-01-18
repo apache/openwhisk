@@ -366,7 +366,8 @@ class FPCPoolBalancer(config: WhiskConfig,
           // and complete the promise with a failure if necessary
           activationPromises
             .remove(aid)
-            .foreach(_.tryFailure(new Throwable("Activation entry has timed out, no completion or active ack received yet")))
+            .foreach(
+              _.tryFailure(new Throwable("Activation entry has timed out, no completion or active ack received yet")))
         }
 
       // Active acks that are received here are strictly from user actions - health actions are not part of
