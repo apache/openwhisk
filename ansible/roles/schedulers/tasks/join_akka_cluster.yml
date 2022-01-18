@@ -1,0 +1,38 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+---
+#
+#  Scheduler 'plugin' that will add the items necessary to the scheduler
+#  environment to cause the scheduler to join a specified akka cluster
+#
+
+- name: add akka port to ports_to_expose
+  set_fact:
+    ports_to_expose: >-
+      {{ ports_to_expose }} +
+      [ "{{ (scheduler.akka.cluster.basePort + (scheduler_index | int)) }}:"
+      + "{{ scheduler.akka.cluster.bindPort }}" ]
+
+- name: add seed nodes to scheduler environment
+  set_fact:
+    env: >-
+      {{ env | combine({
+        'CONFIG_akka_cluster_seedNodes_' ~ seedNode.0:
+          'akka://scheduler-actor-system@'~seedNode.1~':'~(scheduler.akka.cluster.basePort+seedNode.0)
+      }) }}
+  with_indexed_items: "{{ scheduler.akka.cluster.seedNodes }}"
+  loop_control:
+    loop_var: seedNode
+
+- name: Add akka environment to scheduler environment
+  vars:
+    akka_env:
+      "CONFIG_akka_actor_provider": "{{ scheduler.akka.provider }}"
+      "CONFIG_akka_remote_artery_canonical_hostname":
+        "{{ scheduler.akka.cluster.host[(scheduler_index | int)] }}"
+      "CONFIG_akka_remote_artery_canonical_port":
+        "{{ scheduler.akka.cluster.basePort + (scheduler_index | int) }}"
+      "CONFIG_akka_remote_artery_bind_port":
+        "{{ scheduler.akka.cluster.bindPort }}"
+  set_fact:
+    env: "{{ env | combine(akka_env) }}"

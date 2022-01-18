@@ -1,0 +1,24 @@
+---
+# Remove scheduler containers.
+
+- name: get scheduler name
+  set_fact:
+    scheduler_name: "{{ name_prefix ~ host_group.index(inventory_hostname) }}"
+
+- name: remove scheduler
+  docker_container:
+    name: "{{ scheduler_name }}"
+    state: absent
+  ignore_errors: "True"
+
+- name: remove scheduler log directory
+  file:
+    path: "{{ whisk_logs_dir }}/{{ scheduler_name }}"
+    state: absent
+  become: "{{ logs.dir.become }}"
+
+- name: remove scheduler conf directory
+  file:
+    path: "{{ scheduler.confdir }}/{{ scheduler_name }}"
+    state: absent
+  become: "{{ scheduler.dir.become }}"

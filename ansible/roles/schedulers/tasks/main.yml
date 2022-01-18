@@ -1,0 +1,10 @@
+---
+# This role will install scheduler in group 'schedulers' in the environment inventory
+# In deploy mode it will deploy schedulers.
+# In clean mode it will remove the scheduler containers.
+
+- import_tasks: deploy.yml
+  when: mode == "deploy"
+
+- import_tasks: clean.yml
+  when: mode == "clean"
