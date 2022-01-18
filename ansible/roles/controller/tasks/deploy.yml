@@ -309,6 +309,21 @@
     env: "{{ env | combine(mongodb_env) }}"
   when: db.artifact_store.backend == "MongoDB"
 
+- name: setup scheduler env
+  set_fact:
+    scheduler_env:
+      "CONFIG_whisk_etcd_hosts": "{{ etcd_connect_string }}"
+      "CONFIG_whisk_etcd_lease_timeout": "{{ etcd.lease.timeout }}"
+      "CONFIG_whisk_etcd_pool_threads": "{{ etcd.pool_threads }}"
+      "CONFIG_whisk_scheduler_grpc_tls": "{{ scheduler.grpc.tls | default('false') | lower }}"
+      "CONFIG_whisk_scheduler_maxPeek": "{{ scheduler.maxPeek }}"
+  when: enable_scheduler
+
+- name: merge scheduler env
+  set_fact:
+    env: "{{ env | combine(scheduler_env) }}"
+  when: enable_scheduler
+
 - name: populate volumes for controller
   set_fact:
     controller_volumes:
