@@ -34,9 +34,11 @@ case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
 trait ActivationStore {
   /* DEPRECATED: disableStoreResult config is now deprecated replaced with blocking activation store level */
   protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
-  protected val storeBlockingResultLevelConfig =
-    if (disableStoreResultConfig) ActivationStoreLevel.STORE_FAILURES
-    else ActivationStoreLevel.valueOf(loadConfigOrThrow[String](ConfigKeys.storeBlockingResultLevel))
+  protected val storeBlockingResultLevelConfig = {
+    val configValue = ActivationStoreLevel.valueOf(loadConfigOrThrow[String](ConfigKeys.storeBlockingResultLevel))
+    if (disableStoreResultConfig && configValue == ActivationStoreLevel.STORE_ALWAYS) ActivationStoreLevel.STORE_FAILURES
+    else configValue
+  }
   protected val storeNonBlockingResultLevelConfig =
     ActivationStoreLevel.valueOf(loadConfigOrThrow[String](ConfigKeys.storeNonBlockingResultLevel))
   protected val unstoredLogsEnabledConfig = loadConfigOrThrow[Boolean](ConfigKeys.unstoredLogsEnabled)
@@ -46,7 +48,7 @@ trait ActivationStore {
    *
    * @param activation activation to store
    * @param isBlockingActivation is activation blocking
-   * @param disableBlockingStore do not store activation if successful and blocking
+   * @param blockingStoreLevel do not store activation if successful and blocking
    * @param nonBlockingStoreLevel do not store activation if successful and non-blocking
    * @param context user and request context
    * @param transid transaction ID for request
@@ -62,7 +64,7 @@ trait ActivationStore {
                                             logging: Logging): Future[DocInfo] = {
     if (context.user.limits.storeActivations.getOrElse(true) &&
         shouldStoreActivation(
-          activation,
+          activation.response,
           isBlockingActivation,
           transid.meta.extraLogging,
           blockingStoreLevel.getOrElse(storeBlockingResultLevelConfig),
@@ -191,14 +193,14 @@ trait ActivationStore {
    * - an activation in debug mode
    * - activation stores is not disabled via a configuration parameter
    *
-   * @param activation to check
+   * @param activationResponse to check
    * @param isBlocking is blocking activation
    * @param debugMode is logging header set to "on" for the invocation
    * @param blockingStoreLevel level of activation status to store for blocking invocations
    * @param nonBlockingStoreLevel level of activation status to store for blocking invocations
    * @return Should the activation be stored to the database
    */
-  private def shouldStoreActivation(activation: WhiskActivation,
+  private def shouldStoreActivation(activationResponse: ActivationResponse,
                                     isBlocking: Boolean,
                                     debugMode: Boolean,
                                     blockingStoreLevel: ActivationStoreLevel.Value,
@@ -206,9 +208,9 @@ trait ActivationStore {
     def shouldStoreOnLevel(storageLevel: ActivationStoreLevel.Value): Boolean = {
       storageLevel match {
         case ActivationStoreLevel.STORE_ALWAYS   => true
-        case ActivationStoreLevel.STORE_FAILURES => !activation.response.isSuccess
+        case ActivationStoreLevel.STORE_FAILURES => !activationResponse.isSuccess
         case ActivationStoreLevel.STORE_FAILURES_NOT_APPLICATION_ERRORS =>
-          !activation.response.isSuccess && !activation.response.isApplicationError
+          activationResponse.isContainerError || activationResponse.isWhiskError
       }
     }
 
