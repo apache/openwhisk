@@ -294,7 +294,7 @@
 - name: Judge current scheduler whether deployed
   shell: echo $(docker ps | grep {{ scheduler_name }} | wc -l)
   register: schedulerDeployed
-  when: zerodowntimeDeployment.enabled == true
+  when: zeroDowntimeDeployment.enabled == true
 
 - name: disable scheduler{{ groups['schedulers'].index(inventory_hostname) }} before redeploy scheduler
   uri:
@@ -306,7 +306,7 @@
     password: "{{ scheduler.password }}"
     force_basic_auth: yes
   ignore_errors: "{{ scheduler.deployment_ignore_error }}"
-  when: zerodowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0"
+  when: zeroDowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0"
 
 - name: wait until all queue and create queue task is finished before redeploy scheduler when using apicall solution or half solution
   uri:
@@ -320,12 +320,12 @@
   until: totalQueue.content == "0"
   retries: 180
   delay: 5
-  when: zerodowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0"
+  when: zeroDowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0"
   ignore_errors: "{{ scheduler.deployment_ignore_error }}"
 
 - name: wait until all queue and create queue task is finished before redeploy scheduler using sleep solution
   shell: sleep 120s
-  when: zerodowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0" and zerodowntimeDeployment.solution == 'sleep'
+  when: zeroDowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0" and zerodowntimeDeployment.solution == 'sleep'
 
 - name: (re)start scheduler
   docker_container:

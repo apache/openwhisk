@@ -442,7 +442,7 @@ metrics:
 
 user_events: "{{ user_events_enabled | default(false) | lower }}"
 
-zerodowntimeDeployment:
+zeroDowntimeDeployment:
   enabled: "{{ zerodowntime_deployment_switch | default(true) }}"
   solution: "{{ zerodowntime_deployment_solution | default('apicall') }}"
 
