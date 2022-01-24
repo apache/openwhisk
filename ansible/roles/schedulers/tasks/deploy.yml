@@ -226,7 +226,7 @@
       "CONFIG_whisk_fraction_blackboxFraction":
         "{{ scheduler.blackboxFraction }}"
 
-      "CONFIG_whisk_log_level": "{{ scheduler.loglevel }}"
+      "CONFIG_logback_log_level": "{{ scheduler.loglevel }}"
 
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
