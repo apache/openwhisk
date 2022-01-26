@@ -34,7 +34,7 @@ case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
 trait ActivationStore {
   val logging: Logging
 
-  /* DEPRECATED: disableStoreResult config is now deprecated replaced with blocking activation store level */
+  /* DEPRECATED: disableStoreResult config is now deprecated replaced with blocking activation store level (storeBlockingResultLevel) */
   protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
   protected val storeBlockingResultLevelConfig = {
     try {
