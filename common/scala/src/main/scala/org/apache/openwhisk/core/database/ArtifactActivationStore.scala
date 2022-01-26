@@ -27,7 +27,7 @@ import org.apache.openwhisk.core.entity._
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-class ArtifactActivationStore(actorSystem: ActorSystem, logging: Logging) extends ActivationStore {
+class ArtifactActivationStore(actorSystem: ActorSystem, override val logging: Logging) extends ActivationStore {
 
   implicit val executionContext = actorSystem.dispatcher
 

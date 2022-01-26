@@ -32,12 +32,21 @@ import scala.concurrent.Future
 case class UserContext(user: Identity, request: HttpRequest = HttpRequest())
 
 trait ActivationStore {
+  val logging: Logging
+
   /* DEPRECATED: disableStoreResult config is now deprecated replaced with blocking activation store level */
   protected val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
   protected val storeBlockingResultLevelConfig = {
-    val configValue = ActivationStoreLevel.valueOf(loadConfigOrThrow[String](ConfigKeys.storeBlockingResultLevel))
-    if (disableStoreResultConfig && configValue == ActivationStoreLevel.STORE_ALWAYS) ActivationStoreLevel.STORE_FAILURES
-    else configValue
+    try {
+      ActivationStoreLevel.valueOf(loadConfigOrThrow[String](ConfigKeys.storeBlockingResultLevel))
+    } catch {
+      case _: Exception =>
+        val disableStoreResultConfig = loadConfigOrThrow[Boolean](ConfigKeys.disableStoreResult)
+        logging.warn(
+          this,
+          s"The config ${ConfigKeys.disableStoreResult} being used is deprecated. Please use the replacement config ${ConfigKeys.storeBlockingResultLevel}")
+        if (disableStoreResultConfig) ActivationStoreLevel.STORE_FAILURES else ActivationStoreLevel.STORE_ALWAYS
+    }
   }
   protected val storeNonBlockingResultLevelConfig =
     ActivationStoreLevel.valueOf(loadConfigOrThrow[String](ConfigKeys.storeNonBlockingResultLevel))
