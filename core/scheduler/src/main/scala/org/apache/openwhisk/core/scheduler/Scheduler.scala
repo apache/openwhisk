@@ -323,7 +323,7 @@ object Scheduler {
     val msgProvider = SpiLoader.get[MessagingProvider]
 
     Seq(
-      (topicPrefix + "scheduler" + instanceId.asString, "actions", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
+      (topicPrefix + "scheduler" + instanceId.asString, "scheduler", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
       (
         topicPrefix + "creationAck" + instanceId.asString,
         "creationAck",
