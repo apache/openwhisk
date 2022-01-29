@@ -268,12 +268,9 @@ object Scheduler {
       schedulerHost -> null,
       schedulerAkkaPort -> null,
       schedulerRpcPort -> null,
-      WhiskConfig.actionInvokePerMinuteLimit -> null,
-      WhiskConfig.actionInvokeConcurrentLimit -> null,
-      WhiskConfig.triggerFirePerMinuteLimit -> null) ++
+      WhiskConfig.actionInvokeConcurrentLimit -> null) ++
       kafkaHosts ++
       zookeeperHosts ++
-      wskApiHost ++
       ExecManifest.requiredProperties
 
   def initKamon(instance: SchedulerInstanceId): Unit = {

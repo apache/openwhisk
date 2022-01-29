@@ -121,39 +121,27 @@
       "CONFIG_whisk_scheduler_queue_gracefulShutdownTimeout": "{{ scheduler.queue.gracefulShutdownTimeout }}"
       "CONFIG_whisk_scheduler_queue_maxRetentionSize": "{{ scheduler.queue.maxRetentionSize }}"
       "CONFIG_whisk_scheduler_queue_maxRetentionMs": "{{ scheduler.queue.maxRetentionMs }}"
-      "CONFIG_whisk_scheduler_queue_maxBlackboxRetentionMs": "{{ scheduler.queue.maxBlackboxRetentionMs }}"
       "CONFIG_whisk_scheduler_queue_throttlingFraction": "{{ scheduler.queue.throttlingFraction }}"
       "CONFIG_whisk_scheduler_queue_durationBufferSize": "{{ scheduler.queue.durationBufferSize }}"
       "CONFIG_whisk_durationChecker_timeWindow": "{{ durationChecker.timeWindow }}"
 
-      "CONFIG_whisk_watcher_eventNotificationDelayMs": "{{ watcher.eventNotificationDelayMs }}"
-
       "TZ": "{{ docker.timezone }}"
-
-      "CONFIG_whisk_info_date": "{{ whisk.version.date }}"
-      "CONFIG_whisk_info_buildNo": "{{ docker.image.tag }}"
 
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor":
         "{{ kafka.replicationFactor | default() }}"
-      "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionBytes":
-        "{{ kafka_topics_cacheInvalidation_retentionBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionMs":
-        "{{ kafka_topics_cacheInvalidation_retentionMS | default() }}"
-      "CONFIG_whisk_kafka_topics_cacheInvalidation_segmentBytes":
-        "{{ kafka_topics_cacheInvalidation_segmentBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_completed_retentionBytes":
-        "{{ kafka_topics_completed_retentionBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_completed_retentionMs":
-        "{{ kafka_topics_completed_retentionMS | default() }}"
-      "CONFIG_whisk_kafka_topics_completed_segmentBytes":
-        "{{ kafka_topics_completed_segmentBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_health_retentionBytes":
-        "{{ kafka_topics_health_retentionBytes | default() }}"
-      "CONFIG_whisk_kafka_topics_health_retentionMs":
-        "{{ kafka_topics_health_retentionMS | default() }}"
-      "CONFIG_whisk_kafka_topics_health_segmentBytes":
-        "{{ kafka_topics_health_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_scheduler_retentionBytes":
+        "{{ kafka_topics_scheduler_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_scheduler_retentionMs":
+        "{{ kafka_topics_scheduler_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_scheduler_segmentBytes":
+        "{{ kafka_topics_scheduler_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_creationAck_retentionBytes":
+        "{{ kafka_topics_creationAck_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_creationAck_retentionMs":
+        "{{ kafka_topics_creationAck_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_creationAck_segmentBytes":
+        "{{ kafka_topics_creationAck_segmentBytes | default() }}"
       "CONFIG_whisk_kafka_topics_prefix":
         "{{ kafka.topicsPrefix }}"
       "CONFIG_whisk_kafka_topics_userEvent_prefix":
@@ -170,10 +158,7 @@
         "{{ kafka.ssl.keystore.password }}"
       "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
 
-      "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
       "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
-      "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.firesPerMinute }}"
-      "LIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ limits.sequenceMaxLength }}"
 
       "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
       "CONFIG_whisk_couchdb_host": "{{ db.host }}"
@@ -187,9 +172,6 @@
       "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}"
       "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}"
       "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"
-      "WHISK_API_HOST_PROTO": "{{ whisk_api_host_proto | default('https') }}"
-      "WHISK_API_HOST_PORT": "{{ whisk_api_host_port | default('443') }}"
-      "WHISK_API_HOST_NAME": "{{ whisk_api_host_name | default(groups['edge'] | first) }}"
       "CONFIG_whisk_userEvents_enabled": "{{ user_events | default(false) | lower }}"
 
       "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"
@@ -199,10 +181,6 @@
       "CONFIG_whisk_timeLimit_min": "{{ limit_action_time_min | default() }}"
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
-
-      "CONFIG_whisk_concurrencyLimit_min": "{{ limit_action_concurrency_min | default() }}"
-      "CONFIG_whisk_concurrencyLimit_max": "{{ limit_action_concurrency_max | default() }}"
-      "CONFIG_whisk_concurrencyLimit_std": "{{ limit_action_concurrency_std | default() }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
       "CONFIG_whisk_runtimes_defaultImagePrefix":
@@ -234,7 +212,6 @@
       "CONFIG_whisk_etcd_lease_timeout": "{{ etcd.lease.timeout }}"
       "CONFIG_whisk_etcd_pool_threads": "{{ etcd.pool_threads }}"
       "CONFIG_whisk_cluster_name": "{{ whisk.cluster_name | lower }}"
-      "CONFIG_whisk_deployment_type": "vm"
 
       "CONFIG_whisk_scheduler_username": "{{ scheduler.username }}"
       "CONFIG_whisk_scheduler_password": "{{ scheduler.password }}"
