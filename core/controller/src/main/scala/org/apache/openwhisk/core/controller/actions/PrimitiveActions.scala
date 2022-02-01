@@ -600,7 +600,10 @@ protected[actions] trait PrimitiveActions {
       }
     }
 
-    activationStore.storeAfterCheck(activation, blockingComposition, None, context)(transid, notifier = None, logging)
+    activationStore.storeAfterCheck(activation, blockingComposition, None, None, context)(
+      transid,
+      notifier = None,
+      logging)
 
     activation
   }

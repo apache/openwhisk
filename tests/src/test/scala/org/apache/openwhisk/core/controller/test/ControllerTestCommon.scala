@@ -34,14 +34,19 @@ import org.apache.openwhisk.core.{FeatureFlags, WhiskConfig}
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.controller.{CustomHeaders, RestApiCommons, WhiskServices}
-import org.apache.openwhisk.core.database.{ActivationStoreProvider, CacheChangeNotification, DocumentFactory}
+import org.apache.openwhisk.core.database.{
+  ActivationStoreLevel,
+  ActivationStoreProvider,
+  CacheChangeNotification,
+  DocumentFactory,
+  UserContext
+}
 import org.apache.openwhisk.core.database.test.DbUtils
 import org.apache.openwhisk.core.entitlement._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.apache.openwhisk.core.loadBalancer.LoadBalancer
 import org.apache.openwhisk.spi.SpiLoader
-import org.apache.openwhisk.core.database.UserContext
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -127,12 +132,15 @@ protected trait ControllerTestCommon
   def storeActivation(
     activation: WhiskActivation,
     isBlockingActivation: Boolean,
-    disableStore: Boolean,
+    blockingStoreLevel: ActivationStoreLevel.Value,
+    nonBlockingStoreLevel: ActivationStoreLevel.Value,
     context: UserContext)(implicit transid: TransactionId, timeout: Duration = 10 seconds): DocInfo = {
-    val docFuture = activationStore.storeAfterCheck(activation, isBlockingActivation, Some(disableStore), context)(
-      transid,
-      notifier = None,
-      logging)
+    val docFuture = activationStore.storeAfterCheck(
+      activation,
+      isBlockingActivation,
+      Some(blockingStoreLevel),
+      Some(nonBlockingStoreLevel),
+      context)(transid, notifier = None, logging)
     val doc = Await.result(docFuture, timeout)
     assert(doc != null)
     doc

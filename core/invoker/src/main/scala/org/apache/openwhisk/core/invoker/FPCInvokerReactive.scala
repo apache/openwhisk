@@ -178,7 +178,7 @@ class FPCInvokerReactive(config: WhiskConfig,
   /** Stores an activation in the database. */
   private val store = (tid: TransactionId, activation: WhiskActivation, isBlocking: Boolean, context: UserContext) => {
     implicit val transid: TransactionId = tid
-    activationStore.storeAfterCheck(activation, isBlocking, None, context)(tid, notifier = None, logging)
+    activationStore.storeAfterCheck(activation, isBlocking, None, None, context)(tid, notifier = None, logging)
   }
 
   private def healthActivationClientFactory(f: ActorRefFactory,

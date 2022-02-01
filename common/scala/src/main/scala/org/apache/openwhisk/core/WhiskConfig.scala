@@ -286,7 +286,10 @@ object ConfigKeys {
   val sharedPackageExecuteOnly = s"whisk.shared-packages-execute-only"
   val swaggerUi = "whisk.swagger-ui"
 
+  /* DEPRECATED: disableStoreResult is deprecated for storeBlockingResultLevel */
   val disableStoreResult = s"$activation.disable-store-result"
+  val storeBlockingResultLevel = s"$activation.store-blocking-result-level"
+  val storeNonBlockingResultLevel = s"$activation.store-non-blocking-result-level"
   val unstoredLogsEnabled = s"$activation.unstored-logs-enabled"
 
   val apacheClientConfig = "whisk.apache-client"
