@@ -148,6 +148,58 @@ ansible-playbook -i environments/$ENVIRONMENT prereq.yml
 
 **Hint:** During playbook execution the `TASK [prereq : check for pip]` can show as failed. This is normal if no pip is installed. The playbook will then move on and install pip on the target machines.
 
+### [Optional] Enable the new scheduler
+
+You can enable the new scheduler of OpenWhisk.
+It will run one more component called "scheduler" and ETCD.
+
+#### Configure service providers for the scheduler
+You can update service providers for the scheduler as follows. 
+
+**common/scala/src/main/resources**
+```
+whisk.spi {
+  ArtifactStoreProvider = org.apache.openwhisk.core.database.CouchDbStoreProvider
+  ActivationStoreProvider = org.apache.openwhisk.core.database.ArtifactActivationStoreProvider
+  MessagingProvider = org.apache.openwhisk.connector.kafka.KafkaMessagingProvider
+  ContainerFactoryProvider = org.apache.openwhisk.core.containerpool.docker.DockerContainerFactoryProvider
+  LogStoreProvider = org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStoreProvider
+  LoadBalancerProvider = org.apache.openwhisk.core.loadBalancer.FPCPoolBalancer
+  EntitlementSpiProvider = org.apache.openwhisk.core.entitlement.FPCEntitlementProvider
+  AuthenticationDirectiveProvider = org.apache.openwhisk.core.controller.BasicAuthenticationDirective
+  InvokerProvider = org.apache.openwhisk.core.invoker.FPCInvokerReactive
+  InvokerServerProvider = org.apache.openwhisk.core.invoker.FPCInvokerServer
+  DurationCheckerProvider = org.apache.openwhisk.core.scheduler.queue.ElasticSearchDurationCheckerProvider
+}
+.
+.
+.
+```
+
+#### Enable the scheduler
+- Make sure you enable the scheduler by configuring `scheduler_enable`.
+
+**ansible/environments/local/group_vars**
+```yaml
+scheduler_enable: true
+```
+
+#### [Optional] Enable ElasticSearch Activation Store
+When you use the new scheduler, it is recommended to use ElasticSearch as an activation store.
+
+**ansible/environments/local/group_vars**
+```yaml
+db_activation_backend: ElasticSearch
+elastic_cluster_name: <your elasticsearch cluster name>
+elastic_protocol: <your elasticsearch protocol>
+elastic_index_pattern: <your elasticsearch index pattern>
+elastic_base_volume: <your elasticsearch volume directory>
+elastic_username: <your elasticsearch username>
+elastic_password: <your elasticsearch username>
+```
+
+You can also refer to this guide to [deploy OpenWhisk using ElasticSearch](https://github.com/apache/openwhisk/blob/master/ansible/README.md#using-elasticsearch-to-store-activations).
+
 ### Deploying Using CouchDB
 -   Make sure your `db_local.ini` file is [setup for](#setup) CouchDB then execute:
 
