@@ -40,6 +40,10 @@ dependencies {
     compile "com.typesafe.akka:akka-actor_${gradle.scala.depVersion}:${gradle.akka.version}"
     compile "com.typesafe.akka:akka-stream_${gradle.scala.depVersion}:${gradle.akka.version}"
     compile "com.typesafe.akka:akka-slf4j_${gradle.scala.depVersion}:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-cluster_${gradle.scala.depVersion}:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-cluster-metrics_${gradle.scala.depVersion}:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-cluster-tools_${gradle.scala.depVersion}:${gradle.akka.version}"
+    compile "com.typesafe.akka:akka-distributed-data_${gradle.scala.depVersion}:${gradle.akka.version}"
 
     compile "com.typesafe.akka:akka-http-core_${gradle.scala.depVersion}:${gradle.akka_http.version}"
     compile "com.typesafe.akka:akka-http-spray-json_${gradle.scala.depVersion}:${gradle.akka_http.version}"

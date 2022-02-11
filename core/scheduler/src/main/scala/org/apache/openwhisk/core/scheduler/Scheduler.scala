@@ -19,14 +19,14 @@ package org.apache.openwhisk.core.scheduler
 
 import akka.Done
 import akka.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown, Props}
+import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
-import akka.util.Timeout
 import akka.pattern.ask
+import akka.util.Timeout
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
-import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.WhiskConfig.{servicePort, _}
 import org.apache.openwhisk.core.ack.{MessagingActiveAck, UserEventSender}
 import org.apache.openwhisk.core.connector._
@@ -37,28 +37,22 @@ import org.apache.openwhisk.core.etcd.EtcdType.ByteStringToString
 import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
 import org.apache.openwhisk.core.scheduler.container.{ContainerManager, CreationJobManager}
 import org.apache.openwhisk.core.scheduler.grpc.ActivationServiceImpl
-import org.apache.openwhisk.core.scheduler.queue.{
-  DurationCheckerProvider,
-  MemoryQueue,
-  QueueManager,
-  QueueSize,
-  SchedulingDecisionMaker
-}
+import org.apache.openwhisk.core.scheduler.queue._
 import org.apache.openwhisk.core.service.{DataManagementService, EtcdWorker, LeaseKeepAliveService, WatcherService}
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.grpc.ActivationServiceHandler
 import org.apache.openwhisk.http.BasicHttpService
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.ExecutionContextFactory
+import pureconfig.generic.auto._
 import pureconfig.loadConfigOrThrow
 import spray.json.{DefaultJsonProtocol, _}
 
+import scala.collection.JavaConverters
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import pureconfig.generic.auto._
-
-import scala.collection.JavaConverters
 
 class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerEndpoints)(implicit config: WhiskConfig,
                                                                                           actorSystem: ActorSystem,
@@ -274,12 +268,9 @@ object Scheduler {
       schedulerHost -> null,
       schedulerAkkaPort -> null,
       schedulerRpcPort -> null,
-      WhiskConfig.actionInvokePerMinuteLimit -> null,
-      WhiskConfig.actionInvokeConcurrentLimit -> null,
-      WhiskConfig.triggerFirePerMinuteLimit -> null) ++
+      WhiskConfig.actionInvokeConcurrentLimit -> null) ++
       kafkaHosts ++
       zookeeperHosts ++
-      wskApiHost ++
       ExecManifest.requiredProperties
 
   def initKamon(instance: SchedulerInstanceId): Unit = {
@@ -329,7 +320,7 @@ object Scheduler {
     val msgProvider = SpiLoader.get[MessagingProvider]
 
     Seq(
-      (topicPrefix + "scheduler" + instanceId.asString, "actions", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
+      (topicPrefix + "scheduler" + instanceId.asString, "scheduler", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
       (
         topicPrefix + "creationAck" + instanceId.asString,
         "creationAck",
@@ -347,12 +338,17 @@ object Scheduler {
         // Create scheduler
         val scheduler = new Scheduler(instanceId, schedulerEndpoints)
 
-        // TODO: Add Akka-grpc handler
-        val httpsConfig =
-          if (Scheduler.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
+        Http()
+          .newServerAt("0.0.0.0", port = rpcPort)
+          .bind(scheduler.serviceHandlers)
+          .foreach { _ =>
+            val httpsConfig =
+              if (Scheduler.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https"))
+              else None
 
-        BasicHttpService.startHttpService(FPCSchedulerServer.instance(scheduler).route, port, httpsConfig)(actorSystem)
-
+            BasicHttpService.startHttpService(FPCSchedulerServer.instance(scheduler).route, port, httpsConfig)(
+              actorSystem)
+          }
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")
     }
@@ -384,7 +380,7 @@ case class SchedulerStates(sid: SchedulerInstanceId, queueSize: Int, endpoints: 
   def getRemoteRef(name: String)(implicit context: ActorRefFactory): ActorSelection = {
     implicit val ec = context.dispatcher
 
-    val path = s"akka//scheduler-actor-system@${endpoints.asAkkaEndpoint}/user/${name}"
+    val path = s"akka://scheduler-actor-system@${endpoints.asAkkaEndpoint}/user/${name}"
     context.actorSelection(path)
   }
 

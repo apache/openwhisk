@@ -13,3 +13,7 @@ db_password={{ lookup('env', 'OW_DB_CONTROLLER_PASSWORD') | default('some_contro
 [invoker]
 db_username={{ lookup('env', 'OW_DB_INVOKER_USERNAME') | default(db_prefix + 'invoker0', true) }}
 db_password={{ lookup('env', 'OW_DB_INVOKER_PASSWORD') | default('some_invoker_passw0rd', true) }}
+
+[scheduler]
+db_username={{ lookup('env', 'OW_DB_SCHEDULER_USERNAME') | default(db_prefix + 'scheduler0', true) }}
+db_password={{ lookup('env', 'OW_DB_SCHEDULER_PASSWORD') | default('some_scheduler_passw0rd', true) }}
