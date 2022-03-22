@@ -156,7 +156,7 @@ It will run one more component called "scheduler" and ETCD.
 #### Configure service providers for the scheduler
 You can update service providers for the scheduler as follows. 
 
-**common/scala/src/main/resources**
+**common/scala/src/main/resources/reference.conf**
 ```
 whisk.spi {
   ArtifactStoreProvider = org.apache.openwhisk.core.database.CouchDbStoreProvider
@@ -176,10 +176,43 @@ whisk.spi {
 .
 ```
 
+#### Configure akka dispatcher for the scheduler
+Add a new dispatcher entry as follows.
+
+**common/scala/src/main/resources/reference.conf**
+```
+  lease-service-dispatcher {
+    type = Dispatcher
+    executor = "thread-pool-executor"
+
+    # Underlying thread pool implementation is java.util.concurrent.ThreadPoolExecutor
+    thread-pool-executor {
+      # Min number of threads to cap factor-based corePoolSize number to
+      core-pool-size-min = 2
+
+      # The core-pool-size-factor is used to determine corePoolSize of the
+      # ThreadPoolExecutor using the following formula:
+      # ceil(available processors * factor).
+      # Resulting size is then bounded by the core-pool-size-min and
+      # core-pool-size-max values.
+      core-pool-size-factor = 2.0
+
+      # Max number of threads to cap factor-based corePoolSize number to
+      core-pool-size-max = 32
+    }
+    # Throughput defines the number of messages that are processed in a batch
+    # before the thread is returned to the pool. Set to 1 for as fair as possible.
+    throughput = 5
+  }
+.
+.
+.
+```
+
 #### Enable the scheduler
 - Make sure you enable the scheduler by configuring `scheduler_enable`.
 
-**ansible/environments/local/group_vars**
+**ansible/environments/local/group_vars/all**
 ```yaml
 scheduler_enable: true
 ```
