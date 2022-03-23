@@ -182,27 +182,8 @@ Add a new dispatcher entry as follows.
 **common/scala/src/main/resources/reference.conf**
 ```
   lease-service-dispatcher {
-    type = Dispatcher
     executor = "thread-pool-executor"
-
-    # Underlying thread pool implementation is java.util.concurrent.ThreadPoolExecutor
-    thread-pool-executor {
-      # Min number of threads to cap factor-based corePoolSize number to
-      core-pool-size-min = 2
-
-      # The core-pool-size-factor is used to determine corePoolSize of the
-      # ThreadPoolExecutor using the following formula:
-      # ceil(available processors * factor).
-      # Resulting size is then bounded by the core-pool-size-min and
-      # core-pool-size-max values.
-      core-pool-size-factor = 2.0
-
-      # Max number of threads to cap factor-based corePoolSize number to
-      core-pool-size-max = 32
-    }
-    # Throughput defines the number of messages that are processed in a batch
-    # before the thread is returned to the pool. Set to 1 for as fair as possible.
-    throughput = 5
+    type = PinnedDispatcher
   }
 .
 .
