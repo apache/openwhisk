@@ -278,14 +278,16 @@ object AcknowledegmentMessage extends DefaultJsonProtocol {
   }
 }
 
-case class PingMessage(instance: InvokerInstanceId) extends Message {
+case class PingMessage(instance: InvokerInstanceId, isEnabled: Option[Boolean] = None) extends Message {
   override def serialize = PingMessage.serdes.write(this).compactPrint
+
+  def invokerEnabled: Boolean = isEnabled.getOrElse(true)
 }
 
 object PingMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
-  implicit val serdes = jsonFormat(PingMessage.apply _, "name")
+  implicit val serdes = jsonFormat(PingMessage.apply _, "name", "isEnabled")
 }
 
 trait EventMessageBody extends Message {

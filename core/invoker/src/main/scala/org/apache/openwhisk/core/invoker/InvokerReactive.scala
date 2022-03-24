@@ -293,12 +293,14 @@ class InvokerReactive(
 
   private val healthProducer = msgProvider.getProducer(config)
 
-  def getHealthScheduler: ActorRef =
-    Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-      healthProducer.send(s"${Invoker.topicPrefix}health", PingMessage(instance)).andThen {
-        case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
-      }
-    })
+  private def getHealthScheduler: ActorRef =
+    Scheduler.scheduleWaitAtMost(1.seconds)(() => pingController(isEnabled = true))
+
+  private def pingController(isEnabled: Boolean) = {
+    healthProducer.send(s"${Invoker.topicPrefix}health", PingMessage(instance, isEnabled = Some(isEnabled))).andThen {
+      case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
+    }
+  }
 
   private var healthScheduler: Option[ActorRef] = Some(getHealthScheduler)
 
@@ -312,6 +314,7 @@ class InvokerReactive(
   }
 
   override def disable(): Route = {
+    pingController(isEnabled = false)
     if (healthScheduler.nonEmpty) {
       actorSystem.stop(healthScheduler.get)
       healthScheduler = None
