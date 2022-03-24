@@ -300,7 +300,7 @@ class InvokerReactive(
       }
     })
 
-  var healthScheduler: Option[ActorRef] = Some(getHealthScheduler)
+  private var healthScheduler: Option[ActorRef] = Some(getHealthScheduler)
 
   override def enable(): Route = {
     if (healthScheduler.isEmpty) {
