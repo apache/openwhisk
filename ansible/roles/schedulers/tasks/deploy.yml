@@ -216,6 +216,8 @@
       "CONFIG_whisk_scheduler_username": "{{ scheduler.username }}"
       "CONFIG_whisk_scheduler_password": "{{ scheduler.password }}"
 
+      "CONFIG_whisk_spi_DurationCheckerProvider": "{{ durationChecker.spi }}"
+
 
 - name: merge extra env variables
   set_fact:
@@ -236,6 +238,7 @@
       "CONFIG_whisk_activationStore_elasticsearch_username": "{{ db.elasticsearch.auth.admin.username }}"
       "CONFIG_whisk_activationStore_elasticsearch_password": "{{ db.elasticsearch.auth.admin.password }}"
       "CONFIG_whisk_spi_ActivationStoreProvider": "org.apache.openwhisk.core.database.elasticsearch.ElasticSearchActivationStoreProvider"
+      "CONFIG_whisk_spi_DurationCheckerProvider": "org.apache.openwhisk.core.scheduler.queue.ElasticSearchDurationCheckerProvider"
   when: db.activation_store.backend == "ElasticSearch"
 
 - name: merge elasticsearch activation store env

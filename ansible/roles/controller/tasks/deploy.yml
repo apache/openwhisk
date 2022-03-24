@@ -317,6 +317,8 @@
       "CONFIG_whisk_etcd_pool_threads": "{{ etcd.pool_threads }}"
       "CONFIG_whisk_scheduler_grpc_tls": "{{ scheduler.grpc.tls | default('false') | lower }}"
       "CONFIG_whisk_scheduler_maxPeek": "{{ scheduler.maxPeek }}"
+      "CONFIG_whisk_spi_LoadBalancerProvider": "org.apache.openwhisk.core.loadBalancer.FPCPoolBalancer"
+      "CONFIG_whisk_spi_EntitlementSpiProvider": "org.apache.openwhisk.core.entitlement.FPCEntitlementProvider"
   when: enable_scheduler
 
 - name: merge scheduler env

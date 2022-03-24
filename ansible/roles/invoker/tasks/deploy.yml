@@ -336,6 +336,8 @@
       "CONFIG_whisk_etcd_pool_threads": "{{ etcd.pool_threads }}"
       "CONFIG_whisk_scheduler_dataManagementService_retryInterval": "{{ scheduler.dataManagementService.retryInterval }}"
       "CONFIG_whisk_invoker_containerCreation_maxPeek": "{{ invoker.container.creationMaxPeek }}"
+      "CONFIG_whisk_spi_InvokerProvider": "org.apache.openwhisk.core.invoker.FPCInvokerReactive"
+      "CONFIG_whisk_spi_InvokerServerProvider": "org.apache.openwhisk.core.invoker.FPCInvokerServer"
   when: enable_scheduler
 
 - name: merge scheduler env
