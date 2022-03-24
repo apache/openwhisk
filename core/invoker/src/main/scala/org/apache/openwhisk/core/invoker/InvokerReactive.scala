@@ -19,9 +19,8 @@ package org.apache.openwhisk.core.invoker
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-
 import akka.Done
-import akka.actor.{ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Route
@@ -34,6 +33,7 @@ import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.database.{UserContext, _}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.spi.SpiLoader
@@ -46,7 +46,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object InvokerReactive extends InvokerProvider {
-
   override def instance(
     config: WhiskConfig,
     instance: InvokerInstanceId,
@@ -293,18 +292,38 @@ class InvokerReactive(
   }
 
   private val healthProducer = msgProvider.getProducer(config)
-  Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-    healthProducer.send(s"${Invoker.topicPrefix}health", PingMessage(instance)).andThen {
-      case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
-    }
-  })
+
+  def getHealthScheduler: ActorRef =
+    Scheduler.scheduleWaitAtMost(1.seconds)(() => {
+      healthProducer.send(s"${Invoker.topicPrefix}health", PingMessage(instance)).andThen {
+        case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
+      }
+    })
+
+  var healthScheduler: Option[ActorRef] = Some(getHealthScheduler)
 
   override def enable(): Route = {
+    if (healthScheduler.isEmpty) {
+      healthScheduler = Some(getHealthScheduler)
+      complete(s"${instance.toString} is now enabled.")
+    } else {
+      complete(s"${instance.toString} is already enabled.")
+    }
     complete("not supported")
   }
 
   override def disable(): Route = {
-    complete("not supported")
+    if (healthScheduler.nonEmpty) {
+      actorSystem.stop(healthScheduler.get)
+      healthScheduler = None
+      complete(s"${instance.toString} is now disabled.")
+    } else {
+      complete(s"${instance.toString} is already disabled.")
+    }
+  }
+
+  override def isEnabled(): Route = {
+    complete(InvokerEnabled(healthScheduler.nonEmpty).toJson().compactPrint)
   }
 
   override def backfillPrewarm(): Route = {

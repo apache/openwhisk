@@ -35,6 +35,7 @@ import org.apache.openwhisk.spi.{Spi, SpiLoader}
 import org.apache.openwhisk.utils.ExecutionContextFactory
 import pureconfig._
 import pureconfig.generic.auto._
+import spray.json.{JsBoolean, JsObject}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -73,6 +74,10 @@ object Invoker {
   protected val protocol = loadConfigOrThrow[String]("whisk.invoker.protocol")
 
   val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
+
+  case class InvokerEnabled(isEnabled: Boolean) {
+    def toJson(): JsObject = JsObject("enabled" -> JsBoolean(isEnabled))
+  }
 
   /**
    * An object which records the environment variables required for this component to run.
@@ -220,6 +225,7 @@ trait InvokerProvider extends Spi {
 trait InvokerCore {
   def enable(): Route
   def disable(): Route
+  def isEnabled(): Route
   def backfillPrewarm(): Route
 }
 

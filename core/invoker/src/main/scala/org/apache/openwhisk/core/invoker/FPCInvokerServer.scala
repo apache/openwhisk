@@ -47,6 +47,8 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
           invoker.enable()
         } ~ (path("disable") & post) {
           invoker.disable()
+        } ~ (path("isEnabled") & get) {
+          invoker.isEnabled()
         }
       case _ => terminate(StatusCodes.Unauthorized)
     }
