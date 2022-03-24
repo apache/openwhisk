@@ -309,7 +309,6 @@ class InvokerReactive(
     } else {
       complete(s"${instance.toString} is already enabled.")
     }
-    complete("not supported")
   }
 
   override def disable(): Route = {
