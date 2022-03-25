@@ -129,6 +129,10 @@ class TestFPCInvokerReactive extends InvokerCore with BasicHttpService {
     complete("")
   }
 
+  override def isEnabled(): Route = {
+    complete("")
+  }
+
   override def backfillPrewarm(): Route = {
     complete("")
   }
