@@ -287,7 +287,7 @@ case class PingMessage(instance: InvokerInstanceId, isEnabled: Option[Boolean] =
 object PingMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
-  implicit val serdes = jsonFormat(PingMessage.apply _, "name", "isEnabled")
+  implicit val serdes = jsonFormat(PingMessage.apply, "name", "isEnabled")
 }
 
 trait EventMessageBody extends Message {

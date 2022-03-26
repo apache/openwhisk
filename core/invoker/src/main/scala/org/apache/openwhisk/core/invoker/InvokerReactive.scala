@@ -325,7 +325,7 @@ class InvokerReactive(
   }
 
   override def isEnabled(): Route = {
-    complete(InvokerEnabled(healthScheduler.nonEmpty).toJson().compactPrint)
+    complete(InvokerEnabled(healthScheduler.nonEmpty).serialize())
   }
 
   override def backfillPrewarm(): Route = {

@@ -23,6 +23,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
 import org.apache.openwhisk.core.invoker.{FPCInvokerServer, InvokerCore}
 import org.apache.openwhisk.http.BasicHttpService
 import org.junit.runner.RunWith
@@ -73,6 +74,15 @@ class FPCInvokerServerTests
       status should be(OK)
       reactive.enableCount shouldBe 0
       reactive.disableCount shouldBe 1
+    }
+  }
+
+  it should "check if invoker is enabled" in {
+    implicit val tid = transid()
+    val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
+    Get(s"/isEnabled") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
+      status should be(OK)
+      InvokerEnabled.parseJson(responseEntity.toString) shouldEqual InvokerEnabled(true)
     }
   }
 
@@ -130,7 +140,7 @@ class TestFPCInvokerReactive extends InvokerCore with BasicHttpService {
   }
 
   override def isEnabled(): Route = {
-    complete("")
+    complete(InvokerEnabled(true).serialize())
   }
 
   override def backfillPrewarm(): Route = {

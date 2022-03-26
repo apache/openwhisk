@@ -364,6 +364,18 @@ class InvokerSupervisionTests
     }
   }
 
+  // unhealthy -> offline
+  // offline -> off
+  it should "go offline when unhealthy and disabled invoker ping received and stay offline if disabled ping received while offline" in {
+    val invoker =
+      TestFSMRef(new InvokerActor(InvokerInstanceId(0, userMemory = defaultUserMemory), ControllerInstanceId("0")))
+    invoker.stateName shouldBe Unhealthy
+    invoker ! PingMessage(InvokerInstanceId(0, userMemory = defaultUserMemory), Some(false))
+    invoker.stateName shouldBe Offline
+    invoker ! PingMessage(InvokerInstanceId(0, userMemory = defaultUserMemory), Some(false))
+    invoker.stateName shouldBe Offline
+  }
+
   it should "start timer to send test actions when unhealthy" in {
     val invoker =
       TestFSMRef(new InvokerActor(InvokerInstanceId(0, userMemory = defaultUserMemory), ControllerInstanceId("0")))
@@ -380,6 +392,28 @@ class InvokerSupervisionTests
     invoker.stateName shouldBe Healthy
 
     invoker.isTimerActive(InvokerActor.timerName) shouldBe false
+  }
+
+  // healthy -> offline
+  it should "go offline from healthy immediately when disabled invoker ping received" in {
+    val invoker =
+      TestFSMRef(new InvokerActor(InvokerInstanceId(0, userMemory = defaultUserMemory), ControllerInstanceId("0")))
+    invoker.stateName shouldBe Unhealthy
+
+    invoker.isTimerActive(InvokerActor.timerName) shouldBe true
+
+    // Fill buffer with successful invocations to become healthy again (one below errorTolerance)
+    (1 to InvokerActor.bufferSize - InvokerActor.bufferErrorTolerance).foreach { _ =>
+      invoker ! InvocationFinishedMessage(
+        InvokerInstanceId(0, userMemory = defaultUserMemory),
+        InvocationFinishedResult.Success)
+    }
+    invoker.stateName shouldBe Healthy
+
+    invoker.isTimerActive(InvokerActor.timerName) shouldBe false
+
+    invoker ! PingMessage(InvokerInstanceId(0, userMemory = defaultUserMemory), Some(false))
+    invoker.stateName shouldBe Offline
   }
 
   it should "initially store invoker status with its full id - instance/uniqueName/displayedName" in {

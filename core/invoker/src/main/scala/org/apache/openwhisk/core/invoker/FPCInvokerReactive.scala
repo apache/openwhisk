@@ -404,7 +404,7 @@ class FPCInvokerReactive(config: WhiskConfig,
   }
 
   override def isEnabled(): Route = {
-    complete(InvokerEnabled(consumer.nonEmpty && warmUpWatcher.nonEmpty).toJson().compactPrint)
+    complete(InvokerEnabled(consumer.nonEmpty && warmUpWatcher.nonEmpty).serialize())
   }
 
   override def backfillPrewarm(): Route = {

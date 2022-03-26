@@ -35,7 +35,7 @@ import org.apache.openwhisk.spi.{Spi, SpiLoader}
 import org.apache.openwhisk.utils.ExecutionContextFactory
 import pureconfig._
 import pureconfig.generic.auto._
-import spray.json.{JsBoolean, JsObject}
+import spray.json._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -75,8 +75,13 @@ object Invoker {
 
   val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
 
+  object InvokerEnabled extends DefaultJsonProtocol {
+    def parseJson(string: String) = Try(serdes.read(string.parseJson))
+    implicit val serdes = jsonFormat(InvokerEnabled.apply _, "enabled")
+  }
+
   case class InvokerEnabled(isEnabled: Boolean) {
-    def toJson(): JsObject = JsObject("enabled" -> JsBoolean(isEnabled))
+    def serialize(): String = InvokerEnabled.serdes.write(this).compactPrint
   }
 
   /**
