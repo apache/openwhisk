@@ -21,6 +21,7 @@ import akka.http.scaladsl.model.StatusCodes.{OK, Unauthorized}
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
@@ -82,7 +83,9 @@ class DefaultInvokerServerTests
     val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
     Get(s"/isEnabled") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
       status should be(OK)
-      InvokerEnabled.parseJson(responseEntity.toString) shouldEqual InvokerEnabled(true)
+      Unmarshal(responseEntity).to[String].map(response => {
+        InvokerEnabled.parseJson(response) shouldEqual InvokerEnabled(true)
+      })
     }
   }
 
