@@ -21,8 +21,10 @@ import akka.http.scaladsl.model.StatusCodes.{OK, Unauthorized}
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
 import org.apache.openwhisk.core.invoker.{DefaultInvokerServer, InvokerCore}
 import org.apache.openwhisk.http.BasicHttpService
 import org.junit.runner.RunWith
@@ -73,6 +75,17 @@ class DefaultInvokerServerTests
       status should be(OK)
       reactive.enableCount shouldBe 0
       reactive.disableCount shouldBe 1
+    }
+  }
+
+  it should "check if invoker is enabled" in {
+    implicit val tid = transid()
+    val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
+    Get(s"/isEnabled") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
+      status should be(OK)
+      Unmarshal(responseEntity).to[String].map(response => {
+        InvokerEnabled.parseJson(response) shouldEqual InvokerEnabled(true)
+      })
     }
   }
 
@@ -128,6 +141,10 @@ class TestInvokerReactive extends InvokerCore with BasicHttpService {
   override def disable(): Route = {
     disableCount += 1
     complete("")
+  }
+
+  override def isEnabled(): Route = {
+    complete(InvokerEnabled(true).serialize())
   }
 
   override def backfillPrewarm(): Route = {

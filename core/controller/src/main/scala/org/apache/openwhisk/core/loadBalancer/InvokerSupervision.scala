@@ -280,8 +280,8 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
 
   // To be used for all states that should send test actions to reverify the invoker
   val healthPingingState: StateFunction = {
-    case Event(_: PingMessage, _) => stay
-    case Event(StateTimeout, _)   => goto(Offline)
+    case Event(ping: PingMessage, _) => goOfflineIfDisabled(ping)
+    case Event(StateTimeout, _)      => goto(Offline)
     case Event(Tick, _) =>
       invokeTestAction()
       stay
@@ -300,7 +300,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
 
   /** An Offline invoker represents an existing but broken invoker. This means, that it does not send pings anymore. */
   when(Offline) {
-    case Event(_: PingMessage, _) => goto(Unhealthy)
+    case Event(ping: PingMessage, _) => if (ping.invokerEnabled) goto(Unhealthy) else stay
   }
 
   /** An Unhealthy invoker represents an invoker that was not able to handle actions successfully. */
@@ -314,8 +314,8 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
    * It will go offline if that state is not confirmed for 20 seconds.
    */
   when(Healthy, stateTimeout = healthyTimeout) {
-    case Event(_: PingMessage, _) => stay
-    case Event(StateTimeout, _)   => goto(Offline)
+    case Event(ping: PingMessage, _) => goOfflineIfDisabled(ping)
+    case Event(StateTimeout, _)      => goto(Offline)
   }
 
   /** Handles the completion of an Activation in every state. */
@@ -338,6 +338,16 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
   onTransition(healthPingingTransitionHandler(Unresponsive))
 
   initialize()
+
+  /**
+   * Handling for if a ping message from an invoker signals that it has been disabled to immediately transition to Offline.
+   *
+   * @param ping
+   * @return
+   */
+  private def goOfflineIfDisabled(ping: PingMessage) = {
+    if (ping.invokerEnabled) stay else goto(Offline)
+  }
 
   /**
    * Handling for active acks. This method saves the result (successful or unsuccessful)
