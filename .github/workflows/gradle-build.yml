@@ -24,3 +24,26 @@ jobs:
         uses: gradle/gradle-build-action@0d13054264b0bb894ded474f08ebb30921341cee
         with:
           arguments: distDocker
+
+      - name: Set the image repo name and tag
+        id: image_vars
+        run: |
+          # Construct an image id and includes the repo.
+          IMAGE_ID=ghcr.io/${{ github.repository }}
+          VERSION=latest
+
+          # Set variables that can be used in other steps.
+          echo ::set-output name=repo::$(echo $IMAGE_ID | awk '{print tolower($0)}')
+          echo ::set-output name=tag::$(echo $VERSION | awk '{print tolower($0)}')
+
+      - name: Login to github docker Registry
+        run: docker login ghcr.io -u dylanturn -p ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push the Docker image
+        run: docker push ${{steps.image_vars.outputs.repo}}/controller:${{steps.image_vars.outputs.tag}}
+
+      - name: Push the Docker image
+        run: docker push ${{steps.image_vars.outputs.repo}}/invoker:${{steps.image_vars.outputs.tag}}
+
+      - name: Push the Docker image
+        run: docker push ${{steps.image_vars.outputs.repo}}/scheduler:${{steps.image_vars.outputs.tag}}
