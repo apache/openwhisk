@@ -39,17 +39,17 @@ node('ubuntu') {
     }
   }
 
-  // stage("Clean") {
-  //   sh "docker images"
-  //   sh 'docker rmi -f $(docker images -f "reference=openwhisk/*" -q) || true'
-  //   sh "docker images"
-  //   sh "docker logout"
-  //   sh "rm -rf $WORKSPACE/local-docker-cfg"
-  // }
-  //
-  // stage("Notify") {
-  //   withCredentials([string(credentialsId: 'openwhisk_slack_token', variable: 'OPENWHISK_SLACK_TOKEN')]) {
-  //     sh "curl -X POST --data-urlencode 'payload={\"channel\": \"#dev\", \"username\": \"whiskbot\", \"text\": \"OpenWhisk Docker Images build and posted to https://hub.docker.com/u/openwhisk by Jenkins job ${BUILD_URL}\", \"icon_emoji\": \":openwhisk:\"}' https://hooks.slack.com/services/${OPENWHISK_SLACK_TOKEN}"
-  //   }
-  // }
+  stage("Clean") {
+    sh "docker images"
+    sh 'docker rmi -f $(docker images -f "reference=openwhisk/*" -q) || true'
+    sh "docker images"
+    sh "docker logout"
+    sh "rm -rf $WORKSPACE/local-docker-cfg"
+  }
+
+  stage("Notify") {
+    withCredentials([string(credentialsId: 'openwhisk_slack_token', variable: 'OPENWHISK_SLACK_TOKEN')]) {
+      sh "curl -X POST --data-urlencode 'payload={\"channel\": \"#dev\", \"username\": \"whiskbot\", \"text\": \"OpenWhisk Docker Images build and posted to https://hub.docker.com/u/openwhisk by Jenkins job ${BUILD_URL}\", \"icon_emoji\": \":openwhisk:\"}' https://hooks.slack.com/services/${OPENWHISK_SLACK_TOKEN}"
+    }
+  }
 }
