@@ -33,6 +33,7 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 import scala.util.{Failure, Try}
+import pureconfig.generic.auto._
 
 trait DurationChecker {
   def checkAverageDuration(invocationNamespace: String, actionMetaData: WhiskActionMetaData)(
