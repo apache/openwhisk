@@ -183,7 +183,7 @@ class ElasticSearchActivationStore(
       }
       .map { res =>
         if (res.status == StatusCodes.OK.intValue) {
-          if (res.result.hits.total == 0) {
+          if (res.result.hits.total.value == 0) {
             transid.finished(this, start, s"[GET] 'activations', document: '$activationId'; not found.")
             throw NoDocumentException("not found on 'get'")
           } else {

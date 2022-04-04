@@ -55,7 +55,7 @@ brew install gnu-tar
 # install pip
 sudo easy_install pip
 # install script prerequisites
-pip install docker==5.0.0 ansible==4.1.0 jinja2==3.0.1 couchdb==1.2 httplib2==0.19.1 requests==2.25.1 six=1.16.0
+pip install docker==5.0.0 ansible==4.1.0 jinja2==3.0.1 couchdb==1.2 httplib2==0.19.1 requests==2.25.1 six==1.16.0
 ```
 
 Make sure you correctly configure the environment variable $JAVA_HOME.
