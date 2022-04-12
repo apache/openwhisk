@@ -210,7 +210,7 @@ class MemoryQueueTestsFixture
         _: Handler[SearchRequest, SearchResponse],
         _: Manifest[SearchResponse],
         _: CommonRequestOptions))
-      .expects(searchRequest, *, *, *, *)
+      .expects(searchRequest, *, *, *, *, *)
       .returns(
         Future.successful(RequestSuccess(
           200,
