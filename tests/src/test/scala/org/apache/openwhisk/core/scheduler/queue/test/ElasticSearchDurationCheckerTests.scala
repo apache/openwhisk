@@ -17,8 +17,9 @@
 
 package org.apache.openwhisk.core.scheduler.queue.test
 
-import com.sksamuel.elastic4s.http.ElasticDsl._
-import com.sksamuel.elastic4s.http.{ElasticClient, ElasticProperties, NoOpRequestConfigCallback}
+import com.sksamuel.elastic4s.ElasticDsl._
+import com.sksamuel.elastic4s.http.{JavaClient, NoOpRequestConfigCallback}
+import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
 import common._
 import common.rest.WskRestOperations
 import org.apache.http.auth.{AuthScope, UsernamePasswordCredentials}
@@ -91,11 +92,11 @@ class ElasticSearchDurationCheckerTests
     }
   }
 
-  private val client =
-    ElasticClient(
-      ElasticProperties(s"${elasticSearchConfig.protocol}://${elasticSearchConfig.hosts}"),
+  val javaClient = JavaClient(ElasticProperties(s"${elasticSearchConfig.protocol}://${elasticSearchConfig.hosts}"),
       NoOpRequestConfigCallback,
       httpClientCallback)
+      
+  val client = ElasticClient(javaClient)
 
   private val elasticSearchDurationChecker = new ElasticSearchDurationChecker(client, defaultDurationCheckWindow)
 
