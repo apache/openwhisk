@@ -205,10 +205,11 @@ class MemoryQueueTestsFixture
 
     (mockEsClient
       .execute[SearchRequest, SearchResponse, Future](_: SearchRequest)(
-        _: Functor[Future],
         _: Executor[Future],
+        _: Functor[Future],
         _: Handler[SearchRequest, SearchResponse],
-        _: Manifest[SearchResponse]))
+        _: Manifest[SearchResponse],
+        _: CommonRequestOptions))
       .expects(searchRequest, *, *, *, *)
       .returns(
         Future.successful(RequestSuccess(
