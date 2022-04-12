@@ -15,7 +15,7 @@ import com.ibm.etcd.api._
 import com.ibm.etcd.client.kv.KvClient.Watch
 import com.ibm.etcd.client.kv.WatchUpdate
 import com.ibm.etcd.client.{EtcdClient => Client}
-import com.sksamuel.elastic4s.http.ElasticClient
+import com.sksamuel.elastic4s.ElasticClient
 import common.StreamLogging
 import org.apache.openwhisk.common.{GracefulShutdown, TransactionId}
 import org.apache.openwhisk.core.ack.ActiveAck
