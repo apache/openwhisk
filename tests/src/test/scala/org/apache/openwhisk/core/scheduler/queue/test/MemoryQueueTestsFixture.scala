@@ -7,7 +7,6 @@ import com.sksamuel.elastic4s.Executor
 import com.sksamuel.elastic4s.ElasticDsl.{avgAgg, boolQuery, matchQuery, rangeQuery, search}
 import com.sksamuel.elastic4s._
 import com.sksamuel.elastic4s.requests.common.Shards
-import com.sksamuel.elastic4s.requests.searches.ScoreMode.Total
 import com.sksamuel.elastic4s.requests.searches.{SearchHits, SearchRequest, SearchResponse, Total}
 import common.StreamLogging
 import org.apache.kafka.clients.producer.RecordMetadata
