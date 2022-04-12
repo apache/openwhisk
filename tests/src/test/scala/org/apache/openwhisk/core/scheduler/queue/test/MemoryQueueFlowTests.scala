@@ -3,7 +3,7 @@ package org.apache.openwhisk.core.scheduler.queue.test
 import akka.actor.ActorRef
 import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
 import akka.testkit.{TestActor, TestFSMRef, TestProbe}
-import com.sksamuel.elastic4s.http.{search => _}
+import com.sksamuel.elastic4s.requests.{searches => _}
 import org.apache.openwhisk.common.GracefulShutdown
 import org.apache.openwhisk.core.connector.ContainerCreationError.{NonExecutableActionError, WhiskError}
 import org.apache.openwhisk.core.connector.ContainerCreationMessage
