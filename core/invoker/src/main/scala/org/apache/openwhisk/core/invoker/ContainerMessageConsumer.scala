@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.invoker
 import java.nio.charset.StandardCharsets
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
 import org.apache.openwhisk.core.WarmUp.isWarmUpAction
 import org.apache.openwhisk.core.WhiskConfig
@@ -48,7 +47,7 @@ class ContainerMessageConsumer(
   msgProvider: MessagingProvider,
   longPollDuration: FiniteDuration,
   maxPeek: Int,
-  sendAckToScheduler: (SchedulerInstanceId, ContainerCreationAckMessage) => Future[RecordMetadata])(
+  sendAckToScheduler: (SchedulerInstanceId, ContainerCreationAckMessage) => Future[ResultMetadata])(
   implicit actorSystem: ActorSystem,
   executionContext: ExecutionContext,
   logging: Logging) {

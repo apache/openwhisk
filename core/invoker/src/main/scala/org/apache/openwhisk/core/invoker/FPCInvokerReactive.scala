@@ -25,7 +25,6 @@ import akka.http.scaladsl.server.Route
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.client.kv.KvClient.Watch
 import com.ibm.etcd.client.kv.WatchUpdate
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.ack.{ActiveAck, HealthActionAck, MessagingActiveAck, UserEventSender}
 import org.apache.openwhisk.core.connector._
@@ -267,7 +266,7 @@ class FPCInvokerReactive(config: WhiskConfig,
   }
 
   private def sendAckToScheduler(schedulerInstanceId: SchedulerInstanceId,
-                                 creationAckMessage: ContainerCreationAckMessage): Future[RecordMetadata] = {
+                                 creationAckMessage: ContainerCreationAckMessage): Future[ResultMetadata] = {
     val topic = s"${Invoker.topicPrefix}creationAck${schedulerInstanceId.asString}"
     val reschedulable =
       creationAckMessage.error.map(ContainerCreationError.whiskErrors.contains(_)).getOrElse(false)

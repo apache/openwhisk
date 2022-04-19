@@ -22,7 +22,6 @@ import java.nio.charset.StandardCharsets
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import common.StreamLogging
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.{WarmUp, WhiskConfig}
 import org.apache.openwhisk.core.connector.ContainerCreationError._
@@ -115,7 +114,7 @@ class ContainerMessageConsumerTests
   }
 
   def sendAckToScheduler(producer: MessageProducer)(schedulerInstanceId: SchedulerInstanceId,
-                                                    ackMessage: ContainerCreationAckMessage): Future[RecordMetadata] = {
+                                                    ackMessage: ContainerCreationAckMessage): Future[ResultMetadata] = {
     val topic = s"creationAck${schedulerInstanceId.asString}"
     producer.send(topic, ackMessage)
   }

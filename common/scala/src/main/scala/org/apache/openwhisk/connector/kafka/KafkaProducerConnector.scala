@@ -27,7 +27,7 @@ import pureconfig.generic.auto._
 import org.apache.openwhisk.common.{Counter, Logging, TransactionId}
 import org.apache.openwhisk.connector.kafka.KafkaConfiguration._
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.connector.{Message, MessageProducer}
+import org.apache.openwhisk.core.connector.{Message, MessageProducer, ResultMetadata}
 import org.apache.openwhisk.core.entity.{ByteSize, UUIDs}
 import org.apache.openwhisk.utils.Exceptions
 
@@ -49,17 +49,18 @@ class KafkaProducerConnector(
   override def sentCount(): Long = sentCounter.cur
 
   /** Sends msg to topic. This is an asynchronous operation. */
-  override def send(topic: String, msg: Message, retry: Int = 3): Future[RecordMetadata] = {
+  override def send(topic: String, msg: Message, retry: Int = 3): Future[ResultMetadata] = {
     implicit val transid: TransactionId = msg.transid
     val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
-    val produced = Promise[RecordMetadata]()
+    val produced = Promise[ResultMetadata]()
 
     Future {
       blocking {
         try {
           producer.send(record, new Callback {
             override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
-              if (exception == null) produced.trySuccess(metadata)
+              if (exception == null)
+                produced.trySuccess(ResultMetadata(metadata.topic(), metadata.partition(), metadata.offset()))
               else produced.tryFailure(exception)
             }
           })
@@ -72,7 +73,7 @@ class KafkaProducerConnector(
 
     produced.future.andThen {
       case Success(status) =>
-        logging.debug(this, s"sent message: ${status.topic()}[${status.partition()}][${status.offset()}]")
+        logging.debug(this, s"sent message: ${status.topic}[${status.partition}][${status.offset}]")
         sentCounter.next()
       case Failure(t) =>
         logging.error(this, s"sending message on topic '$topic' failed: ${t.getMessage}")

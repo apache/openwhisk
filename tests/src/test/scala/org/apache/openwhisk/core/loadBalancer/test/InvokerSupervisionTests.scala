@@ -21,7 +21,6 @@ import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.Future
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
@@ -46,8 +45,7 @@ import common.{LoggedFunction, StreamLogging}
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import org.apache.openwhisk.common.{InvokerHealth, InvokerState, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
-import org.apache.openwhisk.core.connector.ActivationMessage
-import org.apache.openwhisk.core.connector.PingMessage
+import org.apache.openwhisk.core.connector.{ActivationMessage, PingMessage, ResultMetadata}
 import org.apache.openwhisk.core.entity.ActivationId.ActivationIdGenerator
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -108,7 +106,7 @@ class InvokerSupervisionTests
     val children = mutable.Queue(invoker5.ref, invoker2.ref)
     val childFactory = (f: ActorRefFactory, instance: InvokerInstanceId) => children.dequeue()
 
-    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[RecordMetadata]]
+    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[ResultMetadata]]
     val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
     within(timeout.duration) {
@@ -147,7 +145,7 @@ class InvokerSupervisionTests
     val invokerInstance = InvokerInstanceId(0, userMemory = defaultUserMemory)
     val invokerName = s"invoker${invokerInstance.toInt}"
     val childFactory = (f: ActorRefFactory, instance: InvokerInstanceId) => invoker.ref
-    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[RecordMetadata]]
+    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[ResultMetadata]]
 
     val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
@@ -174,7 +172,7 @@ class InvokerSupervisionTests
     val childFactory = (f: ActorRefFactory, instance: InvokerInstanceId) => invoker.ref
 
     val sendActivationToInvoker = LoggedFunction { (a: ActivationMessage, b: InvokerInstanceId) =>
-      Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, Long.box(0L), 0, 0))
+      Future.successful(ResultMetadata(invokerName, 0, 0))
     }
 
     val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
@@ -421,7 +419,7 @@ class InvokerSupervisionTests
     val children = mutable.Queue(invoker0.ref)
     val childFactory = (f: ActorRefFactory, instance: InvokerInstanceId) => children.dequeue()
 
-    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[RecordMetadata]]
+    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[ResultMetadata]]
     val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
     val invokerInstance = InvokerInstanceId(0, Some("10.x.x.x"), Some("invoker-xyz"), userMemory = defaultUserMemory)
@@ -444,7 +442,7 @@ class InvokerSupervisionTests
     val children = mutable.Queue(invoker0.ref)
     val childFactory = (f: ActorRefFactory, instance: InvokerInstanceId) => children.dequeue()
 
-    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[RecordMetadata]]
+    val sendActivationToInvoker = stubFunction[ActivationMessage, InvokerInstanceId, Future[ResultMetadata]]
     val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
     val invokerInstance = InvokerInstanceId(0, Some("10.x.x.x"), Some("invoker-xyz"), userMemory = defaultUserMemory)

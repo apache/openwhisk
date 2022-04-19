@@ -1,7 +1,6 @@
 package org.apache.openwhisk.core.scheduler.queue.test
 
 import java.time.Instant
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import com.sksamuel.elastic4s.http
@@ -10,13 +9,17 @@ import com.sksamuel.elastic4s.http._
 import com.sksamuel.elastic4s.http.search.{SearchHits, SearchResponse}
 import com.sksamuel.elastic4s.searches.SearchRequest
 import common.StreamLogging
-import org.apache.kafka.clients.producer.RecordMetadata
-import org.apache.kafka.common.TopicPartition
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.common.WhiskInstants.InstantImplicits
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.ack.ActiveAck
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage, Message, MessageProducer}
+import org.apache.openwhisk.core.connector.{
+  AcknowledegmentMessage,
+  ActivationMessage,
+  Message,
+  MessageProducer,
+  ResultMetadata
+}
 import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.database.elasticsearch.ElasticSearchActivationStore.generateIndex
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
@@ -188,11 +191,10 @@ class MemoryQueueTestsFixture
     override def sentCount(): Long = 0
 
     /** Sends msg to topic. This is an asynchronous operation. */
-    override def send(topic: String, msg: Message, retry: Int): Future[RecordMetadata] = {
+    override def send(topic: String, msg: Message, retry: Int): Future[ResultMetadata] = {
       receiver ! s"$topic-${msg}"
 
-      Future.successful(
-        new RecordMetadata(new TopicPartition(topic, 0), -1, -1, System.currentTimeMillis(), null, -1, -1))
+      Future.successful(ResultMetadata(topic, 0, -1))
     }
 
     /** Closes producer. */

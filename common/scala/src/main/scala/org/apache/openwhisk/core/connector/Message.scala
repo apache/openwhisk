@@ -48,6 +48,8 @@ trait Message {
   override def toString = serialize
 }
 
+case class ResultMetadata(topic: String, partition: Int, offset: Long)
+
 case class ActivationMessage(override val transid: TransactionId,
                              action: FullyQualifiedEntityName,
                              revision: DocRevision,

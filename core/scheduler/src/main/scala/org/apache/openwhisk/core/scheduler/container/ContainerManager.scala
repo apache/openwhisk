@@ -20,7 +20,6 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
 import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.event.Logging.InfoLevel
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common.{GracefulShutdown, InvokerHealth, Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.connector.ContainerCreationError.{
@@ -275,7 +274,7 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
 
   private def sendCreationContainerToInvoker(producer: MessageProducer,
                                              invoker: Int,
-                                             msg: ContainerCreationMessage): Future[RecordMetadata] = {
+                                             msg: ContainerCreationMessage): Future[ResultMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
     val topic = s"${Scheduler.topicPrefix}invoker$invoker"
@@ -286,8 +285,7 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
         transid.finished(
           this,
           start,
-          s"posted creationId: ${msg.creationId} for ${msg.invocationNamespace}/${msg.action} to ${status
-            .topic()}[${status.partition()}][${status.offset()}]",
+          s"posted creationId: ${msg.creationId} for ${msg.invocationNamespace}/${msg.action} to ${status.topic}[${status.partition}][${status.offset}]",
           logLevel = InfoLevel)
       case Failure(_) =>
         logging.error(this, s"Failed to create container for ${msg.action}, error: error on posting to topic $topic")
@@ -297,7 +295,7 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
 
   private def sendDeletionContainerToInvoker(producer: MessageProducer,
                                              invoker: Int,
-                                             msg: ContainerDeletionMessage): Future[RecordMetadata] = {
+                                             msg: ContainerDeletionMessage): Future[ResultMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
     val topic = s"${Scheduler.topicPrefix}invoker$invoker"
@@ -308,8 +306,7 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
         transid.finished(
           this,
           start,
-          s"posted deletion for ${msg.invocationNamespace}/${msg.action} to ${status
-            .topic()}[${status.partition()}][${status.offset()}]",
+          s"posted deletion for ${msg.invocationNamespace}/${msg.action} to ${status.topic}[${status.partition}][${status.offset}]",
           logLevel = InfoLevel)
       case Failure(_) =>
         logging.error(this, s"Failed to delete container for ${msg.action}, error: error on posting to topic $topic")
