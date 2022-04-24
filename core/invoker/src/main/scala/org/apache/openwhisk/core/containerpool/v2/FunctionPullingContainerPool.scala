@@ -111,6 +111,14 @@ class FunctionPullingContainerPool(
     MetricEmitter
       .emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("prewarmed"), memoryConsumptionOf(prewarmedPool))
     MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("max"), poolConfig.userMemory.toMB)
+    val prewarmedSize = prewarmedPool.size
+    val busySize = busyPool.size
+    val warmedSize = warmedPool.size
+    val allSize = prewarmedSize + busySize + warmedSize
+    MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("prewarmed"), prewarmedSize)
+    MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("busy"), busySize)
+    MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("warmed"), warmedSize)
+    MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("all"), allSize)
   })
 
   // Key is ColdStartKey, value is the number of cold Start in minute
