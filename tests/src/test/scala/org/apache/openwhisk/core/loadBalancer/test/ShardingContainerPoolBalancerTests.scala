@@ -24,7 +24,6 @@ import akka.testkit.TestProbe
 import common.{StreamLogging, WhiskProperties}
 
 import java.nio.charset.StandardCharsets
-import org.apache.kafka.common.TopicPartition
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory

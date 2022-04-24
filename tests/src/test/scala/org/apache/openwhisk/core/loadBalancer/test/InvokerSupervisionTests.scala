@@ -21,7 +21,6 @@ import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.Future
-import org.apache.kafka.common.TopicPartition
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll

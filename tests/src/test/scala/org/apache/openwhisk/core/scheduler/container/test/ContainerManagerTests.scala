@@ -22,7 +22,6 @@ import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import com.ibm.etcd.api.{KeyValue, RangeResponse}
 import common.{StreamLogging, WskActorSystem}
-import org.apache.kafka.common.TopicPartition
 import org.apache.openwhisk.common.InvokerState.{Healthy, Unhealthy}
 import org.apache.openwhisk.common.{GracefulShutdown, InvokerHealth, Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ContainerCreationError.{
