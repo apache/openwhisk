@@ -176,20 +176,6 @@ whisk.spi {
 .
 ```
 
-#### Configure akka dispatcher for the scheduler
-Add a new dispatcher entry as follows.
-
-**common/scala/src/main/resources/reference.conf**
-```
-  lease-service-dispatcher {
-    executor = "thread-pool-executor"
-    type = PinnedDispatcher
-  }
-.
-.
-.
-```
-
 #### Enable the scheduler
 - Make sure you enable the scheduler by configuring `scheduler_enable`.
 
