@@ -157,6 +157,8 @@ It will run one more component called "scheduler" and ETCD.
 You can update service providers for the scheduler as follows. 
 
 **common/scala/src/main/resources/reference.conf**
+
+If you are using ElasticSearch (recommended) then replace ```NoopDurationCheckerProvider``` with ```ElasticSearchDurationCheckerProvider``` below.
 ```
 whisk.spi {
   ArtifactStoreProvider = org.apache.openwhisk.core.database.CouchDbStoreProvider
@@ -169,7 +171,7 @@ whisk.spi {
   AuthenticationDirectiveProvider = org.apache.openwhisk.core.controller.BasicAuthenticationDirective
   InvokerProvider = org.apache.openwhisk.core.invoker.FPCInvokerReactive
   InvokerServerProvider = org.apache.openwhisk.core.invoker.FPCInvokerServer
-  DurationCheckerProvider = org.apache.openwhisk.core.scheduler.queue.ElasticSearchDurationCheckerProvider
+  DurationCheckerProvider = org.apache.openwhisk.core.scheduler.queue.NoopDurationCheckerProvider
 }
 .
 .
