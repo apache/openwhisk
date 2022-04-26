@@ -17,10 +17,12 @@
 
 package org.apache.openwhisk.core.invoker
 
+import pureconfig._
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.framework.recipes.shared.SharedCount
 import org.apache.curator.retry.RetryUntilElapsed
 import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.core.ConfigKeys
 
 import scala.collection.JavaConverters._
 
@@ -39,7 +41,8 @@ private[invoker] class InstanceIdAssigner(connectionString: String)(implicit log
     zkClient.blockUntilConnected()
     logger.info(this, "invokerReg: connected to zookeeper")
 
-    val rootPath = "/invokers/idAssignment/mapping"
+    val zookeeperPrefix = loadConfigOrThrow[String](ConfigKeys.zookeeperStoragePrefix)
+    val rootPath = s"/${zookeeperPrefix}invokers/idAssignment/mapping"
     val myIdPath = s"$rootPath/$name"
     val assignedId = overwriteId
       .map(newId => {
@@ -67,7 +70,7 @@ private[invoker] class InstanceIdAssigner(connectionString: String)(implicit log
           case None =>
             // path doesn't exist -> no previous mapping for this invoker
             logger.info(this, s"invokerReg: no prior assignment of id for invoker $name")
-            val idCounter = new SharedCount(zkClient, "/invokers/idAssignment/counter", 0)
+            val idCounter = new SharedCount(zkClient, s"/${zookeeperPrefix}invokers/idAssignment/counter", 0)
             idCounter.start()
 
             def assignId(): Int = {
