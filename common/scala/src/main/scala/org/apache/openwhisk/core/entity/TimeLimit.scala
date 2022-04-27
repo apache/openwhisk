@@ -29,6 +29,7 @@ import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.http.Messages
 
 /**
  * TimeLimit encapsulates a duration for an action. The duration must be within a
@@ -43,17 +44,42 @@ import org.apache.openwhisk.core.ConfigKeys
 protected[entity] class TimeLimit private (val duration: FiniteDuration) extends AnyVal {
   protected[core] def millis = duration.toMillis.toInt
   override def toString = duration.toString
+
+  /** It checks the namespace duration limit setting value  */
+  @throws[IllegalArgumentException]
+  protected[core] def checkNamespaceLimit(user: Identity): Unit = {
+    user.limits.durationMax foreach { limit =>
+      require(
+        duration <= limit.duration,
+        Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, limit.duration))
+    }
+    user.limits.durationMin foreach { limit =>
+      require(
+        duration >= limit.duration,
+        Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, limit.duration))
+    }
+  }
 }
 
+case class NamespaceTimeLimitConfig(max: FiniteDuration, min: FiniteDuration, std: FiniteDuration)
 case class TimeLimitConfig(max: FiniteDuration, min: FiniteDuration, std: FiniteDuration)
 
 protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
   val config = loadConfigOrThrow[TimeLimitConfig](ConfigKeys.timeLimit)
+  val namespaceDefaultConfig = loadConfigOrThrow[NamespaceTimeLimitConfig](ConfigKeys.namespaceTimeLimit)
+  val timeLimitFieldName = "duration"
 
-  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
+  /**
+   * These values for system are set once at the beginning.
+   * Dynamic configuration updates are not supported at the moment.
+   */
+  protected[core] val STD_DURATION: FiniteDuration = config.std
   protected[core] val MIN_DURATION: FiniteDuration = config.min
   protected[core] val MAX_DURATION: FiniteDuration = config.max
-  protected[core] val STD_DURATION: FiniteDuration = config.std
+
+  /** Default namespace limit used if there is no namespace-specific limit */
+  protected[core] val MIN_DURATION_DEFAULT: FiniteDuration = namespaceDefaultConfig.min
+  protected[core] val MAX_DURATION_DEFAULT: FiniteDuration = namespaceDefaultConfig.max
 
   /** A singleton TimeLimit with default value */
   protected[core] val standardTimeLimit = TimeLimit(STD_DURATION)
@@ -73,10 +99,10 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
     require(duration != null, s"duration undefined")
     require(
       duration >= MIN_DURATION,
-      s"duration ${duration.toMillis} milliseconds below allowed threshold of ${MIN_DURATION.toMillis} milliseconds")
+      Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, MIN_DURATION))
     require(
       duration <= MAX_DURATION,
-      s"duration ${duration.toMillis} milliseconds exceeds allowed threshold of ${MAX_DURATION.toMillis} milliseconds")
+      Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, MAX_DURATION))
     new TimeLimit(duration)
   }
 

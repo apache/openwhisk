@@ -26,6 +26,7 @@ import org.apache.openwhisk.core.database.{
 }
 import org.apache.openwhisk.core.entitlement.Privilege
 import org.apache.openwhisk.core.entity.types.AuthStore
+
 import spray.json._
 
 import scala.concurrent.Future
@@ -36,13 +37,21 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       firesPerMinute: Option[Int] = None,
                       allowedKinds: Option[Set[String]] = None,
                       storeActivations: Option[Boolean] = None,
+                      memoryMin: Option[MemoryLimit] = None,
+                      memoryMax: Option[MemoryLimit] = None,
+                      logMin: Option[LogLimit] = None,
+                      logMax: Option[LogLimit] = None,
+                      durationMin: Option[TimeLimit] = None,
+                      durationMax: Option[TimeLimit] = None,
+                      concurrencyMin: Option[ConcurrencyLimit] = None,
+                      concurrencyMax: Option[ConcurrencyLimit] = None,
                       warmedContainerKeepingCount: Option[Int] = None,
                       warmedContainerKeepingTimeout: Option[String] = None)
 
 object UserLimits extends DefaultJsonProtocol {
   val standardUserLimits = UserLimits()
 
-  implicit val serdes = jsonFormat7(UserLimits.apply)
+  implicit val serdes = jsonFormat15(UserLimits.apply)
 }
 
 protected[core] case class Namespace(name: EntityName, uuid: UUID)

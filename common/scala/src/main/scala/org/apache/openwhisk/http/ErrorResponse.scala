@@ -20,7 +20,6 @@ package org.apache.openwhisk.http
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
-
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.NotFound
@@ -28,9 +27,7 @@ import akka.http.scaladsl.model.MediaType
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.server.StandardRoute
-
 import spray.json._
-
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity.SizeError
 import org.apache.openwhisk.core.entity.ByteSize
@@ -158,6 +155,25 @@ object Messages {
   /** Error message for size conformance. */
   def entityTooBig(error: SizeError) = {
     s"${error.field} larger than allowed: ${error.is.toBytes} > ${error.allowed.toBytes} bytes."
+  }
+
+  def sizeExceedsAllowedThreshold(field: String, is: Int, allowed: Int) = {
+    s"${field} size ${is} MB exceeds allowed threshold of ${allowed} MB"
+  }
+  def sizeBelowAllowedThreshold(field: String, is: Int, allowed: Int) = {
+    s"${field} size ${is} MB below allowed threshold of ${allowed} MB"
+  }
+  def durationBelowAllowedThreshold(field: String, is: FiniteDuration, allowed: FiniteDuration) = {
+    s"${field} ${is.toMillis} milliseconds below allowed threshold of ${allowed.toMillis} milliseconds"
+  }
+  def durationExceedsAllowedThreshold(field: String, is: FiniteDuration, allowed: FiniteDuration) = {
+    s"${field} ${is.toMillis} milliseconds exceeds allowed threshold of ${allowed.toMillis} milliseconds"
+  }
+  def concurrencyExceedsAllowedThreshold(is: Int, allowed: Int) = {
+    s"concurrency $is exceeds allowed threshold of $allowed"
+  }
+  def concurrencyBelowAllowedThreshold(is: Int, allowed: Int) = {
+    s"concurrency $is below allowed threshold of $allowed"
   }
 
   def listLimitOutOfRange(collection: String, value: Int, max: Int) = {

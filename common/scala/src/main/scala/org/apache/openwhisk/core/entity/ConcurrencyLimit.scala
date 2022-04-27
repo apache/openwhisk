@@ -19,13 +19,16 @@ package org.apache.openwhisk.core.entity
 
 import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.http.Messages
 import pureconfig._
 import pureconfig.generic.auto._
+
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import spray.json._
 
+case class NamespaceConcurrencyLimitConfig(min: Int, max: Int)
 case class ConcurrencyLimitConfig(min: Int, max: Int, std: Int)
 
 /**
@@ -37,20 +40,45 @@ case class ConcurrencyLimitConfig(min: Int, max: Int, std: Int)
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
  *
- * @param maxConcurrent the max number of concurrent activations in a single container
+ * @param maxConcurrent the max or min number of concurrent activations in a single container
  */
-protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extends AnyVal
+protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extends AnyVal {
+
+  /** It checks the namespace memory limit setting value  */
+  @throws[IllegalArgumentException]
+  protected[core] def checkNamespaceLimit(user: Identity): Unit = {
+    user.limits.concurrencyMax foreach { limit =>
+      require(
+        maxConcurrent <= limit.maxConcurrent,
+        Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, limit.maxConcurrent))
+    }
+    user.limits.concurrencyMin foreach { limit =>
+      require(
+        maxConcurrent >= limit.maxConcurrent,
+        Messages.concurrencyBelowAllowedThreshold(maxConcurrent, limit.maxConcurrent))
+    }
+  }
+}
 
 protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] {
   //since tests require override to the default config, load the "test" config, with fallbacks to default
   val config = ConfigFactory.load().getConfig("test")
   private val concurrencyConfig =
     loadConfigWithFallbackOrThrow[ConcurrencyLimitConfig](config, ConfigKeys.concurrencyLimit)
+  private val namespaceConcurrencyDefaultConfig =
+    loadConfigWithFallbackOrThrow[NamespaceConcurrencyLimitConfig](config, ConfigKeys.namespaceConcurrencyLimit)
 
-  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
+  /**
+   * These values for system are set once at the beginning.
+   * Dynamic configuration updates are not supported at the moment.
+   */
   protected[core] val MIN_CONCURRENT: Int = concurrencyConfig.min
   protected[core] val MAX_CONCURRENT: Int = concurrencyConfig.max
   protected[core] val STD_CONCURRENT: Int = concurrencyConfig.std
+
+  /** Default namespace limit used if there is no namespace-specific limit */
+  protected[core] val MIN_CONCURRENT_DEFAULT: Int = namespaceConcurrencyDefaultConfig.min
+  protected[core] val MAX_CONCURRENT_DEFAULT: Int = namespaceConcurrencyDefaultConfig.max
 
   /** A singleton ConcurrencyLimit with default value */
   protected[core] val standardConcurrencyLimit = ConcurrencyLimit(STD_CONCURRENT)
@@ -67,8 +95,8 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(concurrency: Int): ConcurrencyLimit = {
-    require(concurrency >= MIN_CONCURRENT, s"concurrency $concurrency below allowed threshold of $MIN_CONCURRENT")
-    require(concurrency <= MAX_CONCURRENT, s"concurrency $concurrency exceeds allowed threshold of $MAX_CONCURRENT")
+    require(concurrency >= MIN_CONCURRENT, Messages.concurrencyBelowAllowedThreshold(concurrency, MIN_CONCURRENT))
+    require(concurrency <= MAX_CONCURRENT, Messages.concurrencyExceedsAllowedThreshold(concurrency, MAX_CONCURRENT))
     new ConcurrencyLimit(concurrency)
   }
 

@@ -212,11 +212,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskActionPut]) { content =>
         val request = content.resolve(user.namespace)
-        val checkAdditionalPrivileges = entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap {
-          case _ => entitlementProvider.check(user, content.exec)
-        }
+        val check = for {
+          checkNamespace <- checkNamespaceLimit(user, content)
+          checkAdditionalPrivileges <- entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap(_ =>
+            entitlementProvider.check(user, content.exec))
+        } yield (checkAdditionalPrivileges, checkNamespace)
 
-        onComplete(checkAdditionalPrivileges) {
+        onComplete(check) {
           case Success(_) =>
             putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request) _, () => {
               make(user, entityName, request)
@@ -626,6 +628,22 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       // list actions in resolved namespace
       list(user, pkgns)
     })
+  }
+
+  private def checkNamespaceLimit(user: Identity, content: WhiskActionPut)(
+    implicit transid: TransactionId): Future[Unit] = {
+    logging.debug(this, "checking the namespace limit for action")
+    try {
+      content.limits foreach { limit =>
+        limit.memory foreach (_.checkNamespaceLimit(user))
+        limit.timeout foreach (_.checkNamespaceLimit(user))
+        limit.logs foreach (_.checkNamespaceLimit(user))
+        limit.concurrency foreach (_.checkNamespaceLimit(user))
+      }
+      Future.successful(())
+    } catch {
+      case e: IllegalArgumentException => Future failed RejectRequest(BadRequest, e.getMessage)
+    }
   }
 
   /**

@@ -21,14 +21,15 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import spray.json._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.http.Messages
 import pureconfig._
 import pureconfig.generic.auto._
 
 case class MemoryLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
+case class NamespaceMemoryLimitConfig(min: ByteSize, max: ByteSize)
 
 /**
  * MemoryLimit encapsulates allowed memory for an action. The limit must be within a
@@ -40,15 +41,40 @@ case class MemoryLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
  *
  * @param megabytes the memory limit in megabytes for the action
  */
-protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal
+protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal {
+
+  /** It checks the namespace memory limit setting value  */
+  @throws[IllegalArgumentException]
+  protected[core] def checkNamespaceLimit(user: Identity): Unit = {
+    user.limits.memoryMax foreach { limit =>
+      require(
+        megabytes <= limit.megabytes,
+        Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, limit.megabytes))
+    }
+    user.limits.memoryMin foreach { limit =>
+      require(
+        megabytes >= limit.megabytes,
+        Messages.sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, limit.megabytes))
+    }
+  }
+}
 
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
   val config = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.memory)
+  val namespaceDefaultConfig = loadConfigOrThrow[NamespaceMemoryLimitConfig](ConfigKeys.namespaceMemoryLimit)
+  val memoryLimitFieldName = "memory"
 
-  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
+  /**
+   * These values for system are set once at the beginning.
+   * Dynamic configuration updates are not supported at the moment.
+   */
+  protected[core] val STD_MEMORY: ByteSize = config.std
   protected[core] val MIN_MEMORY: ByteSize = config.min
   protected[core] val MAX_MEMORY: ByteSize = config.max
-  protected[core] val STD_MEMORY: ByteSize = config.std
+
+  /** Default namespace limit used if there is no namespace-specific limit */
+  protected[core] val MIN_MEMORY_DEFAULT: ByteSize = namespaceDefaultConfig.min
+  protected[core] val MAX_MEMORY_DEFAULT: ByteSize = namespaceDefaultConfig.max
 
   /** A singleton MemoryLimit with default value */
   protected[core] val standardMemoryLimit = MemoryLimit(STD_MEMORY)
@@ -65,8 +91,12 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(megabytes: ByteSize): MemoryLimit = {
-    require(megabytes >= MIN_MEMORY, s"memory $megabytes below allowed threshold of $MIN_MEMORY")
-    require(megabytes <= MAX_MEMORY, s"memory $megabytes exceeds allowed threshold of $MAX_MEMORY")
+    require(
+      megabytes >= MIN_MEMORY,
+      Messages.sizeBelowAllowedThreshold(memoryLimitFieldName, megabytes.toMB.toInt, MIN_MEMORY.toMB.toInt))
+    require(
+      megabytes <= MAX_MEMORY,
+      Messages.sizeExceedsAllowedThreshold(memoryLimitFieldName, megabytes.toMB.toInt, MAX_MEMORY.toMB.toInt))
     new MemoryLimit(megabytes.toMB.toInt)
   }
 

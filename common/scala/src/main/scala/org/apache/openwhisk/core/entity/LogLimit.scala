@@ -27,6 +27,7 @@ import scala.util.Try
 import spray.json._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.http.Messages
 
 case class LogLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
 
@@ -44,15 +45,39 @@ case class LogLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
  */
 protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
   protected[core] def asMegaBytes: ByteSize = megabytes.megabytes
+
+  /** It checks the namespace memory limit setting value  */
+  @throws[IllegalArgumentException]
+  protected[core] def checkNamespaceLimit(user: Identity): Unit = {
+    user.limits.logMax foreach { limit =>
+      require(
+        megabytes <= limit.megabytes,
+        Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, limit.megabytes))
+    }
+    user.limits.logMin foreach { limit =>
+      require(
+        megabytes >= limit.megabytes,
+        Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, limit.megabytes))
+    }
+  }
 }
 
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
   val config = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.logLimit)
+  val namespaceDefaultConfig = loadConfigOrThrow[NamespaceMemoryLimitConfig](ConfigKeys.namespaceLogLimit)
+  val logLimitFieldName = "log"
 
-  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
+  /**
+   * These values for system are set once at the beginning.
+   * Dynamic configuration updates are not supported at the moment.
+   */
   protected[core] val MIN_LOGSIZE: ByteSize = config.min
   protected[core] val MAX_LOGSIZE: ByteSize = config.max
   protected[core] val STD_LOGSIZE: ByteSize = config.std
+
+  /** Default log limit used if there is no namespace-specific limit */
+  protected[core] val MIN_LOGSIZE_DEFAULT: ByteSize = namespaceDefaultConfig.min
+  protected[core] val MAX_LOGSIZE_DEFAULT: ByteSize = namespaceDefaultConfig.max
 
   /** A singleton LogLimit with default value */
   protected[core] val standardLogLimit = LogLimit(STD_LOGSIZE)
@@ -69,8 +94,12 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(megabytes: ByteSize): LogLimit = {
-    require(megabytes >= MIN_LOGSIZE, s"log size $megabytes below allowed threshold of $MIN_LOGSIZE")
-    require(megabytes <= MAX_LOGSIZE, s"log size $megabytes exceeds allowed threshold of $MAX_LOGSIZE")
+    require(
+      megabytes >= MIN_LOGSIZE,
+      Messages.sizeBelowAllowedThreshold(logLimitFieldName, megabytes.toMB.toInt, MIN_LOGSIZE.toMB.toInt))
+    require(
+      megabytes <= MAX_LOGSIZE,
+      Messages.sizeExceedsAllowedThreshold(logLimitFieldName, megabytes.toMB.toInt, MAX_LOGSIZE.toMB.toInt))
     new LogLimit(megabytes.toMB.toInt)
   }
 
