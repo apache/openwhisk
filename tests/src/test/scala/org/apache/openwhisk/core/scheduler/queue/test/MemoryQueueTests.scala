@@ -989,7 +989,91 @@ class MemoryQueueTests
     parent.expectMsg(Transition(fsm, Flushing, Running))
     probe.expectNoMessage(2.seconds)
     fsm.stop()
+  }
 
+  it should "complete old version activation when update action if doesn't exist old version container" in {
+    val mockEtcdClient = mock[EtcdClient]
+    val probe = TestProbe()
+
+    expectDurationChecking(mockEsClient, testInvocationNamespace)
+
+    val fsm =
+      TestFSMRef(
+        new MemoryQueue(
+          mockEtcdClient,
+          durationChecker,
+          fqn,
+          mockMessaging(),
+          config,
+          testInvocationNamespace,
+          revision,
+          endpoints,
+          actionMetadata,
+          probe.ref,
+          probe.ref,
+          probe.ref,
+          TestProbe().ref,
+          schedulerId,
+          ack,
+          store,
+          getUserLimit,
+          checkToDropStaleActivation,
+          queueConfig))
+
+    val now = Instant.now
+    fsm.underlyingActor.queue =
+      Queue.apply(TimeSeriesActivationEntry(Instant.ofEpochMilli(now.toEpochMilli + 1000), message))
+    fsm.underlyingActor.containers = Set.empty[String]
+    fsm.setState(Running, RunningData(probe.ref, probe.ref))
+    fsm ! StopSchedulingAsOutdated // update action
+    stream.toString should include(
+      "does not exist old version container to fetch the old version activation, complete the activation directly")
+    stream.reset()
+    fsm.stop()
+  }
+
+  it should "fetch old version activation by old container when update action" in {
+    val mockEtcdClient = mock[EtcdClient]
+    val probe = TestProbe()
+    val tid = TransactionId(TransactionId.generateTid())
+
+    expectDurationChecking(mockEsClient, testInvocationNamespace)
+
+    val fsm =
+      TestFSMRef(
+        new MemoryQueue(
+          mockEtcdClient,
+          durationChecker,
+          fqn,
+          mockMessaging(),
+          config,
+          testInvocationNamespace,
+          revision,
+          endpoints,
+          actionMetadata,
+          probe.ref,
+          probe.ref,
+          probe.ref,
+          TestProbe().ref,
+          schedulerId,
+          ack,
+          store,
+          getUserLimit,
+          checkToDropStaleActivation,
+          queueConfig))
+
+    val now = Instant.now
+    fsm.underlyingActor.queue =
+      Queue.apply(TimeSeriesActivationEntry(Instant.ofEpochMilli(now.toEpochMilli + 1000), message))
+    fsm.underlyingActor.containers = Set(testContainerId)
+    fsm.setState(Running, RunningData(probe.ref, probe.ref))
+    fsm ! StopSchedulingAsOutdated // update action
+    stream.toString should include("old version activation would be fetched by old version container")
+    stream.reset()
+    (fsm ? GetActivation(tid, fqn, testContainerId, false, None))
+      .mapTo[GetActivationResponse]
+      .futureValue shouldBe GetActivationResponse(Right(message))
+    fsm.stop()
   }
 
   it should "stop scheduling if the namespace does not exist" in {
