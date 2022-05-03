@@ -76,7 +76,7 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
   val memoryLimitFieldName = "memory"
 
   /**
-   * These values for system are set once at the beginning.
+   * These system limits and namespace default limits are set once at the beginning.
    * Dynamic configuration updates are not supported at the moment.
    */
   protected[core] val STD_MEMORY: ByteSize = config.std
@@ -92,6 +92,9 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
 
   /** Gets MemoryLimit with default value */
   protected[core] def apply(): MemoryLimit = standardMemoryLimit
+
+  require(MAX_MEMORY >= MAX_MEMORY_DEFAULT, "The system max limit must be greater than the namespace max limit.")
+  require(MIN_MEMORY <= MIN_MEMORY_DEFAULT, "The system min limit must be less than the namespace min limit.")
 
   /**
    * Creates MemoryLimit for limit, iff limit is within permissible range.

@@ -74,7 +74,7 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
   val logLimitFieldName = "log"
 
   /**
-   * These values for system are set once at the beginning.
+   * These system limits and namespace default limits are set once at the beginning.
    * Dynamic configuration updates are not supported at the moment.
    */
   protected[core] val MIN_LOGSIZE: ByteSize = config.min
@@ -84,6 +84,9 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
   /** Default log limit used if there is no namespace-specific limit */
   protected[core] val MIN_LOGSIZE_DEFAULT: ByteSize = namespaceDefaultConfig.min
   protected[core] val MAX_LOGSIZE_DEFAULT: ByteSize = namespaceDefaultConfig.max
+
+  require(MAX_LOGSIZE >= MAX_LOGSIZE_DEFAULT, "The system max limit must be greater than the namespace max limit.")
+  require(MIN_LOGSIZE <= MIN_LOGSIZE_DEFAULT, "The system min limit must be less than the namespace min limit.")
 
   /** A singleton LogLimit with default value */
   protected[core] val standardLogLimit = LogLimit(STD_LOGSIZE)

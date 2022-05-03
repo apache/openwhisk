@@ -76,7 +76,7 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
     loadConfigWithFallbackOrThrow[NamespaceConcurrencyLimitConfig](config, ConfigKeys.namespaceConcurrencyLimit)
 
   /**
-   * These values for system are set once at the beginning.
+   * These system limits and namespace default limits are set once at the beginning.
    * Dynamic configuration updates are not supported at the moment.
    */
   protected[core] val MIN_CONCURRENT: Int = concurrencyConfig.min
@@ -86,6 +86,11 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
   /** Default namespace limit used if there is no namespace-specific limit */
   protected[core] val MIN_CONCURRENT_DEFAULT: Int = namespaceConcurrencyDefaultConfig.min
   protected[core] val MAX_CONCURRENT_DEFAULT: Int = namespaceConcurrencyDefaultConfig.max
+
+  require(
+    MAX_CONCURRENT >= MAX_CONCURRENT_DEFAULT,
+    "The system max limit must be greater than the namespace max limit.")
+  require(MIN_CONCURRENT <= MIN_CONCURRENT_DEFAULT, "The system min limit must be less than the namespace min limit.")
 
   /** A singleton ConcurrencyLimit with default value */
   protected[core] val standardConcurrencyLimit = ConcurrencyLimit(STD_CONCURRENT)

@@ -79,7 +79,7 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
   val timeLimitFieldName = "duration"
 
   /**
-   * These values for system are set once at the beginning.
+   * These system limits and namespace default limits are set once at the beginning.
    * Dynamic configuration updates are not supported at the moment.
    */
   protected[core] val STD_DURATION: FiniteDuration = config.std
@@ -89,6 +89,9 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
   /** Default namespace limit used if there is no namespace-specific limit */
   protected[core] val MIN_DURATION_DEFAULT: FiniteDuration = namespaceDefaultConfig.min
   protected[core] val MAX_DURATION_DEFAULT: FiniteDuration = namespaceDefaultConfig.max
+
+  require(MAX_DURATION >= MAX_DURATION_DEFAULT, "The system max limit must be greater than the namespace max limit.")
+  require(MIN_DURATION <= MIN_DURATION_DEFAULT, "The system min limit must be less than the namespace min limit.")
 
   /** A singleton TimeLimit with default value */
   protected[core] val standardTimeLimit = TimeLimit(STD_DURATION)
