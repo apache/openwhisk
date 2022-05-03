@@ -46,16 +46,27 @@ protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal 
   /** It checks the namespace memory limit setting value  */
   @throws[IllegalArgumentException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    user.limits.memoryMax foreach { limit =>
-      require(
-        megabytes <= limit.megabytes,
-        Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, limit.megabytes))
-    }
-    user.limits.memoryMin foreach { limit =>
-      require(
-        megabytes >= limit.megabytes,
-        Messages.sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, limit.megabytes))
-    }
+    val memoryMax = user.limits.memoryMax.map(_.megabytes) getOrElse (MemoryLimit.MAX_MEMORY_DEFAULT.toMB.toInt)
+    val memoryMin = user.limits.memoryMin.map(_.megabytes) getOrElse (MemoryLimit.MIN_MEMORY_DEFAULT.toMB.toInt)
+
+    require(
+      megabytes <= memoryMax,
+      Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMax))
+    require(
+      megabytes >= memoryMin,
+      Messages.sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMin))
+  }
+
+  @throws[IllegalArgumentException]
+  protected[core] def checkSystemLimit(): Unit = {
+    require(
+      megabytes >= MemoryLimit.MIN_MEMORY.toMB.toInt,
+      Messages
+        .sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, MemoryLimit.MIN_MEMORY.toMB.toInt))
+    require(
+      megabytes <= MemoryLimit.MAX_MEMORY.toMB.toInt,
+      Messages
+        .sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, MemoryLimit.MAX_MEMORY.toMB.toInt))
   }
 }
 

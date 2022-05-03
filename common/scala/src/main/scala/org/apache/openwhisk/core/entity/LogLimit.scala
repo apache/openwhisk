@@ -49,17 +49,23 @@ protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
   /** It checks the namespace memory limit setting value  */
   @throws[IllegalArgumentException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    user.limits.logMax foreach { limit =>
-      require(
-        megabytes <= limit.megabytes,
-        Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, limit.megabytes))
-    }
-    user.limits.logMin foreach { limit =>
-      require(
-        megabytes >= limit.megabytes,
-        Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, limit.megabytes))
-    }
+    val logMax = user.limits.logMax.map(_.megabytes) getOrElse (LogLimit.MAX_LOGSIZE_DEFAULT.toMB.toInt)
+    val logMin = user.limits.logMin.map(_.megabytes) getOrElse (LogLimit.MIN_LOGSIZE_DEFAULT.toMB.toInt)
+
+    require(megabytes <= logMax, Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMax))
+    require(megabytes >= logMin, Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMin))
   }
+
+  @throws[IllegalArgumentException]
+  protected[core] def checkSystemLimit(): Unit = {
+    require(
+      megabytes >= LogLimit.MIN_LOGSIZE.toMB.toInt,
+      Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, LogLimit.MIN_LOGSIZE.toMB.toInt))
+    require(
+      megabytes <= LogLimit.MAX_LOGSIZE.toMB.toInt,
+      Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, LogLimit.MAX_LOGSIZE.toMB.toInt))
+  }
+
 }
 
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
@@ -94,12 +100,6 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(megabytes: ByteSize): LogLimit = {
-    require(
-      megabytes >= MIN_LOGSIZE,
-      Messages.sizeBelowAllowedThreshold(logLimitFieldName, megabytes.toMB.toInt, MIN_LOGSIZE.toMB.toInt))
-    require(
-      megabytes <= MAX_LOGSIZE,
-      Messages.sizeExceedsAllowedThreshold(logLimitFieldName, megabytes.toMB.toInt, MAX_LOGSIZE.toMB.toInt))
     new LogLimit(megabytes.toMB.toInt)
   }
 

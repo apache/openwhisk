@@ -826,16 +826,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
     serdes foreach { s =>
       withClue(s"serializer $s") {
-        if (s != LogLimit.serdes) {
-          val lb = the[DeserializationException] thrownBy s.read(JsNumber(0))
-          lb.getMessage should include("below allowed threshold")
-        } else {
-          val lb = the[DeserializationException] thrownBy s.read(JsNumber(-1))
-          lb.getMessage should include("a negative size of an object is not allowed")
-        }
-
-        val ub = the[DeserializationException] thrownBy s.read(JsNumber(Int.MaxValue))
-        ub.getMessage should include("exceeds allowed threshold")
+        val lb = the[DeserializationException] thrownBy s.read(JsNumber(-1))
+        lb.getMessage should include("a negative size of an object is not allowed")
 
         val int = the[DeserializationException] thrownBy s.read(JsNumber(2.5))
         int.getMessage should include("limit must be whole number")

@@ -47,16 +47,23 @@ protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extend
   /** It checks the namespace memory limit setting value  */
   @throws[IllegalArgumentException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    user.limits.concurrencyMax foreach { limit =>
-      require(
-        maxConcurrent <= limit.maxConcurrent,
-        Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, limit.maxConcurrent))
-    }
-    user.limits.concurrencyMin foreach { limit =>
-      require(
-        maxConcurrent >= limit.maxConcurrent,
-        Messages.concurrencyBelowAllowedThreshold(maxConcurrent, limit.maxConcurrent))
-    }
+    val concurrencyMax = user.limits.concurrencyMax
+      .map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MAX_CONCURRENT_DEFAULT)
+    val concurrencyMin = user.limits.concurrencyMin
+      .map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MIN_CONCURRENT_DEFAULT)
+
+    require(maxConcurrent <= concurrencyMax, Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, concurrencyMax))
+    require(maxConcurrent >= concurrencyMin, Messages.concurrencyBelowAllowedThreshold(maxConcurrent, concurrencyMin))
+  }
+
+  @throws[IllegalArgumentException]
+  protected[core] def checkSystemLimit(): Unit = {
+    require(
+      maxConcurrent >= ConcurrencyLimit.MIN_CONCURRENT,
+      Messages.concurrencyBelowAllowedThreshold(maxConcurrent, ConcurrencyLimit.MIN_CONCURRENT))
+    require(
+      maxConcurrent <= ConcurrencyLimit.MAX_CONCURRENT,
+      Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, ConcurrencyLimit.MAX_CONCURRENT))
   }
 }
 
@@ -95,8 +102,6 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(concurrency: Int): ConcurrencyLimit = {
-    require(concurrency >= MIN_CONCURRENT, Messages.concurrencyBelowAllowedThreshold(concurrency, MIN_CONCURRENT))
-    require(concurrency <= MAX_CONCURRENT, Messages.concurrencyExceedsAllowedThreshold(concurrency, MAX_CONCURRENT))
     new ConcurrencyLimit(concurrency)
   }
 

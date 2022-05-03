@@ -170,12 +170,33 @@ case class WhiskAction(namespace: EntityPath,
     }
   }
 
-  def toExecutableWhiskAction: Option[ExecutableWhiskAction] = exec match {
-    case codeExec: CodeExec[_] =>
-      Some(
-        ExecutableWhiskAction(namespace, name, codeExec, parameters, limits, version, publish, annotations)
-          .revision[ExecutableWhiskAction](rev))
-    case _ => None
+  def toExecutableWhiskAction: Option[ExecutableWhiskAction] = {
+    try {
+      // Actions that have been maliciously altered and exceed the system limit cannot be executed.
+      checkSystemLimit()
+      exec match {
+        case codeExec: CodeExec[_] =>
+          Some(
+            ExecutableWhiskAction(namespace, name, codeExec, parameters, limits, version, publish, annotations)
+              .revision[ExecutableWhiskAction](rev))
+        case _ => None
+      }
+    } catch {
+      case _: IllegalArgumentException => None
+    }
+  }
+
+  /**
+   * Limit is not checked when deserializing to provide a limit per namespace.
+   * Therefore, it must be checked before execution.
+   * @throws IllegalArgumentException
+   */
+  @throws[IllegalArgumentException]
+  private def checkSystemLimit(): Unit = {
+    limits.timeout.checkSystemLimit()
+    limits.memory.checkSystemLimit()
+    limits.concurrency.checkSystemLimit()
+    limits.logs.checkSystemLimit()
   }
 
   /**

@@ -48,16 +48,25 @@ protected[entity] class TimeLimit private (val duration: FiniteDuration) extends
   /** It checks the namespace duration limit setting value  */
   @throws[IllegalArgumentException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    user.limits.durationMax foreach { limit =>
-      require(
-        duration <= limit.duration,
-        Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, limit.duration))
-    }
-    user.limits.durationMin foreach { limit =>
-      require(
-        duration >= limit.duration,
-        Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, limit.duration))
-    }
+    val durationMax = user.limits.durationMax map (_.duration) getOrElse (TimeLimit.MAX_DURATION_DEFAULT)
+    val durationMix = user.limits.durationMin map (_.duration) getOrElse (TimeLimit.MIN_DURATION_DEFAULT)
+
+    require(
+      duration <= durationMax,
+      Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, durationMax))
+    require(
+      duration >= durationMix,
+      Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, durationMix))
+  }
+
+  @throws[IllegalArgumentException]
+  protected[core] def checkSystemLimit(): Unit = {
+    require(
+      duration >= TimeLimit.MIN_DURATION,
+      Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, TimeLimit.MIN_DURATION))
+    require(
+      duration <= TimeLimit.MAX_DURATION,
+      Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, TimeLimit.MAX_DURATION))
   }
 }
 
@@ -97,12 +106,6 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
   @throws[IllegalArgumentException]
   protected[core] def apply(duration: FiniteDuration): TimeLimit = {
     require(duration != null, s"duration undefined")
-    require(
-      duration >= MIN_DURATION,
-      Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, MIN_DURATION))
-    require(
-      duration <= MAX_DURATION,
-      Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, MAX_DURATION))
     new TimeLimit(duration)
   }
 
