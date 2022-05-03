@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.entity.test
 
 import java.util.Base64
 
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Try
@@ -826,51 +825,14 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
     serdes foreach { s =>
       withClue(s"serializer $s") {
-        val lb = the[DeserializationException] thrownBy s.read(JsNumber(-1))
-        lb.getMessage should include("a negative size of an object is not allowed")
-
+        if (s == LogLimit.serdes) {
+          val lb = the[DeserializationException] thrownBy s.read(JsNumber(-1))
+          lb.getMessage should include("a negative size of an object is not allowed")
+        }
         val int = the[DeserializationException] thrownBy s.read(JsNumber(2.5))
         int.getMessage should include("limit must be whole number")
       }
     }
-  }
-
-  it should "reject bad limit values" in {
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(TimeLimit.MIN_DURATION - 1.millisecond),
-      MemoryLimit(),
-      LogLimit())
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(MemoryLimit.MIN_MEMORY - 1.B),
-      LogLimit())
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(),
-      LogLimit(LogLimit.MIN_LOGSIZE - 1.B))
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(),
-      LogLimit(),
-      ConcurrencyLimit(ConcurrencyLimit.MIN_CONCURRENT - 1))
-
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(TimeLimit.MAX_DURATION + 1.millisecond),
-      MemoryLimit(),
-      LogLimit())
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(MemoryLimit.MAX_MEMORY + 1.B),
-      LogLimit())
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(),
-      LogLimit(LogLimit.MAX_LOGSIZE + 1.B))
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(),
-      LogLimit(),
-      ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT + 1))
   }
 
   it should "parse activation id as uuid" in {

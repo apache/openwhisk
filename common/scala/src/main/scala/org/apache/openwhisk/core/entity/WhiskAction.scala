@@ -172,7 +172,7 @@ case class WhiskAction(namespace: EntityPath,
 
   def toExecutableWhiskAction: Option[ExecutableWhiskAction] = {
     try {
-      // Actions that have been maliciously altered and exceed the system limit cannot be executed.
+      // action that have been maliciously altered and exceed the system limit cannot be executed.
       checkSystemLimit()
       exec match {
         case codeExec: CodeExec[_] =>
