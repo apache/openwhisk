@@ -53,7 +53,6 @@ object InvokerReactive extends InvokerProvider {
     poolConfig: ContainerPoolConfig,
     limitsConfig: ConcurrencyLimitConfig)(implicit actorSystem: ActorSystem, logging: Logging): InvokerCore =
     new InvokerReactive(config, instance, producer, poolConfig, limitsConfig)
-
 }
 
 class InvokerReactive(
@@ -179,6 +178,8 @@ class InvokerReactive(
     WhiskAction
       .get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty)
       .flatMap(action => {
+        // action that have been maliciously altered and exceed the system limit cannot be executed.
+        action.limits.checkSystemLimits()
         action.toExecutableWhiskAction match {
           case Some(executable) =>
             pool ! Run(executable, msg)
@@ -199,6 +200,8 @@ class InvokerReactive(
               ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
             case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
               ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
+            case _: ActionLimitsException =>
+              ActivationResponse.whiskError(Messages.actionLimitExceededSystemLimit)
             case _ =>
               ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
           }
