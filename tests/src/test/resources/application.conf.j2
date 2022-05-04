@@ -175,11 +175,9 @@ test {
     concurrency-limit {
       max = 200
     }
-    namespace-limit {
-      concurrency-limit {
-        min = 1
-        max = 200
-      }
+    namespace-default-limit.concurrency-limit {
+      min = 1
+      max = 200
     }
   }
 }

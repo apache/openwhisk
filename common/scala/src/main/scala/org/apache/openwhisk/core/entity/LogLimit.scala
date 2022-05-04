@@ -47,23 +47,30 @@ protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
   protected[core] def asMegaBytes: ByteSize = megabytes.megabytes
 
   /** It checks the namespace memory limit setting value  */
-  @throws[IllegalArgumentException]
+  @throws[ActionLogLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
     val logMax = user.limits.logMax.map(_.megabytes) getOrElse (LogLimit.MAX_LOGSIZE_DEFAULT.toMB.toInt)
     val logMin = user.limits.logMin.map(_.megabytes) getOrElse (LogLimit.MIN_LOGSIZE_DEFAULT.toMB.toInt)
-
-    require(megabytes <= logMax, Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMax))
-    require(megabytes >= logMin, Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMin))
+    try {
+      require(megabytes <= logMax, Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMax))
+      require(megabytes >= logMin, Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMin))
+    } catch {
+      case e: IllegalArgumentException => throw ActionLogLimitException(e.getMessage)
+    }
   }
 
-  @throws[IllegalArgumentException]
+  @throws[ActionLogLimitException]
   protected[core] def checkSystemLimit(): Unit = {
-    require(
-      megabytes >= LogLimit.MIN_LOGSIZE.toMB.toInt,
-      Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, LogLimit.MIN_LOGSIZE.toMB.toInt))
-    require(
-      megabytes <= LogLimit.MAX_LOGSIZE.toMB.toInt,
-      Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, LogLimit.MAX_LOGSIZE.toMB.toInt))
+    try {
+      require(
+        megabytes >= LogLimit.MIN_LOGSIZE.toMB.toInt,
+        Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, LogLimit.MIN_LOGSIZE.toMB.toInt))
+      require(
+        megabytes <= LogLimit.MAX_LOGSIZE.toMB.toInt,
+        Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, LogLimit.MAX_LOGSIZE.toMB.toInt))
+    } catch {
+      case e: IllegalArgumentException => throw ActionLogLimitException(e.getMessage)
+    }
   }
 
 }

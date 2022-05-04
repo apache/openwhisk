@@ -45,25 +45,34 @@ case class ConcurrencyLimitConfig(min: Int, max: Int, std: Int)
 protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extends AnyVal {
 
   /** It checks the namespace memory limit setting value  */
-  @throws[IllegalArgumentException]
+  @throws[ActionConcurrencyLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
     val concurrencyMax = user.limits.concurrencyMax
       .map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MAX_CONCURRENT_DEFAULT)
     val concurrencyMin = user.limits.concurrencyMin
       .map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MIN_CONCURRENT_DEFAULT)
-
-    require(maxConcurrent <= concurrencyMax, Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, concurrencyMax))
-    require(maxConcurrent >= concurrencyMin, Messages.concurrencyBelowAllowedThreshold(maxConcurrent, concurrencyMin))
+    try {
+      require(
+        maxConcurrent <= concurrencyMax,
+        Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, concurrencyMax))
+      require(maxConcurrent >= concurrencyMin, Messages.concurrencyBelowAllowedThreshold(maxConcurrent, concurrencyMin))
+    } catch {
+      case e: IllegalArgumentException => throw ActionConcurrencyLimitException(e.getMessage)
+    }
   }
 
-  @throws[IllegalArgumentException]
+  @throws[ActionConcurrencyLimitException]
   protected[core] def checkSystemLimit(): Unit = {
-    require(
-      maxConcurrent >= ConcurrencyLimit.MIN_CONCURRENT,
-      Messages.concurrencyBelowAllowedThreshold(maxConcurrent, ConcurrencyLimit.MIN_CONCURRENT))
-    require(
-      maxConcurrent <= ConcurrencyLimit.MAX_CONCURRENT,
-      Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, ConcurrencyLimit.MAX_CONCURRENT))
+    try {
+      require(
+        maxConcurrent >= ConcurrencyLimit.MIN_CONCURRENT,
+        Messages.concurrencyBelowAllowedThreshold(maxConcurrent, ConcurrencyLimit.MIN_CONCURRENT))
+      require(
+        maxConcurrent <= ConcurrencyLimit.MAX_CONCURRENT,
+        Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, ConcurrencyLimit.MAX_CONCURRENT))
+    } catch {
+      case e: IllegalArgumentException => throw ActionConcurrencyLimitException(e.getMessage)
+    }
   }
 }
 

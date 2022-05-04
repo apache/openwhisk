@@ -642,7 +642,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       }
       Future.successful(())
     } catch {
-      case e: IllegalArgumentException => Future failed RejectRequest(BadRequest, e.getMessage)
+      case e: ActionLimitsException => Future failed RejectRequest(BadRequest, e.getMessage)
     }
   }
 

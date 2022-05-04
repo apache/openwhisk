@@ -46,31 +46,38 @@ protected[entity] class TimeLimit private (val duration: FiniteDuration) extends
   override def toString = duration.toString
 
   /** It checks the namespace duration limit setting value  */
-  @throws[IllegalArgumentException]
+  @throws[ActionTimeLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
     val durationMax = user.limits.durationMax map (_.duration) getOrElse (TimeLimit.MAX_DURATION_DEFAULT)
     val durationMix = user.limits.durationMin map (_.duration) getOrElse (TimeLimit.MIN_DURATION_DEFAULT)
-
-    require(
-      duration <= durationMax,
-      Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, durationMax))
-    require(
-      duration >= durationMix,
-      Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, durationMix))
+    try {
+      require(
+        duration <= durationMax,
+        Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, durationMax))
+      require(
+        duration >= durationMix,
+        Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, durationMix))
+    } catch {
+      case e: IllegalArgumentException => throw ActionTimeLimitException(e.getMessage)
+    }
   }
 
-  @throws[IllegalArgumentException]
+  @throws[ActionTimeLimitException]
   protected[core] def checkSystemLimit(): Unit = {
-    require(
-      duration >= TimeLimit.MIN_DURATION,
-      Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, TimeLimit.MIN_DURATION))
-    require(
-      duration <= TimeLimit.MAX_DURATION,
-      Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, TimeLimit.MAX_DURATION))
+    try {
+      require(
+        duration >= TimeLimit.MIN_DURATION,
+        Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, TimeLimit.MIN_DURATION))
+      require(
+        duration <= TimeLimit.MAX_DURATION,
+        Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, TimeLimit.MAX_DURATION))
+    } catch {
+      case e: IllegalArgumentException => throw ActionTimeLimitException(e.getMessage)
+    }
   }
 }
 
-case class NamespaceTimeLimitConfig(max: FiniteDuration, min: FiniteDuration, std: FiniteDuration)
+case class NamespaceTimeLimitConfig(max: FiniteDuration, min: FiniteDuration)
 case class TimeLimitConfig(max: FiniteDuration, min: FiniteDuration, std: FiniteDuration)
 
 protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {

@@ -44,29 +44,36 @@ case class NamespaceMemoryLimitConfig(min: ByteSize, max: ByteSize)
 protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal {
 
   /** It checks the namespace memory limit setting value  */
-  @throws[IllegalArgumentException]
+  @throws[ActionMemoryLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
     val memoryMax = user.limits.memoryMax.map(_.megabytes) getOrElse (MemoryLimit.MAX_MEMORY_DEFAULT.toMB.toInt)
     val memoryMin = user.limits.memoryMin.map(_.megabytes) getOrElse (MemoryLimit.MIN_MEMORY_DEFAULT.toMB.toInt)
-
-    require(
-      megabytes <= memoryMax,
-      Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMax))
-    require(
-      megabytes >= memoryMin,
-      Messages.sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMin))
+    try {
+      require(
+        megabytes <= memoryMax,
+        Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMax))
+      require(
+        megabytes >= memoryMin,
+        Messages.sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMin))
+    } catch {
+      case e: IllegalArgumentException => throw ActionMemoryLimitException(e.getMessage)
+    }
   }
 
-  @throws[IllegalArgumentException]
+  @throws[ActionMemoryLimitException]
   protected[core] def checkSystemLimit(): Unit = {
-    require(
-      megabytes >= MemoryLimit.MIN_MEMORY.toMB.toInt,
-      Messages
-        .sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, MemoryLimit.MIN_MEMORY.toMB.toInt))
-    require(
-      megabytes <= MemoryLimit.MAX_MEMORY.toMB.toInt,
-      Messages
-        .sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, MemoryLimit.MAX_MEMORY.toMB.toInt))
+    try {
+      require(
+        megabytes >= MemoryLimit.MIN_MEMORY.toMB.toInt,
+        Messages
+          .sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, MemoryLimit.MIN_MEMORY.toMB.toInt))
+      require(
+        megabytes <= MemoryLimit.MAX_MEMORY.toMB.toInt,
+        Messages
+          .sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, MemoryLimit.MAX_MEMORY.toMB.toInt))
+    } catch {
+      case e: IllegalArgumentException => throw ActionMemoryLimitException(e.getMessage)
+    }
   }
 }
 
@@ -105,12 +112,6 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(megabytes: ByteSize): MemoryLimit = {
-    require(
-      megabytes >= MIN_MEMORY,
-      Messages.sizeBelowAllowedThreshold(memoryLimitFieldName, megabytes.toMB.toInt, MIN_MEMORY.toMB.toInt))
-    require(
-      megabytes <= MAX_MEMORY,
-      Messages.sizeExceedsAllowedThreshold(memoryLimitFieldName, megabytes.toMB.toInt, MAX_MEMORY.toMB.toInt))
     new MemoryLimit(megabytes.toMB.toInt)
   }
 
