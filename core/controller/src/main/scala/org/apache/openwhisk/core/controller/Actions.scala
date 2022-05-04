@@ -213,10 +213,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       entity(as[WhiskActionPut]) { content =>
         val request = content.resolve(user.namespace)
         val check = for {
-          checkNamespace <- checkNamespaceLimit(user, content)
+          checkLimits <- checkNamespaceAndSystemLimits(user, content)
           checkAdditionalPrivileges <- entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap(_ =>
             entitlementProvider.check(user, content.exec))
-        } yield (checkAdditionalPrivileges, checkNamespace)
+        } yield (checkAdditionalPrivileges, checkLimits)
 
         onComplete(check) {
           case Success(_) =>
@@ -630,15 +630,23 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     })
   }
 
-  private def checkNamespaceLimit(user: Identity, content: WhiskActionPut)(
+  private def checkNamespaceAndSystemLimits(user: Identity, content: WhiskActionPut)(
     implicit transid: TransactionId): Future[Unit] = {
-    logging.debug(this, "checking the namespace limit for action")
+    logging.debug(this, "checking the namespace and system limit for action")
     try {
+      // check namespace limits
       content.limits foreach { limit =>
         limit.memory foreach (_.checkNamespaceLimit(user))
         limit.timeout foreach (_.checkNamespaceLimit(user))
         limit.logs foreach (_.checkNamespaceLimit(user))
         limit.concurrency foreach (_.checkNamespaceLimit(user))
+      }
+      // check system limits
+      content.limits foreach { limit =>
+        limit.memory foreach (_.checkSystemLimit())
+        limit.timeout foreach (_.checkSystemLimit())
+        limit.logs foreach (_.checkSystemLimit())
+        limit.concurrency foreach (_.checkSystemLimit())
       }
       Future.successful(())
     } catch {

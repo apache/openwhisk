@@ -249,19 +249,6 @@ case class WhiskActionMetaData(namespace: EntityPath,
     case _ =>
       None
   }
-
-  /**
-   * System limit is not checked when deserializing entity to provide a limit per namespace.
-   * Therefore, it must be checked before execution.
-   * @throws IllegalArgumentException
-   */
-  @throws[IllegalArgumentException]
-  private def checkSystemLimit(): Unit = {
-    limits.timeout.checkSystemLimit()
-    limits.memory.checkSystemLimit()
-    limits.concurrency.checkSystemLimit()
-    limits.logs.checkSystemLimit()
-  }
 }
 
 /**

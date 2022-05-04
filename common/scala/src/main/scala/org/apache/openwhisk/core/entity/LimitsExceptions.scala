@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.entity
 
-sealed abstract class ActionLimitsException(message: String) extends Exception(message)
+sealed abstract class ActionLimitsException(message: String) extends IllegalArgumentException(message)
 
 case class ActionTimeLimitException(message: String) extends ActionLimitsException(message)
 

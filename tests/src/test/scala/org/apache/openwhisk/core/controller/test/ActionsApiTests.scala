@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.controller.test
 
 import java.time.Instant
-
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import org.junit.runner.RunWith
@@ -574,6 +573,34 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "reject create if exceeds the system memory limit and indicate namespace limit in message" in {
+    implicit val tid = transid()
+
+    val allowed = MemoryLimit.MAX_MEMORY_DEFAULT - 1.MB // namespace limit
+    val is = MemoryLimit.MAX_MEMORY + 1.MB
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(memoryMax = Some(MemoryLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(is)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, is.toMB.toInt, allowed.toMB.toInt)
+      }
+    }
+  }
+
   it should "reject create when memory is less than minimum allowed namespace limit" in {
     implicit val tid = transid()
 
@@ -607,6 +634,34 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val allowed = ByteSize(5, SizeUnits.MB)
     val is = ByteSize(7, SizeUnits.MB)
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(logMax = Some(LogLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(is)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, is.toMB.toInt, allowed.toMB.toInt)
+      }
+    }
+  }
+
+  it should "reject create if exceeds the system log size limit and indicate namespace limit in message" in {
+    implicit val tid = transid()
+
+    val allowed = LogLimit.MAX_LOGSIZE_DEFAULT - 1.MB
+    val is = LogLimit.MAX_LOGSIZE + 1.MB
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
@@ -686,6 +741,34 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "reject create if exceeds the system timeout limit and indicate namespace limit in message" in {
+    implicit val tid = transid()
+
+    val allowed = TimeLimit.MAX_DURATION_DEFAULT.minus(2.second)
+    val is = TimeLimit.MAX_DURATION.plus(1 second)
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(durationMax = Some(TimeLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(is)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, is, allowed)
+      }
+    }
+  }
+
   it should "reject create when timeout is less than minimum allowed namespace limit" in {
     implicit val tid = transid()
 
@@ -741,6 +824,35 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       }
     }
   }
+
+  it should "reject create if exceeds the system max concurrency limit and indicate namespace limit in message" in {
+    implicit val tid = transid()
+
+    val allowed = ConcurrencyLimit.MAX_CONCURRENT_DEFAULT - 1
+    val is = ConcurrencyLimit.MAX_CONCURRENT + 1
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(concurrencyMax = Some(ConcurrencyLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(is)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.concurrencyExceedsAllowedThreshold(is, allowed)
+      }
+    }
+  }
+
 
   it should "reject create when max concurrency is less than minimum allowed namespace limit" in {
     implicit val tid = transid()

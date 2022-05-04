@@ -178,7 +178,7 @@ class InvokerReactive(
     WhiskAction
       .get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty)
       .flatMap(action => {
-        // action that have been maliciously altered and exceed the system limit cannot be executed.
+        // action that exceed the system limit cannot be executed.
         action.limits.checkSystemLimits()
         action.toExecutableWhiskAction match {
           case Some(executable) =>
