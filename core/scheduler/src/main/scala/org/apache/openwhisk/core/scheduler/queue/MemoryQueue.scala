@@ -562,12 +562,12 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       context.parent ! staleQueueRemovedMsg
 
       if (queue.size > 0) {
-        // if doesn't exist old container to pull old memoryQueue's activation, complete the activation directly
+        // if doesn't exist old container to pull old memoryQueue's activation, send the old activations to queueManager
         if (containers.size == 0) {
           logging.warn(
             this,
-            s"[$invocationNamespace:$action:$stateName] does not exist old version container to fetch the old version activation, complete the activation directly")
-          queue = completeOldVersionActivations(queue)
+            s"[$invocationNamespace:$action:$stateName] does not exist old version container to fetch the old version activation")
+          forwardAllActivations(context.parent)
         } else {
           logging.info(
             this,
@@ -679,9 +679,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
       goto(Removed) using NoData()
     } else {
-      if (containers.size > 0) {
-        cleanUpActors(data)
-      }
       logging.info(
         this,
         s"[$invocationNamespace:$action:$stateName] Queue is going to stop but there are still ${queue.size} activations and ${requestBuffer.size} request buffered.")
@@ -835,15 +832,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         case Failure(t) =>
           logging.error(this, s"[$invocationNamespace:$action:$stateName] failed to store activation due to $t")
       }
-  }
-
-  def completeOldVersionActivations(queue: Queue[TimeSeriesActivationEntry]): Queue[TimeSeriesActivationEntry] = {
-    if (queue.isEmpty)
-      queue
-    else {
-      completeErrorActivation(queue.head.msg, "action version updated", false)
-      completeOldVersionActivations(queue.tail)
-    }
   }
 
   private def forwardAllActivations(queueManager: ActorRef): Unit = {

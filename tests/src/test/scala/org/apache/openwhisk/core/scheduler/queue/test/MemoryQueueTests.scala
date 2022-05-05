@@ -991,9 +991,10 @@ class MemoryQueueTests
     fsm.stop()
   }
 
-  it should "complete old version activation when update action if doesn't exist old version container" in {
+  it should "send old version activation to queueManager when update action if doesn't exist old version container" in {
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
+    val queueManager = TestProbe()
 
     expectDurationChecking(mockEsClient, testInvocationNamespace)
 
@@ -1018,7 +1019,8 @@ class MemoryQueueTests
           store,
           getUserLimit,
           checkToDropStaleActivation,
-          queueConfig))
+          queueConfig),
+        queueManager.ref)
 
     val now = Instant.now
     fsm.underlyingActor.queue =
@@ -1026,15 +1028,15 @@ class MemoryQueueTests
     fsm.underlyingActor.containers = Set.empty[String]
     fsm.setState(Running, RunningData(probe.ref, probe.ref))
     fsm ! StopSchedulingAsOutdated // update action
-    stream.toString should include(
-      "does not exist old version container to fetch the old version activation, complete the activation directly")
-    stream.reset()
+    queueManager.expectMsg(staleQueueRemovedMsg)
+    queueManager.expectMsg(message)
     fsm.stop()
   }
 
   it should "fetch old version activation by old container when update action" in {
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
+    val queueManager = TestProbe()
     val tid = TransactionId(TransactionId.generateTid())
 
     expectDurationChecking(mockEsClient, testInvocationNamespace)
@@ -1060,7 +1062,8 @@ class MemoryQueueTests
           store,
           getUserLimit,
           checkToDropStaleActivation,
-          queueConfig))
+          queueConfig),
+        queueManager.ref)
 
     val now = Instant.now
     fsm.underlyingActor.queue =
@@ -1068,8 +1071,7 @@ class MemoryQueueTests
     fsm.underlyingActor.containers = Set(testContainerId)
     fsm.setState(Running, RunningData(probe.ref, probe.ref))
     fsm ! StopSchedulingAsOutdated // update action
-    stream.toString should include("old version activation would be fetched by old version container")
-    stream.reset()
+    queueManager.expectMsg(staleQueueRemovedMsg)
     (fsm ? GetActivation(tid, fqn, testContainerId, false, None))
       .mapTo[GetActivationResponse]
       .futureValue shouldBe GetActivationResponse(Right(message))

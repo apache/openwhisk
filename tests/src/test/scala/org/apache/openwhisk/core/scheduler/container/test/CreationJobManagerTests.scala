@@ -322,7 +322,7 @@ class CreationJobManagerTests
         registerMessage.msg.action,
         registerMessage.msg.revision,
         ContainerCreationError.TimeoutError,
-        s"timeout waiting for the ack of ${registerMessage.msg.creationId} after $timeout"))
+        s"[${registerMessage.msg.action}] timeout waiting for the ack of ${registerMessage.msg.creationId} after $timeout"))
   }
 
   it should "increase the timeout if an action is a blackbox action" in {
@@ -373,7 +373,7 @@ class CreationJobManagerTests
         registerMessage.msg.action,
         registerMessage.msg.revision,
         ContainerCreationError.TimeoutError,
-        s"timeout waiting for the ack of ${registerMessage.msg.creationId} after $blackboxTimeout"))
+        s"[${registerMessage.msg.action}] timeout waiting for the ack of ${registerMessage.msg.creationId} after $blackboxTimeout"))
   }
 
   it should "delete a creation job with too many retry and send a FailedCreationJob to a queue" in {
