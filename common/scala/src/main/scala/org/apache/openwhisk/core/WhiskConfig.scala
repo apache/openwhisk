@@ -302,7 +302,7 @@ object ConfigKeys {
   val schedulerMaxPeek = "whisk.scheduler.max-peek"
   val schedulerQueue = "whisk.scheduler.queue"
   val schedulerQueueManager = "whisk.scheduler.queue-manager"
-  val schedulerInProgressJobRetentionSecond = "whisk.scheduler.in-progress-job-retention"
+  val schedulerInProgressJobRetention = "whisk.scheduler.in-progress-job-retention"
 
   val whiskClusterName = "whisk.cluster.name"
 

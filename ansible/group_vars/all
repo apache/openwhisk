@@ -510,7 +510,7 @@ scheduler:
   extraEnv: "{{ scheduler_extraEnv | default({}) }}"
   dataManagementService:
     retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"
-  inProgressJobRetentionSecond: "{{ scheduler_inProgressJobRetentionSecond | default('20 seconds') }}"
+  inProgressJobRetention: "{{ scheduler_inProgressJobRetention | default('20 seconds') }}"
   managedFraction: "{{ scheduler_managed_fraction | default(1.0 - (scheduler_blackbox_fraction | default(__scheduler_blackbox_fraction))) }}"
   blackboxFraction: "{{ scheduler_blackbox_fraction | default(__scheduler_blackbox_fraction) }}"
   queueManager:

@@ -112,7 +112,7 @@
       "CONFIG_whisk_scheduler_protocol": "{{ scheduler.protocol }}"
       "CONFIG_whisk_scheduler_maxPeek": "{{ scheduler.maxPeek }}"
       "CONFIG_whisk_scheduler_dataManagementService_retryInterval": "{{ scheduler.dataManagementService.retryInterval }}"
-      "CONFIG_whisk_scheduler_inProgressJobRetention": "{{ scheduler.inProgressJobRetentionSecond }}"
+      "CONFIG_whisk_scheduler_inProgressJobRetention": "{{ scheduler.inProgressJobRetention }}"
       "CONFIG_whisk_scheduler_queueManager_maxSchedulingTime": "{{ scheduler.queueManager.maxSchedulingTime }}"
       "CONFIG_whisk_scheduler_queueManager_maxRetriesToGetQueue": "{{ scheduler.queueManager.maxRetriesToGetQueue }}"
       "CONFIG_whisk_scheduler_queue_idleGrace": "{{ scheduler.queue.idleGrace }}"
