@@ -52,7 +52,6 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
   private implicit val ec: ExecutionContext = actorSystem.dispatcher
   private val baseTimeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetention)
   private val retryLimit = 5
-  private val retryDelayTime = 100.milliseconds
 
   /**
    * Store a JobEntry in local to get an alarm for key timeout
@@ -110,7 +109,8 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
           logging.error(
             this,
             s"[$action] [$creationId] Failed to create container $retryCount/$retryLimit times for $cause. Started rescheduling")
-          // Add some time interval during retry create container, because etcd put operation needs some time if data inconsistant happens
+          // Add some exponential delay time interval during retry create container, because etcd put operation needs some time if data inconsistant happens
+          val retryDelayTime = (scala.math.pow(2, retryCount) * 100).milliseconds
           actorSystem.scheduler.scheduleOnce(retryDelayTime) {
             context.parent ! ReschedulingCreationJob(
               tid,
