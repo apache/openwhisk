@@ -1399,6 +1399,7 @@ class MemoryQueueFlowTests
 
   // this is to guarantee StopScheduling is handled in all states
   it should "handle StopScheduling in any states." in {
+    val testContainerId = "fakeContainerId"
     val allStates =
       List(Running, Idle, ActionThrottled, NamespaceThrottled, Flushing, Removing, Removed)
 
@@ -1496,6 +1497,7 @@ class MemoryQueueFlowTests
           // queue should not be terminated as there is an activation
           Thread.sleep(gracefulShutdownTimeout.toMillis)
 
+          fsm.underlyingActor.containers = Set(testContainerId)
           container.send(fsm, getActivation())
           container.expectMsg(ActivationResponse(Right(message)))
 
@@ -1534,19 +1536,13 @@ class MemoryQueueFlowTests
           probe.expectTerminated(fsm, 10.seconds)
 
         case _ =>
-          // queue is stale and will be removed
+          fsm.underlyingActor.containers = Set(testContainerId)
           parent.expectMsg(staleQueueRemovedMsg)
+          parent.expectMsg(message)
+          // queue is stale and will be removed
           probe.expectMsg(Transition(fsm, state, Removing))
 
           fsm ! QueueRemovedCompleted
-
-          // queue should not be terminated as there is an activation
-          Thread.sleep(gracefulShutdownTimeout.toMillis)
-
-          container.send(fsm, getActivation())
-          container.expectMsg(ActivationResponse(Right(message)))
-
-          Thread.sleep(gracefulShutdownTimeout.toMillis)
 
           watcher.expectMsgAllOf(
             UnwatchEndpoint(inProgressContainerKey, isPrefix = true, watcherName),
