@@ -10,12 +10,7 @@ import org.apache.openwhisk.core.connector.ContainerCreationMessage
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.scheduler.grpc.ActivationResponse
-import org.apache.openwhisk.core.scheduler.message.{
-  ContainerCreation,
-  ContainerDeletion,
-  FailedCreationJob,
-  SuccessfulCreationJob
-}
+import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, ContainerDeletion, FailedCreationJob, SuccessfulCreationJob}
 import org.apache.openwhisk.core.scheduler.queue.MemoryQueue.checkToDropStaleActivation
 import org.apache.openwhisk.core.scheduler.queue._
 import org.apache.openwhisk.core.service._
@@ -27,6 +22,8 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import spray.json.{JsObject, JsString}
 
+import java.time.Instant
+import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
@@ -1462,6 +1459,7 @@ class MemoryQueueFlowTests
           fsm.setState(state, FlushingData(schedulingActors.ref, schedulingActors.ref, WhiskError, "whisk error"))
 
         case Removing =>
+          fsm.underlyingActor.containers = Set(testContainerId)
           fsm ! message
           fsm.setState(state, RemovingData(schedulingActors.ref, schedulingActors.ref, outdated = true))
 
@@ -1492,16 +1490,18 @@ class MemoryQueueFlowTests
       fsm ! StopSchedulingAsOutdated
 
       state match {
-        // queue will be gracefully shutdown.
         case Removing =>
-          // queue should not be terminated as there is an activation
-          Thread.sleep(gracefulShutdownTimeout.toMillis)
-
-          fsm.underlyingActor.containers = Set(testContainerId)
+          // still exist old container for old queue, fetch the queue by old container
           container.send(fsm, getActivation())
           container.expectMsg(ActivationResponse(Right(message)))
+          // has no old containers for old queue, so send the message to queueManager
+          fsm.underlyingActor.containers = Set.empty[String]
+          fsm.underlyingActor.queue =
+            Queue.apply(TimeSeriesActivationEntry(Instant.ofEpochMilli(Instant.now.toEpochMilli + 1000), message))
+          fsm ! StopSchedulingAsOutdated
+          parent.expectMsg(message)
 
-          // queue should not be terminated as there is an activation
+          // queue should be terminated after gracefulShutdownTimeout
           Thread.sleep(gracefulShutdownTimeout.toMillis)
 
           // clean up actors only because etcd data is being used by a new queue
@@ -1536,7 +1536,6 @@ class MemoryQueueFlowTests
           probe.expectTerminated(fsm, 10.seconds)
 
         case _ =>
-          fsm.underlyingActor.containers = Set(testContainerId)
           parent.expectMsg(staleQueueRemovedMsg)
           parent.expectMsg(message)
           // queue is stale and will be removed
