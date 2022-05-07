@@ -1429,7 +1429,9 @@ class MemoryQueueTests
 
     Thread.sleep(1000)
     memoryQueue.containers.size shouldBe 1
-    memoryQueue.creationIds.size shouldBe 1
+    // the monit actor in memoryQueue may decide to create a container
+    memoryQueue.creationIds.size should be >= 1
+    memoryQueue.creationIds.size should be <= 2
     memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 2
     memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 2
 
@@ -1466,7 +1468,8 @@ class MemoryQueueTests
 
     Thread.sleep(1000)
     memoryQueue.containers.size shouldBe 2
-    memoryQueue.creationIds.size shouldBe 2
+    memoryQueue.creationIds.size should be >= 2
+    memoryQueue.creationIds.size should be <= 3
     memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 4
     memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 4
 
@@ -1493,7 +1496,8 @@ class MemoryQueueTests
 
     Thread.sleep(1000)
     memoryQueue.containers.size shouldBe 2
-    memoryQueue.creationIds.size shouldBe 0
+    memoryQueue.creationIds.size should be >= 0
+    memoryQueue.creationIds.size should be <= 1
     memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 0
     memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 4
 
@@ -1538,11 +1542,13 @@ class MemoryQueueTests
         Some(ContainerId("test-containerId4"))),
       "test-value")
 
-    memoryQueue.creationIds.size shouldBe 0
+    memoryQueue.creationIds.size should be >= 0
+    memoryQueue.creationIds.size should be <= 1
 
     Thread.sleep(1000)
     memoryQueue.containers.size shouldBe 0
-    memoryQueue.creationIds.size shouldBe 1 //if there is no container, the queue tries to create one container
+    memoryQueue.creationIds.size should be >= 1 // if there is no container, the queue tries to create one container
+    memoryQueue.creationIds.size should be <= 2
     memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 0
     memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 0
   }
