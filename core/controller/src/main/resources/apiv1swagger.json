@@ -2837,6 +2837,38 @@
         "storeActivations": {
           "type": "boolean",
           "description": "Whether storing activation is turned on for namespace (default is true)"
+        },
+        "actionMemoryMin": {
+          "type": "integer",
+          "description": "Min allowed action memory size in megabytes for namespace"
+        },
+        "actionMemoryMax": {
+          "type": "integer",
+          "description": "Max allowed action memory size in megabytes for namespace"
+        },
+        "actionDurationMin": {
+          "type": "integer",
+          "description": "Min allowed action timeout in milliseconds for namespace"
+        },
+        "actionDurationMax": {
+          "type": "integer",
+          "description": "Max allowed action timeout in milliseconds for namespace"
+        },
+        "actionLogsMin": {
+          "type": "integer",
+          "description": "Min allowed action log size in megabytes for namespace"
+        },
+        "actionLogsMax": {
+          "type": "integer",
+          "description": "Max allowed action log size in megabytes for namespace"
+        },
+        "actionConcurrencyMin": {
+          "type": "integer",
+          "description": "Max number of concurrent activations allowed"
+        },
+        "actionConcurrencyMax": {
+          "type": "integer",
+          "description": "Min number of concurrent activations allowed"
         }
       }
     }
