@@ -385,7 +385,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         this,
         s"[$invocationNamespace:$action:$stateName] The queue received StopSchedulingAsOutdated trying to stop the queue.")
 
-      handleStaleActivationsWhenUpdateAction(context.parent)
+      handleStaleActivationsWhenActionUpdated(context.parent)
 
       cleanUpActorsAndGotoRemovedIfPossible(data.copy(outdated = true))
   }
@@ -564,7 +564,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       // let QueueManager know this queue is no longer in charge.
       context.parent ! staleQueueRemovedMsg
 
-      handleStaleActivationsWhenUpdateAction(context.parent)
+      handleStaleActivationsWhenActionUpdated(context.parent)
 
       goto(Removing) using getRemovingData(data, outdated = true)
 
@@ -835,7 +835,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   }
 
 
-  private def handleStaleActivationsWhenUpdateAction(queueManager: ActorRef): Unit = {
+  private def handleStaleActivationsWhenActionUpdated(queueManager: ActorRef): Unit = {
     if (queue.size > 0) {
       // if doesn't exist old container to pull old memoryQueue's activation, send the old activations to queueManager
       if (containers.size == 0) {
