@@ -46,8 +46,8 @@ protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal 
   /** It checks the namespace memory limit setting value  */
   @throws[ActionMemoryLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    val memoryMax = user.limits.memoryMax.map(_.megabytes) getOrElse (MemoryLimit.MAX_MEMORY_DEFAULT.toMB.toInt)
-    val memoryMin = user.limits.memoryMin.map(_.megabytes) getOrElse (MemoryLimit.MIN_MEMORY_DEFAULT.toMB.toInt)
+    val memoryMax = user.limits.actionMemoryMax.map(_.megabytes) getOrElse (MemoryLimit.MAX_MEMORY_DEFAULT.toMB.toInt)
+    val memoryMin = user.limits.actionMemoryMin.map(_.megabytes) getOrElse (MemoryLimit.MIN_MEMORY_DEFAULT.toMB.toInt)
     try {
       require(
         megabytes <= memoryMax,

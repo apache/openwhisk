@@ -71,14 +71,14 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         Some(testFiresPerMinute),
         Some(testAllowedKinds),
         Some(testStoreActivations),
-        memoryMin = Some(testMemoryMin),
-        memoryMax = Some(testMemoryMax),
-        logMin = Some(testLogMin),
-        logMax = Some(testLogMax),
-        durationMax = Some(testDurationMax),
-        durationMin = Some(testDurationMin),
-        concurrencyMax = Some(testConcurrencyMax),
-        concurrencyMin = Some(testConcurrencyMin)))
+        actionMemoryMin = Some(testMemoryMin),
+        actionMemoryMax = Some(testMemoryMax),
+        actionLogsMin = Some(testLogMin),
+        actionLogsMax = Some(testLogMax),
+        actionDurationMax = Some(testDurationMax),
+        actionDurationMin = Some(testDurationMin),
+        actionConcurrencyMax = Some(testConcurrencyMax),
+        actionConcurrencyMin = Some(testConcurrencyMin)))
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
 
@@ -95,14 +95,14 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         responseAs[UserLimits].storeActivations shouldBe None
 
         // provide default action limits
-        responseAs[UserLimits].memoryMin.get.megabytes shouldBe MemoryLimit.MIN_MEMORY_DEFAULT.toMB
-        responseAs[UserLimits].memoryMax.get.megabytes shouldBe MemoryLimit.MAX_MEMORY_DEFAULT.toMB
-        responseAs[UserLimits].logMin.get.megabytes shouldBe LogLimit.MIN_LOGSIZE_DEFAULT.toMB
-        responseAs[UserLimits].logMax.get.megabytes shouldBe LogLimit.MAX_LOGSIZE_DEFAULT.toMB
-        responseAs[UserLimits].durationMin.get.duration shouldBe TimeLimit.MIN_DURATION_DEFAULT
-        responseAs[UserLimits].durationMax.get.duration shouldBe TimeLimit.MAX_DURATION_DEFAULT
-        responseAs[UserLimits].concurrencyMin.get.maxConcurrent shouldBe ConcurrencyLimit.MIN_CONCURRENT_DEFAULT
-        responseAs[UserLimits].concurrencyMax.get.maxConcurrent shouldBe ConcurrencyLimit.MAX_CONCURRENT_DEFAULT
+        responseAs[UserLimits].actionMemoryMin.get.megabytes shouldBe MemoryLimit.MIN_MEMORY_DEFAULT.toMB
+        responseAs[UserLimits].actionMemoryMax.get.megabytes shouldBe MemoryLimit.MAX_MEMORY_DEFAULT.toMB
+        responseAs[UserLimits].actionLogsMin.get.megabytes shouldBe LogLimit.MIN_LOGSIZE_DEFAULT.toMB
+        responseAs[UserLimits].actionLogsMax.get.megabytes shouldBe LogLimit.MAX_LOGSIZE_DEFAULT.toMB
+        responseAs[UserLimits].actionDurationMin.get.duration shouldBe TimeLimit.MIN_DURATION_DEFAULT
+        responseAs[UserLimits].actionDurationMax.get.duration shouldBe TimeLimit.MAX_DURATION_DEFAULT
+        responseAs[UserLimits].actionConcurrencyMin.get.maxConcurrent shouldBe ConcurrencyLimit.MIN_CONCURRENT_DEFAULT
+        responseAs[UserLimits].actionConcurrencyMax.get.maxConcurrent shouldBe ConcurrencyLimit.MAX_CONCURRENT_DEFAULT
       }
     }
   }
@@ -119,14 +119,14 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         responseAs[UserLimits].storeActivations shouldBe Some(testStoreActivations)
 
         // provide action limits for namespace
-        responseAs[UserLimits].memoryMin.get.megabytes shouldBe testMemoryMin.megabytes
-        responseAs[UserLimits].memoryMax.get.megabytes shouldBe testMemoryMax.megabytes
-        responseAs[UserLimits].logMin.get.megabytes shouldBe testLogMin.megabytes
-        responseAs[UserLimits].logMax.get.megabytes shouldBe testLogMax.megabytes
-        responseAs[UserLimits].durationMin.get.duration shouldBe testDurationMin.duration
-        responseAs[UserLimits].durationMax.get.duration shouldBe testDurationMax.duration
-        responseAs[UserLimits].concurrencyMin.get.maxConcurrent shouldBe testConcurrencyMin.maxConcurrent
-        responseAs[UserLimits].concurrencyMax.get.maxConcurrent shouldBe testConcurrencyMax.maxConcurrent
+        responseAs[UserLimits].actionMemoryMin.get.megabytes shouldBe testMemoryMin.megabytes
+        responseAs[UserLimits].actionMemoryMax.get.megabytes shouldBe testMemoryMax.megabytes
+        responseAs[UserLimits].actionLogsMin.get.megabytes shouldBe testLogMin.megabytes
+        responseAs[UserLimits].actionLogsMax.get.megabytes shouldBe testLogMax.megabytes
+        responseAs[UserLimits].actionDurationMin.get.duration shouldBe testDurationMin.duration
+        responseAs[UserLimits].actionDurationMax.get.duration shouldBe testDurationMax.duration
+        responseAs[UserLimits].actionConcurrencyMin.get.maxConcurrent shouldBe testConcurrencyMin.maxConcurrent
+        responseAs[UserLimits].actionConcurrencyMax.get.maxConcurrent shouldBe testConcurrencyMax.maxConcurrent
       }
     }
   }

@@ -56,16 +56,18 @@ trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with Aut
               Some(user.limits.invocationsPerMinute.getOrElse(invocationsPerMinuteSystemDefault)),
               Some(user.limits.concurrentInvocations.getOrElse(concurrentInvocationsSystemDefault)),
               Some(user.limits.firesPerMinute.getOrElse(firePerMinuteSystemDefault)),
-              memoryMax = Some(user.limits.memoryMax.getOrElse(MemoryLimit(MemoryLimit.MAX_MEMORY_DEFAULT))),
-              memoryMin = Some(user.limits.memoryMin.getOrElse(MemoryLimit(MemoryLimit.MIN_MEMORY_DEFAULT))),
-              logMax = Some(user.limits.logMax.getOrElse(LogLimit(LogLimit.MAX_LOGSIZE_DEFAULT))),
-              logMin = Some(user.limits.logMin.getOrElse(LogLimit(LogLimit.MIN_LOGSIZE_DEFAULT))),
-              durationMax = Some(user.limits.durationMax.getOrElse(TimeLimit(TimeLimit.MAX_DURATION_DEFAULT))),
-              durationMin = Some(user.limits.durationMin.getOrElse(TimeLimit(TimeLimit.MIN_DURATION_DEFAULT))),
-              concurrencyMax =
-                Some(user.limits.concurrencyMax.getOrElse(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT_DEFAULT))),
-              concurrencyMin =
-                Some(user.limits.concurrencyMin.getOrElse(ConcurrencyLimit(ConcurrencyLimit.MIN_CONCURRENT_DEFAULT))),
+              actionMemoryMax = Some(user.limits.actionMemoryMax.getOrElse(MemoryLimit(MemoryLimit.MAX_MEMORY_DEFAULT))),
+              actionMemoryMin = Some(user.limits.actionMemoryMin.getOrElse(MemoryLimit(MemoryLimit.MIN_MEMORY_DEFAULT))),
+              actionLogsMax = Some(user.limits.actionLogsMax.getOrElse(LogLimit(LogLimit.MAX_LOGSIZE_DEFAULT))),
+              actionLogsMin = Some(user.limits.actionLogsMin.getOrElse(LogLimit(LogLimit.MIN_LOGSIZE_DEFAULT))),
+              actionDurationMax =
+                Some(user.limits.actionDurationMax.getOrElse(TimeLimit(TimeLimit.MAX_DURATION_DEFAULT))),
+              actionDurationMin =
+                Some(user.limits.actionDurationMin.getOrElse(TimeLimit(TimeLimit.MIN_DURATION_DEFAULT))),
+              actionConcurrencyMax = Some(
+                user.limits.actionConcurrencyMax.getOrElse(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT_DEFAULT))),
+              actionConcurrencyMin = Some(
+                user.limits.actionConcurrencyMin.getOrElse(ConcurrencyLimit(ConcurrencyLimit.MIN_CONCURRENT_DEFAULT))),
             )
             pathEndOrSingleSlash { complete(OK, limits) }
           case _ => reject //should never get here

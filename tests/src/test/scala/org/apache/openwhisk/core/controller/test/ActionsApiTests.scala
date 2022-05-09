@@ -553,7 +553,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(memoryMax = Some(MemoryLimit(allowed))))
+      .copy(limits = UserLimits(actionMemoryMax = Some(MemoryLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -581,7 +581,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(memoryMax = Some(MemoryLimit(allowed))))
+      .copy(limits = UserLimits(actionMemoryMax = Some(MemoryLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -609,7 +609,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(memoryMin = Some(MemoryLimit(allowed))))
+      .copy(limits = UserLimits(actionMemoryMin = Some(MemoryLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -637,7 +637,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(logMax = Some(LogLimit(allowed))))
+      .copy(limits = UserLimits(actionLogsMax = Some(LogLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -665,7 +665,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(logMax = Some(LogLimit(allowed))))
+      .copy(limits = UserLimits(actionLogsMax = Some(LogLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -693,7 +693,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(logMin = Some(LogLimit(allowed))))
+      .copy(limits = UserLimits(actionLogsMin = Some(LogLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -721,7 +721,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(durationMax = Some(TimeLimit(allowed))))
+      .copy(limits = UserLimits(actionDurationMax = Some(TimeLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -749,7 +749,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(durationMax = Some(TimeLimit(allowed))))
+      .copy(limits = UserLimits(actionDurationMax = Some(TimeLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -777,7 +777,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(durationMin = Some(TimeLimit(allowed))))
+      .copy(limits = UserLimits(actionDurationMin = Some(TimeLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -805,7 +805,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(concurrencyMax = Some(ConcurrencyLimit(allowed))))
+      .copy(limits = UserLimits(actionConcurrencyMax = Some(ConcurrencyLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -833,7 +833,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(concurrencyMax = Some(ConcurrencyLimit(allowed))))
+      .copy(limits = UserLimits(actionConcurrencyMax = Some(ConcurrencyLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -853,7 +853,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
-
   it should "reject create when max concurrency is less than minimum allowed namespace limit" in {
     implicit val tid = transid()
 
@@ -862,7 +861,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(concurrencyMin = Some(ConcurrencyLimit(allowed))))
+      .copy(limits = UserLimits(actionConcurrencyMin = Some(ConcurrencyLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
