@@ -50,9 +50,8 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
                          dataManagementService: ActorRef)(implicit actorSystem: ActorSystem, logging: Logging)
     extends Actor {
   private implicit val ec: ExecutionContext = actorSystem.dispatcher
-  private val baseTimeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetentionSecond)
+  private val baseTimeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetention)
   private val retryLimit = 5
-  private val retryDelayTime = 100.milliseconds
 
   /**
    * Store a JobEntry in local to get an alarm for key timeout
@@ -83,7 +82,7 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
           error,
           reason)) =>
       if (error.isEmpty) {
-        logging.info(this, s"[$creationId] create container successfully")
+        logging.info(this, s"[$action] [$creationId] create container successfully")
         deleteJob(
           invocationNamespace,
           action,
@@ -97,7 +96,7 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
         if (retryCount >= retryLimit || !error.exists(ContainerCreationError.whiskErrors.contains)) {
           logging.error(
             this,
-            s"[$creationId] Failed to create container $retryCount/$retryLimit times for $cause. Finished creation")
+            s"[$action] [$creationId] Failed to create container $retryCount/$retryLimit times for $cause. Finished creation")
           // Delete from pool after all retries are failed
           deleteJob(
             invocationNamespace,
@@ -109,8 +108,9 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
           // Reschedule
           logging.error(
             this,
-            s"[$creationId] Failed to create container $retryCount/$retryLimit times for $cause. Started rescheduling")
-          // Add some time interval during retry create container, because etcd put operation needs some time if data inconsistant happens
+            s"[$action] [$creationId] Failed to create container $retryCount/$retryLimit times for $cause. Started rescheduling")
+          // Add some exponential delay time interval during retry create container, because etcd put operation needs some time if data inconsistant happens
+          val retryDelayTime = (scala.math.pow(2, retryCount) * 100).milliseconds
           actorSystem.scheduler.scheduleOnce(retryDelayTime) {
             context.parent ! ReschedulingCreationJob(
               tid,
@@ -183,16 +183,14 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
         s"Failed to create a container for $action(blackbox: $isBlackbox), error: $creationId timed out after $timeout")
       creationJobPool
         .remove(creationId)
-        .foreach(
-          _ =>
-            sendState(
-              FailedCreationJob(
-                creationId,
-                invocationNamespace,
-                action,
-                revision,
-                ContainerCreationError.TimeoutError,
-                s"timeout waiting for the ack of $creationId after $timeout")))
+        .foreach(_ =>
+          sendState(FailedCreationJob(
+            creationId,
+            invocationNamespace,
+            action,
+            revision,
+            ContainerCreationError.TimeoutError,
+            s"[$action] timeout waiting for the ack of $creationId after $timeout")))
       dataManagementService ! UnregisterData(
         inProgressContainer(invocationNamespace, action, revision, schedulerInstanceId, creationId))
     }

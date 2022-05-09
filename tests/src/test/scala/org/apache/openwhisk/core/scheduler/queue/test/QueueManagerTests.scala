@@ -554,7 +554,7 @@ class QueueManagerTests
           mockConsumer,
           QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTime = 10 seconds)))
 
-    queueManager ! activationMessage
+    queueManager ! activationMessage.copy(transid = TransactionId(messageTransId.meta.copy(start = Instant.now())))
     Thread.sleep(100)
     (mockEtcdClient.get _) verify (*) repeated (3)
   }
