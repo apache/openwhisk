@@ -2864,11 +2864,11 @@
         },
         "actionConcurrencyMin": {
           "type": "integer",
-          "description": "Max number of concurrent activations allowed"
+          "description": "Min number of concurrent activations allowed"
         },
         "actionConcurrencyMax": {
           "type": "integer",
-          "description": "Min number of concurrent activations allowed"
+          "description": "Max number of concurrent activations allowed"
         }
       }
     }
