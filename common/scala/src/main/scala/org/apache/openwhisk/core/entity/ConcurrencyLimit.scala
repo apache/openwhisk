@@ -40,7 +40,7 @@ case class ConcurrencyLimitConfig(min: Int, max: Int, std: Int)
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
  *
- * @param maxConcurrent the max or min number of concurrent activations in a single container
+ * @param maxConcurrent the max number of concurrent activations in a single container
  */
 protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extends AnyVal {
 
