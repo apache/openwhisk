@@ -39,6 +39,7 @@ import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.ContainerId
 import org.apache.openwhisk.core.containerpool.ContainerAddress
 
+import java.time.Instant
 import scala.concurrent.duration.Duration
 
 object DockerContainerId {
@@ -203,14 +204,12 @@ class DockerClient(dockerHost: Option[String] = None,
       LoggingMarkers.INVOKER_DOCKER_CMD(args.head),
       s"running ${cmd.mkString(" ")} (timeout: $timeout)",
       logLevel = InfoLevel)
-    val t0 = System.currentTimeMillis()
     executeProcess(cmd, timeout).andThen {
       case Success(_) =>
-        val t1 = System.currentTimeMillis()
         MetricEmitter.emitHistogramMetric(
           LogMarkerToken("docker", "runCmd", "duration", Some(args.head), Map("cmd" -> args.head))(
             MeasurementUnit.time.milliseconds),
-          t1 - t0)
+          Instant.now.toEpochMilli - transid.meta.start.toEpochMilli)
         transid.finished(this, start)
       case Failure(pte: ProcessTimeoutException) =>
         transid.failed(this, start, pte.getMessage, ErrorLevel)

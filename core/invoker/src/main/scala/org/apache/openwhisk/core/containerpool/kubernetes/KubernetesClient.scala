@@ -151,7 +151,6 @@ class KubernetesClient(
       log.info(this, s"Pod spec being created\n${Serialization.asYaml(pod)}")
     }
     val namespace = kubeRestClient.getNamespace
-    val t0 = System.currentTimeMillis()
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_KUBEAPI_CMD("create"),
@@ -183,11 +182,10 @@ class KubernetesClient(
         waitForPod(namespace, createdPod, start.start, config.timeouts.run)
           .map { readyPod =>
             transid.finished(this, start, logLevel = InfoLevel)
-            val t1 = System.currentTimeMillis()
             MetricEmitter.emitHistogramMetric(
               LogMarkerToken("kubeapi", "create", "duration", Some("create"), Map("cmd" -> "create"))(
                 MeasurementUnit.time.milliseconds),
-              t1 - t0)
+              Instant.now.toEpochMilli - transid.meta.start.toEpochMilli)
             toContainer(readyPod)
           }
           .recoverWith {
