@@ -51,8 +51,8 @@ protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
   /** It checks the namespace memory limit setting value  */
   @throws[ActionLogLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    val logMax = user.limits.allowedActionLogsMax
-    val logMin = user.limits.allowedActionLogsMin
+    val logMax = user.limits.allowedMaxActionLogs
+    val logMin = user.limits.allowedMinActionLogs
     try {
       require(
         megabytes <= logMax.toMB,

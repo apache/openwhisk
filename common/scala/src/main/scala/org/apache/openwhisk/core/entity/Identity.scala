@@ -37,79 +37,79 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       firesPerMinute: Option[Int] = None,
                       allowedKinds: Option[Set[String]] = None,
                       storeActivations: Option[Boolean] = None,
-                      actionMemoryMin: Option[MemoryLimit] = None,
-                      actionMemoryMax: Option[MemoryLimit] = None,
-                      actionLogsMin: Option[LogLimit] = None,
-                      actionLogsMax: Option[LogLimit] = None,
-                      actionDurationMin: Option[TimeLimit] = None,
-                      actionDurationMax: Option[TimeLimit] = None,
-                      actionConcurrencyMin: Option[ConcurrencyLimit] = None,
-                      actionConcurrencyMax: Option[ConcurrencyLimit] = None,
-                      parameterSizeMax: Option[ByteSize] = None,
+                      minActionMemory: Option[MemoryLimit] = None,
+                      maxActionMemory: Option[MemoryLimit] = None,
+                      minActionLogs: Option[LogLimit] = None,
+                      maxActionLogs: Option[LogLimit] = None,
+                      minActionTimeout: Option[TimeLimit] = None,
+                      maxActionTimeout: Option[TimeLimit] = None,
+                      minActionConcurrency: Option[ConcurrencyLimit] = None,
+                      maxActionConcurrency: Option[ConcurrencyLimit] = None,
+                      maxParameterSize: Option[ByteSize] = None,
                       warmedContainerKeepingCount: Option[Int] = None,
                       warmedContainerKeepingTimeout: Option[String] = None) {
 
-  def allowedParameterSizeMax: ByteSize = {
-    val namespaceLimit = parameterSizeMax getOrElse (Parameters.MAX_SIZE_DEFAULT)
+  def allowedMaxParameterSize: ByteSize = {
+    val namespaceLimit = maxParameterSize getOrElse (Parameters.MAX_SIZE_DEFAULT)
     if (namespaceLimit > Parameters.MAX_SIZE) {
       Parameters.MAX_SIZE
     } else namespaceLimit
   }
 
-  def allowedActionConcurrencyMax: Int = {
-    val namespaceConcurrencyMax = actionConcurrencyMax.map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MAX_CONCURRENT_DEFAULT)
-    if (namespaceConcurrencyMax > ConcurrencyLimit.MAX_CONCURRENT) {
+  def allowedMaxActionConcurrency: Int = {
+    val namespaceLimit = maxActionConcurrency.map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MAX_CONCURRENT_DEFAULT)
+    if (namespaceLimit > ConcurrencyLimit.MAX_CONCURRENT) {
       ConcurrencyLimit.MAX_CONCURRENT
-    } else namespaceConcurrencyMax
+    } else namespaceLimit
   }
 
-  def allowedActionConcurrencyMin: Int = {
-    val namespaceConcurrencyMin = actionConcurrencyMin.map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MIN_CONCURRENT_DEFAULT)
-    if (namespaceConcurrencyMin < ConcurrencyLimit.MIN_CONCURRENT) {
+  def allowedMinActionConcurrency: Int = {
+    val namespaceLimit = minActionConcurrency.map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MIN_CONCURRENT_DEFAULT)
+    if (namespaceLimit < ConcurrencyLimit.MIN_CONCURRENT) {
       ConcurrencyLimit.MIN_CONCURRENT
-    } else namespaceConcurrencyMin
+    } else namespaceLimit
   }
 
-  def allowedActionMemoryMax: ByteSize = {
-    val namespaceMemoryMax = actionMemoryMax.map(_.toByteSize) getOrElse (MemoryLimit.MAX_MEMORY_DEFAULT)
-    if (namespaceMemoryMax > MemoryLimit.MAX_MEMORY) {
+  def allowedMaxActionMemory: ByteSize = {
+    val namespaceLimit = maxActionMemory.map(_.toByteSize) getOrElse (MemoryLimit.MAX_MEMORY_DEFAULT)
+    if (namespaceLimit > MemoryLimit.MAX_MEMORY) {
       MemoryLimit.MAX_MEMORY
-    } else namespaceMemoryMax
+    } else namespaceLimit
   }
 
-  def allowedActionMemoryMin: ByteSize = {
-    val namespaceMemoryMin = actionMemoryMin.map(_.toByteSize) getOrElse (MemoryLimit.MIN_MEMORY_DEFAULT)
-    if (namespaceMemoryMin < MemoryLimit.MIN_MEMORY) {
+  def allowedMinActionMemory: ByteSize = {
+    val namespaceLimit = minActionMemory.map(_.toByteSize) getOrElse (MemoryLimit.MIN_MEMORY_DEFAULT)
+    if (namespaceLimit < MemoryLimit.MIN_MEMORY) {
       MemoryLimit.MIN_MEMORY
-    } else namespaceMemoryMin
+    } else namespaceLimit
   }
 
-  def allowedActionLogsMax: ByteSize = {
-    val namespaceLogsMax = actionLogsMax.map(_.toByteSize) getOrElse (LogLimit.MAX_LOGSIZE_DEFAULT)
+  def allowedMaxActionLogs: ByteSize = {
+    val namespaceLogsMax = maxActionLogs.map(_.toByteSize) getOrElse (LogLimit.MAX_LOGSIZE_DEFAULT)
     if (namespaceLogsMax > LogLimit.MAX_LOGSIZE) {
       LogLimit.MAX_LOGSIZE
     } else namespaceLogsMax
   }
 
-  def allowedActionLogsMin: ByteSize = {
-    val namespaceLogsMin = actionLogsMin.map(_.toByteSize) getOrElse (LogLimit.MIN_LOGSIZE_DEFAULT)
-    if (namespaceLogsMin < LogLimit.MIN_LOGSIZE) {
+  def allowedMinActionLogs: ByteSize = {
+    val namespaceLimit = minActionLogs.map(_.toByteSize) getOrElse (LogLimit.MIN_LOGSIZE_DEFAULT)
+    if (namespaceLimit < LogLimit.MIN_LOGSIZE) {
       LogLimit.MIN_LOGSIZE
-    } else namespaceLogsMin
+    } else namespaceLimit
   }
 
-  def allowedActionDurationMax: FiniteDuration = {
-    val namespaceDurationMax = actionDurationMax.map(_.duration) getOrElse (TimeLimit.MAX_DURATION_DEFAULT)
-    if (namespaceDurationMax > TimeLimit.MAX_DURATION) {
+  def allowedMaxActionTimeout: FiniteDuration = {
+    val namespaceLimit = maxActionTimeout.map(_.duration) getOrElse (TimeLimit.MAX_DURATION_DEFAULT)
+    if (namespaceLimit > TimeLimit.MAX_DURATION) {
       TimeLimit.MAX_DURATION
-    } else namespaceDurationMax
+    } else namespaceLimit
   }
 
-  def allowedActionDurationMin: FiniteDuration = {
-    val namespaceDurationMin = actionDurationMin.map(_.duration) getOrElse (TimeLimit.MIN_DURATION_DEFAULT)
-    if (namespaceDurationMin < TimeLimit.MIN_DURATION) {
+  def allowedMinActionTimeout: FiniteDuration = {
+    val namespaceLimit = minActionTimeout.map(_.duration) getOrElse (TimeLimit.MIN_DURATION_DEFAULT)
+    if (namespaceLimit < TimeLimit.MIN_DURATION) {
       TimeLimit.MIN_DURATION
-    } else namespaceDurationMin
+    } else namespaceLimit
   }
 
 }

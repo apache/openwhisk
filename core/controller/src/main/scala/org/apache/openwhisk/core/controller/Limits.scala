@@ -56,15 +56,15 @@ trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with Aut
               Some(user.limits.invocationsPerMinute.getOrElse(invocationsPerMinuteSystemDefault)),
               Some(user.limits.concurrentInvocations.getOrElse(concurrentInvocationsSystemDefault)),
               Some(user.limits.firesPerMinute.getOrElse(firePerMinuteSystemDefault)),
-              actionMemoryMax = Some(MemoryLimit(user.limits.allowedActionMemoryMax)),
-              actionMemoryMin = Some(MemoryLimit(user.limits.allowedActionMemoryMin)),
-              actionLogsMax = Some(LogLimit(user.limits.allowedActionLogsMax)),
-              actionLogsMin = Some(LogLimit(user.limits.allowedActionLogsMin)),
-              actionDurationMax = Some(TimeLimit(user.limits.allowedActionDurationMax)),
-              actionDurationMin = Some(TimeLimit(user.limits.allowedActionDurationMin)),
-              actionConcurrencyMax = Some(ConcurrencyLimit(user.limits.allowedActionConcurrencyMax)),
-              actionConcurrencyMin = Some(ConcurrencyLimit(user.limits.allowedActionConcurrencyMin)),
-              parameterSizeMax = Some(user.limits.allowedParameterSizeMax))
+              maxActionMemory = Some(MemoryLimit(user.limits.allowedMaxActionMemory)),
+              minActionMemory = Some(MemoryLimit(user.limits.allowedMinActionMemory)),
+              maxActionLogs = Some(LogLimit(user.limits.allowedMaxActionLogs)),
+              minActionLogs = Some(LogLimit(user.limits.allowedMinActionLogs)),
+              maxActionTimeout = Some(TimeLimit(user.limits.allowedMaxActionTimeout)),
+              minActionTimeout = Some(TimeLimit(user.limits.allowedMinActionTimeout)),
+              maxActionConcurrency = Some(ConcurrencyLimit(user.limits.allowedMaxActionConcurrency)),
+              minActionConcurrency = Some(ConcurrencyLimit(user.limits.allowedMinActionConcurrency)),
+              maxParameterSize = Some(user.limits.allowedMaxParameterSize))
             pathEndOrSingleSlash { complete(OK, limits) }
           case _ => reject //should never get here
         }

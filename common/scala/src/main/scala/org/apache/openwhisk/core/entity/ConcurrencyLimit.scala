@@ -47,8 +47,8 @@ protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extend
   /** It checks the namespace memory limit setting value  */
   @throws[ActionConcurrencyLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    val concurrencyMax = user.limits.allowedActionConcurrencyMax
-    val concurrencyMin = user.limits.allowedActionConcurrencyMin
+    val concurrencyMax = user.limits.allowedMaxActionConcurrency
+    val concurrencyMin = user.limits.allowedMinActionConcurrency
     try {
       require(
         maxConcurrent <= concurrencyMax,
