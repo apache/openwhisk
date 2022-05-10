@@ -48,8 +48,8 @@ protected[entity] class TimeLimit private (val duration: FiniteDuration) extends
   /** It checks the namespace duration limit setting value  */
   @throws[ActionTimeLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    val durationMax = user.limits.allowedDurationMax
-    val durationMix = user.limits.allowedDurationMin
+    val durationMax = user.limits.allowedActionDurationMax
+    val durationMix = user.limits.allowedActionDurationMin
     try {
       require(
         duration <= durationMax,

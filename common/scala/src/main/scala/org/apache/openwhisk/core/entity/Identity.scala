@@ -98,14 +98,14 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
     } else namespaceLogsMin
   }
 
-  def allowedDurationMax: FiniteDuration = {
+  def allowedActionDurationMax: FiniteDuration = {
     val namespaceDurationMax = actionDurationMax.map(_.duration) getOrElse (TimeLimit.MAX_DURATION_DEFAULT)
     if (namespaceDurationMax > TimeLimit.MAX_DURATION) {
       TimeLimit.MAX_DURATION
     } else namespaceDurationMax
   }
 
-  def allowedDurationMin: FiniteDuration = {
+  def allowedActionDurationMin: FiniteDuration = {
     val namespaceDurationMin = actionDurationMin.map(_.duration) getOrElse (TimeLimit.MIN_DURATION_DEFAULT)
     if (namespaceDurationMin < TimeLimit.MIN_DURATION) {
       TimeLimit.MIN_DURATION

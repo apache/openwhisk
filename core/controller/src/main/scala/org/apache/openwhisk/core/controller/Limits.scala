@@ -60,8 +60,8 @@ trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with Aut
               actionMemoryMin = Some(MemoryLimit(user.limits.allowedActionMemoryMin)),
               actionLogsMax = Some(LogLimit(user.limits.allowedActionLogsMax)),
               actionLogsMin = Some(LogLimit(user.limits.allowedActionLogsMin)),
-              actionDurationMax = Some(TimeLimit(user.limits.allowedDurationMax)),
-              actionDurationMin = Some(TimeLimit(user.limits.allowedDurationMin)),
+              actionDurationMax = Some(TimeLimit(user.limits.allowedActionDurationMax)),
+              actionDurationMin = Some(TimeLimit(user.limits.allowedActionDurationMin)),
               actionConcurrencyMax = Some(ConcurrencyLimit(user.limits.allowedActionConcurrencyMax)),
               actionConcurrencyMin = Some(ConcurrencyLimit(user.limits.allowedActionConcurrencyMin)),
               actionParameterSizeMax = Some(ParameterLimit(user.limits.allowedActionParameterSizeMax)))
