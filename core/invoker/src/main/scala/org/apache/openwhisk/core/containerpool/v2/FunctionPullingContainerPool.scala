@@ -110,14 +110,22 @@ class FunctionPullingContainerPool(
       .emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("busy"), memoryConsumptionOf(busyPool))
     MetricEmitter
       .emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("prewarmed"), memoryConsumptionOf(prewarmedPool))
+    MetricEmitter
+      .emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("warmed"), memoryConsumptionOf(warmedPool))
     MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_MEMORY("max"), poolConfig.userMemory.toMB)
     val prewarmedSize = prewarmedPool.size
     val busySize = busyPool.size
     val warmedSize = warmedPool.size
+    val warmedPoolMap: Map[(String, String), Int] = warmedPool groupBy {
+      case (_, warmedData) => (warmedData.invocationNamespace, warmedData.action.toString)
+    } mapValues (_.size)
+    for((data, size) <- warmedPoolMap) {
+      val tags: Option[Map[String, String]] = Some(Map("namespace" -> data._1, "action" -> data._2))
+      MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("warmed", tags), size)
+    }
     val allSize = prewarmedSize + busySize + warmedSize
     MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("prewarmed"), prewarmedSize)
     MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("busy"), busySize)
-    MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("warmed"), warmedSize)
     MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("all"), allSize)
   })
 

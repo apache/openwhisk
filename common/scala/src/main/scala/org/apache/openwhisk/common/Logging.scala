@@ -412,8 +412,16 @@ object LoggingMarkers {
     LogMarkerToken(invoker, "sharedPackage", counter, None, Map("path" -> path))(MeasurementUnit.none)
   def INVOKER_CONTAINERPOOL_MEMORY(state: String) =
     LogMarkerToken(invoker, "containerPoolMemory", counter, Some(state), Map("state" -> state))(MeasurementUnit.none)
-  def INVOKER_CONTAINERPOOL_CONTAINER(state: String) =
-    LogMarkerToken(invoker, "containerPoolContainer", counter, Some(state), Map("state" -> state))(MeasurementUnit.none)
+  def INVOKER_CONTAINERPOOL_CONTAINER(state: String, tags: Option[Map[String, String]] = None) = {
+    var map = Map("state" -> state)
+    tags.foreach { mapTags =>
+      for ((k, v) <- mapTags) {
+        map += (k -> v)
+      }
+    }
+    LogMarkerToken(invoker, "containerPoolContainer", counter, Some(state), map)(MeasurementUnit.none)
+  }
+
   // System overload and random invoker assignment
   val MANAGED_SYSTEM_OVERLOAD =
     LogMarkerToken(controller, "managedInvokerSystemOverload", counter)(MeasurementUnit.none)
