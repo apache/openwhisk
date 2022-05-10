@@ -178,8 +178,8 @@ class InvokerReactive(
     WhiskAction
       .get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty)
       .flatMap(action => {
-        // action that exceed the system limit cannot be executed.
-        action.limits.checkSystemLimits()
+        // action that exceed the limit cannot be executed.
+        action.limits.checkLimits(msg.user)
         action.toExecutableWhiskAction match {
           case Some(executable) =>
             pool ! Run(executable, msg)
@@ -201,7 +201,7 @@ class InvokerReactive(
             case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
               ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
             case _: ActionLimitsException =>
-              ActivationResponse.whiskError(Messages.actionLimitExceededSystemLimit)
+              ActivationResponse.applicationError(Messages.actionLimitExceededSystemLimit)
             case _ =>
               ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
           }

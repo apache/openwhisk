@@ -54,17 +54,12 @@ protected[core] case class ActionLimits(timeout: TimeLimit = TimeLimit(),
     extends Limits {
   override protected[entity] def toJson = ActionLimits.serdes.write(this)
 
-  /**
-   * System limit is not checked when deserializing entity to support a namespace limit.
-   * Therefore, it must be checked before execution.
-   * @throws ActionLimitsException
-   */
   @throws[ActionLimitsException]
-  def checkSystemLimits(): Unit = {
-    timeout.checkSystemLimit()
-    memory.checkSystemLimit()
-    concurrency.checkSystemLimit()
-    logs.checkSystemLimit()
+  def checkLimits(user: Identity): Unit = {
+    timeout.checkNamespaceLimit(user)
+    memory.checkNamespaceLimit(user)
+    concurrency.checkNamespaceLimit(user)
+    logs.checkNamespaceLimit(user)
   }
 }
 

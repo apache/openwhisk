@@ -61,22 +61,6 @@ protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal 
       case e: IllegalArgumentException => throw ActionMemoryLimitException(e.getMessage)
     }
   }
-
-  @throws[ActionMemoryLimitException]
-  protected[core] def checkSystemLimit(): Unit = {
-    try {
-      require(
-        megabytes >= MemoryLimit.MIN_MEMORY.toMB.toInt,
-        Messages
-          .sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, MemoryLimit.MIN_MEMORY.toMB.toInt))
-      require(
-        megabytes <= MemoryLimit.MAX_MEMORY.toMB.toInt,
-        Messages
-          .sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, MemoryLimit.MAX_MEMORY.toMB.toInt))
-    } catch {
-      case e: IllegalArgumentException => throw ActionMemoryLimitException(e.getMessage)
-    }
-  }
 }
 
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {

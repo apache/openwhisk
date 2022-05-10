@@ -64,21 +64,6 @@ protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
       case e: IllegalArgumentException => throw ActionLogLimitException(e.getMessage)
     }
   }
-
-  @throws[ActionLogLimitException]
-  protected[core] def checkSystemLimit(): Unit = {
-    try {
-      require(
-        megabytes >= LogLimit.MIN_LOGSIZE.toMB.toInt,
-        Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, LogLimit.MIN_LOGSIZE.toMB.toInt))
-      require(
-        megabytes <= LogLimit.MAX_LOGSIZE.toMB.toInt,
-        Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, LogLimit.MAX_LOGSIZE.toMB.toInt))
-    } catch {
-      case e: IllegalArgumentException => throw ActionLogLimitException(e.getMessage)
-    }
-  }
-
 }
 
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {

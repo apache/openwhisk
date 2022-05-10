@@ -61,20 +61,6 @@ protected[entity] class TimeLimit private (val duration: FiniteDuration) extends
       case e: IllegalArgumentException => throw ActionTimeLimitException(e.getMessage)
     }
   }
-
-  @throws[ActionTimeLimitException]
-  protected[core] def checkSystemLimit(): Unit = {
-    try {
-      require(
-        duration >= TimeLimit.MIN_DURATION,
-        Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, duration, TimeLimit.MIN_DURATION))
-      require(
-        duration <= TimeLimit.MAX_DURATION,
-        Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, duration, TimeLimit.MAX_DURATION))
-    } catch {
-      case e: IllegalArgumentException => throw ActionTimeLimitException(e.getMessage)
-    }
-  }
 }
 
 case class NamespaceTimeLimitConfig(max: FiniteDuration, min: FiniteDuration)

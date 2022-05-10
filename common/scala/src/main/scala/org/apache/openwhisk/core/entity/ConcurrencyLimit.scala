@@ -58,20 +58,6 @@ protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extend
       case e: IllegalArgumentException => throw ActionConcurrencyLimitException(e.getMessage)
     }
   }
-
-  @throws[ActionConcurrencyLimitException]
-  protected[core] def checkSystemLimit(): Unit = {
-    try {
-      require(
-        maxConcurrent >= ConcurrencyLimit.MIN_CONCURRENT,
-        Messages.concurrencyBelowAllowedThreshold(maxConcurrent, ConcurrencyLimit.MIN_CONCURRENT))
-      require(
-        maxConcurrent <= ConcurrencyLimit.MAX_CONCURRENT,
-        Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, ConcurrencyLimit.MAX_CONCURRENT))
-    } catch {
-      case e: IllegalArgumentException => throw ActionConcurrencyLimitException(e.getMessage)
-    }
-  }
 }
 
 protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] {
