@@ -63,6 +63,8 @@ dependencies {
     compile "com.google.code.findbugs:jsr305:3.0.2"
     compile "io.fabric8:kubernetes-client:${gradle.kube_client.version}"
 
+    compile "org.scala-lang.modules:scala-java8-compat_${gradle.scala.depVersion}:1.0.2"
+
     //metrics
     compile ("io.kamon:kamon-core_${gradle.scala.depVersion}:2.1.12") {
         exclude group: 'com.lihaoyi'

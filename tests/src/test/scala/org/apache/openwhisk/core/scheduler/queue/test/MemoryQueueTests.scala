@@ -43,6 +43,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.{existingContainers, inProgressContainer}
 import org.apache.openwhisk.core.etcd._
+import org.apache.openwhisk.core.scheduler.SchedulingConfig
 import org.apache.openwhisk.core.scheduler.grpc.{GetActivation, ActivationResponse => GetActivationResponse}
 import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, FailedCreationJob, SuccessfulCreationJob}
 import org.apache.openwhisk.core.scheduler.queue.MemoryQueue.checkToDropStaleActivation
@@ -94,6 +95,8 @@ class MemoryQueueTests
   val testContainerId = "fakeContainerId"
 
   val testQueueCreationMessage = CreateQueue(testInvocationNamespace, fqn, revision, actionMetadata)
+
+  val schedulingConfig = SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds)
 
   val client: Client = {
     val hostAndPorts = "172.17.0.1:2379"
@@ -1368,7 +1371,8 @@ class MemoryQueueTests
     val mockEtcdClient = new MockEtcdClient(client, true)
     val probe = TestProbe()
     val watcher = system.actorOf(WatcherService.props(mockEtcdClient))
-    val testSchedulingDecisionMaker = system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn))
+    val testSchedulingDecisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
 
     val mockFunction = (_: String) => {
       Future.successful(4)
