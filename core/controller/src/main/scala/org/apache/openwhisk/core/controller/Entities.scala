@@ -115,7 +115,7 @@ trait WhiskCollectionAPI
           case READ => fetch(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
           case PUT =>
             entity(as[LimitedWhiskEntityPut]) { e =>
-              validateSize(e.isWithinSizeLimits)(transid, RestApiCommons.jsonDefaultResponsePrinter) {
+              validateSize(e.isWithinSizeLimits(user.limits))(transid, RestApiCommons.jsonDefaultResponsePrinter) {
                 create(user, FullyQualifiedEntityName(resource.namespace, name))
               }
             }

@@ -199,7 +199,10 @@ case class LimitedWhiskEntityPut(exec: Option[Exec] = None,
                                  parameters: Option[Parameters] = None,
                                  annotations: Option[Parameters] = None) {
 
-  def isWithinSizeLimits: Option[SizeError] = {
+  def isWithinSizeLimits(userLimits: UserLimits): Option[SizeError] = {
+
+    val parameterSizeLimit = userLimits.allowedActionParameterSizeMax
+
     exec.flatMap { e =>
       val is = e.size
       if (is <= Exec.sizeLimit) None
@@ -209,17 +212,17 @@ case class LimitedWhiskEntityPut(exec: Option[Exec] = None,
         }
     } orElse parameters.flatMap { p =>
       val is = p.size
-      if (is <= Parameters.sizeLimit) None
+      if (is <= parameterSizeLimit) None
       else
         Some {
-          SizeError(WhiskEntity.paramsFieldName, is, Parameters.sizeLimit)
+          SizeError(WhiskEntity.paramsFieldName, is, parameterSizeLimit)
         }
     } orElse annotations.flatMap { a =>
       val is = a.size
-      if (is <= Parameters.sizeLimit) None
+      if (is <= parameterSizeLimit) None
       else
         Some {
-          SizeError(WhiskEntity.annotationsFieldName, is, Parameters.sizeLimit)
+          SizeError(WhiskEntity.annotationsFieldName, is, parameterSizeLimit)
         }
     }
   }

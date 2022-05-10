@@ -26,10 +26,10 @@ import org.apache.openwhisk.core.database.{
 }
 import org.apache.openwhisk.core.entitlement.Privilege
 import org.apache.openwhisk.core.entity.types.AuthStore
-
 import spray.json._
 
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 case class UserLimits(invocationsPerMinute: Option[Int] = None,
@@ -45,13 +45,79 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       actionDurationMax: Option[TimeLimit] = None,
                       actionConcurrencyMin: Option[ConcurrencyLimit] = None,
                       actionConcurrencyMax: Option[ConcurrencyLimit] = None,
+                      actionParameterSizeMax: Option[ParameterLimit] = None,
                       warmedContainerKeepingCount: Option[Int] = None,
-                      warmedContainerKeepingTimeout: Option[String] = None)
+                      warmedContainerKeepingTimeout: Option[String] = None) {
+
+  def allowedActionParameterSizeMax: ByteSize = {
+    val namespaceLimit = actionParameterSizeMax map (_.toByteSize) getOrElse (ParameterLimit.MAX_SIZE_DEFAULT)
+    if (namespaceLimit > ParameterLimit.MAX_SIZE) {
+      ParameterLimit.MAX_SIZE
+    } else namespaceLimit
+  }
+
+  def allowedActionConcurrencyMax: Int = {
+    val namespaceConcurrencyMax = actionConcurrencyMax.map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MAX_CONCURRENT_DEFAULT)
+    if (namespaceConcurrencyMax > ConcurrencyLimit.MAX_CONCURRENT) {
+      ConcurrencyLimit.MAX_CONCURRENT
+    } else namespaceConcurrencyMax
+  }
+
+  def allowedActionConcurrencyMin: Int = {
+    val namespaceConcurrencyMin = actionConcurrencyMin.map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MIN_CONCURRENT_DEFAULT)
+    if (namespaceConcurrencyMin < ConcurrencyLimit.MIN_CONCURRENT) {
+      ConcurrencyLimit.MIN_CONCURRENT
+    } else namespaceConcurrencyMin
+  }
+
+  def allowedActionMemoryMax: ByteSize = {
+    val namespaceMemoryMax = actionMemoryMax.map(_.toByteSize) getOrElse (MemoryLimit.MAX_MEMORY_DEFAULT)
+    if (namespaceMemoryMax > MemoryLimit.MAX_MEMORY) {
+      MemoryLimit.MAX_MEMORY
+    } else namespaceMemoryMax
+  }
+
+  def allowedActionMemoryMin: ByteSize = {
+    val namespaceMemoryMin = actionMemoryMin.map(_.toByteSize) getOrElse (MemoryLimit.MIN_MEMORY_DEFAULT)
+    if (namespaceMemoryMin < MemoryLimit.MIN_MEMORY) {
+      MemoryLimit.MIN_MEMORY
+    } else namespaceMemoryMin
+  }
+
+  def allowedActionLogsMax: ByteSize = {
+    val namespaceLogsMax = actionLogsMax.map(_.toByteSize) getOrElse (LogLimit.MAX_LOGSIZE_DEFAULT)
+    if (namespaceLogsMax > LogLimit.MAX_LOGSIZE) {
+      LogLimit.MAX_LOGSIZE
+    } else namespaceLogsMax
+  }
+
+  def allowedActionLogsMin: ByteSize = {
+    val namespaceLogsMin = actionLogsMin.map(_.toByteSize) getOrElse (LogLimit.MIN_LOGSIZE_DEFAULT)
+    if (namespaceLogsMin < LogLimit.MIN_LOGSIZE) {
+      LogLimit.MIN_LOGSIZE
+    } else namespaceLogsMin
+  }
+
+  def allowedDurationMax: FiniteDuration = {
+    val namespaceDurationMax = actionDurationMax.map(_.duration) getOrElse (TimeLimit.MAX_DURATION_DEFAULT)
+    if (namespaceDurationMax > TimeLimit.MAX_DURATION) {
+      TimeLimit.MAX_DURATION
+    } else namespaceDurationMax
+  }
+
+  def allowedDurationMin: FiniteDuration = {
+    val namespaceDurationMin = actionDurationMin.map(_.duration) getOrElse (TimeLimit.MIN_DURATION_DEFAULT)
+    if (namespaceDurationMin < TimeLimit.MIN_DURATION) {
+      TimeLimit.MIN_DURATION
+    } else namespaceDurationMin
+  }
+
+}
 
 object UserLimits extends DefaultJsonProtocol {
   val standardUserLimits = UserLimits()
 
-  implicit val serdes = jsonFormat15(UserLimits.apply)
+  implicit val serdes = jsonFormat16(UserLimits.apply)
 }
 
 protected[core] case class Namespace(name: EntityName, uuid: UUID)

@@ -43,18 +43,20 @@ case class NamespaceMemoryLimitConfig(min: ByteSize, max: ByteSize)
  */
 protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal {
 
+  def toByteSize: ByteSize = ByteSize(megabytes, SizeUnits.MB)
+
   /** It checks the namespace memory limit setting value  */
   @throws[ActionMemoryLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    val memoryMax = user.limits.actionMemoryMax.map(_.megabytes) getOrElse (MemoryLimit.MAX_MEMORY_DEFAULT.toMB.toInt)
-    val memoryMin = user.limits.actionMemoryMin.map(_.megabytes) getOrElse (MemoryLimit.MIN_MEMORY_DEFAULT.toMB.toInt)
+    val memoryMax = user.limits.allowedActionMemoryMax
+    val memoryMin = user.limits.allowedActionMemoryMin
     try {
       require(
-        megabytes <= memoryMax,
-        Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMax))
+        megabytes <= memoryMax.toMB,
+        Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMax.toMB.toInt))
       require(
-        megabytes >= memoryMin,
-        Messages.sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMin))
+        megabytes >= memoryMin.toMB,
+        Messages.sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, megabytes, memoryMin.toMB.toInt))
     } catch {
       case e: IllegalArgumentException => throw ActionMemoryLimitException(e.getMessage)
     }

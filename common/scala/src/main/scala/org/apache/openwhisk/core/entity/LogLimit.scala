@@ -46,14 +46,20 @@ case class LogLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
 protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
   protected[core] def asMegaBytes: ByteSize = megabytes.megabytes
 
+  def toByteSize: ByteSize = ByteSize(megabytes, SizeUnits.MB)
+
   /** It checks the namespace memory limit setting value  */
   @throws[ActionLogLimitException]
   protected[core] def checkNamespaceLimit(user: Identity): Unit = {
-    val logMax = user.limits.actionLogsMax.map(_.megabytes) getOrElse (LogLimit.MAX_LOGSIZE_DEFAULT.toMB.toInt)
-    val logMin = user.limits.actionLogsMin.map(_.megabytes) getOrElse (LogLimit.MIN_LOGSIZE_DEFAULT.toMB.toInt)
+    val logMax = user.limits.allowedActionLogsMax
+    val logMin = user.limits.allowedActionLogsMin
     try {
-      require(megabytes <= logMax, Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMax))
-      require(megabytes >= logMin, Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMin))
+      require(
+        megabytes <= logMax.toMB,
+        Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMax.toMB.toInt))
+      require(
+        megabytes >= logMin.toMB,
+        Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, megabytes, logMin.toMB.toInt))
     } catch {
       case e: IllegalArgumentException => throw ActionLogLimitException(e.getMessage)
     }
