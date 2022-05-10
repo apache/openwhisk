@@ -201,7 +201,7 @@ case class LimitedWhiskEntityPut(exec: Option[Exec] = None,
 
   def isWithinSizeLimits(userLimits: UserLimits): Option[SizeError] = {
 
-    val parameterSizeLimit = userLimits.allowedActionParameterSizeMax
+    val parameterSizeLimit = userLimits.allowedParameterSizeMax
 
     exec.flatMap { e =>
       val is = e.size

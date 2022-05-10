@@ -529,6 +529,35 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "allow create with parameters that do not exceed the namespace limit" in {
+    implicit val tid = transid()
+
+    val namespaceLimit = Parameters.sizeLimit - 1.KB
+    val parameters = Parameters("a", "a" * (namespaceLimit.toBytes.toInt - 10))
+    val credsWithLimits = creds.copy(limits = UserLimits(parameterSizeMax = Some(namespaceLimit)))
+
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"parameters":$parameters}""".stripMargin
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithLimits)) ~> check {
+      status should be(OK)
+    }
+  }
+
+  it should "reject create with parameters that exceed the namespace limit" in {
+    implicit val tid = transid()
+
+    val namespaceLimit = Parameters.sizeLimit - 1.KB
+    val parameters = Parameters("a", "a" * (namespaceLimit.toBytes.toInt + 10))
+    val credsWithLimits = creds.copy(limits = UserLimits(parameterSizeMax = Some(namespaceLimit)))
+
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"parameters":$parameters}""".stripMargin
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithLimits)) ~> check {
+      status should be(PayloadTooLarge)
+      responseAs[String] should include {
+        Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, namespaceLimit))
+      }
+    }
+  }
+
   it should "reject create with annotations which are too big" in {
     implicit val tid = transid()
     val keys: List[Long] =
@@ -541,6 +570,35 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(PayloadTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
+      }
+    }
+  }
+
+  it should "allow create with annotations that do not exceed the namespace limit" in {
+    implicit val tid = transid()
+
+    val namespaceLimit = Parameters.sizeLimit - 1.KB
+    val annotations = Parameters("a", "a" * (namespaceLimit.toBytes.toInt - 10))
+    val credsWithLimits = creds.copy(limits = UserLimits(parameterSizeMax = Some(namespaceLimit)))
+
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"annotations":$annotations}""".stripMargin
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithLimits)) ~> check {
+      status should be(OK)
+    }
+  }
+
+  it should "reject create with annotations that exceed the namespace limit" in {
+    implicit val tid = transid()
+
+    val namespaceLimit = Parameters.sizeLimit - 1.KB
+    val annotations = Parameters("a", "a" * (namespaceLimit.toBytes.toInt + 10))
+    val credsWithLimits = creds.copy(limits = UserLimits(parameterSizeMax = Some(namespaceLimit)))
+
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"annotations":$annotations}""".stripMargin
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithLimits)) ~> check {
+      status should be(PayloadTooLarge)
+      responseAs[String] should include {
+        Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, namespaceLimit))
       }
     }
   }

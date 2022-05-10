@@ -45,14 +45,14 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       actionDurationMax: Option[TimeLimit] = None,
                       actionConcurrencyMin: Option[ConcurrencyLimit] = None,
                       actionConcurrencyMax: Option[ConcurrencyLimit] = None,
-                      actionParameterSizeMax: Option[ParameterLimit] = None,
+                      parameterSizeMax: Option[ByteSize] = None,
                       warmedContainerKeepingCount: Option[Int] = None,
                       warmedContainerKeepingTimeout: Option[String] = None) {
 
-  def allowedActionParameterSizeMax: ByteSize = {
-    val namespaceLimit = actionParameterSizeMax map (_.toByteSize) getOrElse (ParameterLimit.MAX_SIZE_DEFAULT)
-    if (namespaceLimit > ParameterLimit.MAX_SIZE) {
-      ParameterLimit.MAX_SIZE
+  def allowedParameterSizeMax: ByteSize = {
+    val namespaceLimit = parameterSizeMax getOrElse (Parameters.MAX_SIZE_DEFAULT)
+    if (namespaceLimit > Parameters.MAX_SIZE) {
+      Parameters.MAX_SIZE
     } else namespaceLimit
   }
 
@@ -116,7 +116,7 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
 
 object UserLimits extends DefaultJsonProtocol {
   val standardUserLimits = UserLimits()
-
+  private implicit val byteSizeSerdes = size.serdes
   implicit val serdes = jsonFormat16(UserLimits.apply)
 }
 
