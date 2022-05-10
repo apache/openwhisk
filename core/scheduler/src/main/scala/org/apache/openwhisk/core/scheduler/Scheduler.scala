@@ -70,6 +70,8 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
   val leaseService =
     actorSystem.actorOf(LeaseKeepAliveService.props(etcdClient, schedulerId, watcherService))
 
+  val schedulingConfig = loadConfigOrThrow[SchedulingConfig](ConfigKeys.schedulerQueue)
+
   implicit val entityStore = WhiskEntityStore.datastore()
   private val activationStore =
     SpiLoader.get[ActivationStoreProvider].instance(actorSystem, logging)
@@ -191,7 +193,7 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
     : (ActorRefFactory, String, FullyQualifiedEntityName, DocRevision, WhiskActionMetaData) => ActorRef =
     (factory, invocationNamespace, fqn, revision, actionMetaData) => {
       // Todo: Change this to SPI
-      val decisionMaker = factory.actorOf(SchedulingDecisionMaker.props(invocationNamespace, fqn))
+      val decisionMaker = factory.actorOf(SchedulingDecisionMaker.props(invocationNamespace, fqn, schedulingConfig))
 
       factory.actorOf(
         MemoryQueue.props(
@@ -199,7 +201,7 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
           durationChecker,
           fqn,
           producer,
-          config,
+          schedulingConfig,
           invocationNamespace,
           revision,
           schedulerEndpoints,
@@ -395,3 +397,5 @@ object SchedulerStates extends DefaultJsonProtocol {
 
   def parse(states: String) = Try(serdes.read(states.parseJson))
 }
+
+case class SchedulingConfig(staleThreshold: FiniteDuration, checkInterval: FiniteDuration, dropInterval: FiniteDuration)
