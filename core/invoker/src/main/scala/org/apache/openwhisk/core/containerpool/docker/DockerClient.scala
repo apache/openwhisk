@@ -21,6 +21,7 @@ import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.Semaphore
+
 import akka.actor.ActorSystem
 
 import scala.collection.concurrent.TrieMap
@@ -31,15 +32,13 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import akka.event.Logging.{ErrorLevel, InfoLevel}
-import kamon.metric.MeasurementUnit
 import pureconfig._
 import pureconfig.generic.auto._
-import org.apache.openwhisk.common.{LogMarkerToken, Logging, LoggingMarkers, MetricEmitter, TransactionId}
+import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.ContainerId
 import org.apache.openwhisk.core.containerpool.ContainerAddress
 
-import java.time.Instant
 import scala.concurrent.duration.Duration
 
 object DockerContainerId {
@@ -205,15 +204,9 @@ class DockerClient(dockerHost: Option[String] = None,
       s"running ${cmd.mkString(" ")} (timeout: $timeout)",
       logLevel = InfoLevel)
     executeProcess(cmd, timeout).andThen {
-      case Success(_) =>
-        MetricEmitter.emitHistogramMetric(
-          LogMarkerToken("docker", "runCmd", "duration", Some(args.head), Map("cmd" -> args.head))(
-            MeasurementUnit.time.milliseconds),
-          Instant.now.toEpochMilli - transid.meta.start.toEpochMilli)
-        transid.finished(this, start)
+      case Success(_) => transid.finished(this, start)
       case Failure(pte: ProcessTimeoutException) =>
         transid.failed(this, start, pte.getMessage, ErrorLevel)
-        MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_DOCKER_CMD_TIMEOUT(args.head))
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
     }
   }

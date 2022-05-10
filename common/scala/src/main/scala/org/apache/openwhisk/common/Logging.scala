@@ -502,12 +502,10 @@ object LoggingMarkers {
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)(MeasurementUnit.none)
   def INVOKER_DOCKER_CMD(cmd: String) =
     LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
-  def INVOKER_DOCKER_CMD_TIMEOUT(cmd: String) =
-    LogMarkerToken(invoker, "docker", timeout, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
   def INVOKER_RUNC_CMD(cmd: String) =
     LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_KUBEAPI_CMD(cmd: String) =
-    LogMarkerToken(invoker, "kubeapi", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
+    LogMarkerToken(invoker, "kubeapi", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_CONTAINER_START(containerState: String, invocationNamespace: String, namespace: String, action: String) =
     LogMarkerToken(
       invoker,

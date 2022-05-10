@@ -22,6 +22,7 @@ import java.net.SocketTimeoutException
 import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 import java.time.{Instant, ZoneId}
+
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.event.Logging.InfoLevel
@@ -37,18 +38,11 @@ import collection.JavaConverters._
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.client.utils.Serialization
 import io.fabric8.kubernetes.client.{ConfigBuilder, DefaultKubernetesClient}
-import kamon.metric.MeasurementUnit
 import okhttp3.{Call, Callback, Request, Response}
 import okio.BufferedSource
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.openwhisk.common.{
-  ConfigMapValue,
-  LogMarkerToken,
-  Logging,
-  LoggingMarkers,
-  MetricEmitter,
-  TransactionId
-}
+import org.apache.openwhisk.common.LoggingMarkers
+import org.apache.openwhisk.common.{ConfigMapValue, Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.docker.ProcessRunner
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
@@ -182,10 +176,6 @@ class KubernetesClient(
         waitForPod(namespace, createdPod, start.start, config.timeouts.run)
           .map { readyPod =>
             transid.finished(this, start, logLevel = InfoLevel)
-            MetricEmitter.emitHistogramMetric(
-              LogMarkerToken("kubeapi", "create", "duration", Some("create"), Map("cmd" -> "create"))(
-                MeasurementUnit.time.milliseconds),
-              Instant.now.toEpochMilli - transid.meta.start.toEpochMilli)
             toContainer(readyPod)
           }
           .recoverWith {
