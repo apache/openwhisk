@@ -19,11 +19,9 @@ package org.apache.openwhisk.core.containerpool.v2.test
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActor, TestKit, TestProbe}
 import common.StreamLogging
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common.{Enable, GracefulShutdown, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.ContainerCreationError._
@@ -32,7 +30,8 @@ import org.apache.openwhisk.core.connector.{
   ContainerCreationAckMessage,
   ContainerCreationError,
   ContainerCreationMessage,
-  MessageProducer
+  MessageProducer,
+  ResultMetadata
 }
 import org.apache.openwhisk.core.containerpool.docker.DockerContainer
 import org.apache.openwhisk.core.containerpool.v2._
@@ -196,7 +195,7 @@ class FunctionPullingContainerPoolTests
       prewarmContainerCreationConfig)
 
   def sendAckToScheduler(producer: MessageProducer)(schedulerInstanceId: SchedulerInstanceId,
-                                                    ackMessage: ContainerCreationAckMessage): Future[RecordMetadata] = {
+                                                    ackMessage: ContainerCreationAckMessage): Future[ResultMetadata] = {
     val topic = s"creationAck${schedulerInstanceId.asString}"
     producer.send(topic, ackMessage)
   }

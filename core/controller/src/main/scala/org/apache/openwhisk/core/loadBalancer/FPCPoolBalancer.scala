@@ -8,7 +8,6 @@ import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Cancellable, P
 import akka.event.Logging.InfoLevel
 import akka.pattern.ask
 import akka.util.Timeout
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
@@ -250,7 +249,7 @@ class FPCPoolBalancer(config: WhiskConfig,
   /** 3. Send the activation to the kafka */
   private def sendActivationToKafka(producer: MessageProducer,
                                     msg: ActivationMessage,
-                                    topic: String): Future[RecordMetadata] = {
+                                    topic: String): Future[ResultMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
     MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
@@ -261,7 +260,7 @@ class FPCPoolBalancer(config: WhiskConfig,
         transid.finished(
           this,
           start,
-          s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]",
+          s"posted to ${status.topic}[${status.partition}][${status.offset}]",
           logLevel = InfoLevel)
       case Failure(_) => transid.failed(this, start, s"error on posting to topic $topic")
     }
