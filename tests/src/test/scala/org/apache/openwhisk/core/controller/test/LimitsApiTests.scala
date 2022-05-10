@@ -52,10 +52,10 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
   val testAllowedKinds = Set("java:8")
   val testStoreActivations = false
 
-  val testMemoryMin = MemoryLimit(100.MB)
+  val testMemoryMin = MemoryLimit(150.MB)
   val testMemoryMax = MemoryLimit(200.MB)
   val testLogMin = LogLimit(3.MB)
-  val testLogMax = LogLimit(15.MB)
+  val testLogMax = LogLimit(6.MB)
   val testDurationMax = TimeLimit(20.seconds)
   val testDurationMin = TimeLimit(10.seconds)
   val testConcurrencyMax = ConcurrencyLimit(20)

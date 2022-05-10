@@ -24,7 +24,7 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.entitlement.{Collection, Privilege, Resource}
 import org.apache.openwhisk.core.entitlement.Privilege.READ
-import org.apache.openwhisk.core.entity.{ConcurrencyLimit, Identity, LogLimit, MemoryLimit, TimeLimit}
+import org.apache.openwhisk.core.entity.{ConcurrencyLimit, Identity, LogLimit, MemoryLimit, ParameterLimit, TimeLimit}
 
 trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with AuthorizedRouteProvider {
 
@@ -56,19 +56,15 @@ trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with Aut
               Some(user.limits.invocationsPerMinute.getOrElse(invocationsPerMinuteSystemDefault)),
               Some(user.limits.concurrentInvocations.getOrElse(concurrentInvocationsSystemDefault)),
               Some(user.limits.firesPerMinute.getOrElse(firePerMinuteSystemDefault)),
-              actionMemoryMax = Some(user.limits.actionMemoryMax.getOrElse(MemoryLimit(MemoryLimit.MAX_MEMORY_DEFAULT))),
-              actionMemoryMin = Some(user.limits.actionMemoryMin.getOrElse(MemoryLimit(MemoryLimit.MIN_MEMORY_DEFAULT))),
-              actionLogsMax = Some(user.limits.actionLogsMax.getOrElse(LogLimit(LogLimit.MAX_LOGSIZE_DEFAULT))),
-              actionLogsMin = Some(user.limits.actionLogsMin.getOrElse(LogLimit(LogLimit.MIN_LOGSIZE_DEFAULT))),
-              actionDurationMax =
-                Some(user.limits.actionDurationMax.getOrElse(TimeLimit(TimeLimit.MAX_DURATION_DEFAULT))),
-              actionDurationMin =
-                Some(user.limits.actionDurationMin.getOrElse(TimeLimit(TimeLimit.MIN_DURATION_DEFAULT))),
-              actionConcurrencyMax = Some(
-                user.limits.actionConcurrencyMax.getOrElse(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT_DEFAULT))),
-              actionConcurrencyMin = Some(
-                user.limits.actionConcurrencyMin.getOrElse(ConcurrencyLimit(ConcurrencyLimit.MIN_CONCURRENT_DEFAULT))),
-            )
+              actionMemoryMax = Some(MemoryLimit(user.limits.allowedActionMemoryMax)),
+              actionMemoryMin = Some(MemoryLimit(user.limits.allowedActionMemoryMin)),
+              actionLogsMax = Some(LogLimit(user.limits.allowedActionLogsMax)),
+              actionLogsMin = Some(LogLimit(user.limits.allowedActionLogsMin)),
+              actionDurationMax = Some(TimeLimit(user.limits.allowedDurationMax)),
+              actionDurationMin = Some(TimeLimit(user.limits.allowedDurationMin)),
+              actionConcurrencyMax = Some(ConcurrencyLimit(user.limits.allowedActionConcurrencyMax)),
+              actionConcurrencyMin = Some(ConcurrencyLimit(user.limits.allowedActionConcurrencyMin)),
+              actionParameterSizeMax = Some(ParameterLimit(user.limits.allowedActionParameterSizeMax)))
             pathEndOrSingleSlash { complete(OK, limits) }
           case _ => reject //should never get here
         }
