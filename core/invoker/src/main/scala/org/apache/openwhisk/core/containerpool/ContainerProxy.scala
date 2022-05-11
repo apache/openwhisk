@@ -831,6 +831,7 @@ class ContainerProxy(factory: (TransactionId,
             actionTimeout,
             job.action.limits.concurrency.maxConcurrent,
             job.msg.user.limits.allowedMaxPayloadSize,
+            job.msg.user.limits.allowedTruncationSize,
             reschedule)(job.msg.transid)
           .map {
             case (runInterval, response) =>

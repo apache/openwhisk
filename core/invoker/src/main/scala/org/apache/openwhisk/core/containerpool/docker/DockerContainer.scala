@@ -30,7 +30,7 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity.ActivationResponse.{ConnectionError, MemoryExhausted}
-import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ByteSize}
+import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
 import akka.stream.scaladsl.{Framing, Source}
 import akka.stream.stage._
@@ -219,32 +219,22 @@ class DockerContainer(protected val id: ContainerId,
     timeout: FiniteDuration,
     maxConcurrent: Int,
     maxResponse: ByteSize,
+    truncation: ByteSize,
     retry: Boolean = false,
     reschedule: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
       val conn = if (Container.config.akkaClient) {
-        new AkkaContainerClient(
-          addr.host,
-          addr.port,
-          timeout,
-          maxResponse,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
-          1024)
+        new AkkaContainerClient(addr.host, addr.port, timeout, 1024)
       } else {
-        new ApacheBlockingContainerClient(
-          s"${addr.host}:${addr.port}",
-          timeout,
-          maxResponse,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
-          maxConcurrent)
+        new ApacheBlockingContainerClient(s"${addr.host}:${addr.port}", timeout, maxConcurrent)
       }
       httpConnection = Some(conn)
       conn
     }
 
     http
-      .post(path, body, maxResponse, retry, reschedule)
+      .post(path, body, maxResponse, truncation, retry, reschedule)
       .flatMap { response =>
         val finished = Instant.now()
 

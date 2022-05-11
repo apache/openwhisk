@@ -128,6 +128,7 @@ trait Container {
       timeout,
       maxConcurrent,
       ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+      ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
       retry = true)
       .andThen { // never fails
         case Success(r: RunResult) =>
@@ -170,6 +171,7 @@ trait Container {
           timeout: FiniteDuration,
           maxConcurrent: Int,
           maxResponse: ByteSize,
+          truncation: ByteSize,
           reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
     val actionName = environment.fields.get("action_name").map(_.convertTo[String]).getOrElse("")
     val start =
@@ -181,7 +183,7 @@ trait Container {
 
     val parameterWrapper = JsObject("value" -> parameters)
     val body = JsObject(parameterWrapper.fields ++ environment.fields)
-    callContainer("/run", body, timeout, maxConcurrent, maxResponse, retry = false, reschedule)
+    callContainer("/run", body, timeout, maxConcurrent, maxResponse, truncation, retry = false, reschedule)
       .andThen { // never fails
         case Success(r: RunResult) =>
           transid.finished(
@@ -227,6 +229,7 @@ trait Container {
                               timeout: FiniteDuration,
                               maxConcurrent: Int,
                               maxResponse: ByteSize,
+                              truncation: ByteSize,
                               retry: Boolean = false,
                               reschedule: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
@@ -236,7 +239,7 @@ trait Container {
       conn
     }
     http
-      .post(path, body, maxResponse, retry, reschedule)
+      .post(path, body, maxResponse, truncation, retry, reschedule)
       .map { response =>
         val finished = Instant.now()
         RunResult(Interval(started, finished), response)
@@ -244,20 +247,9 @@ trait Container {
   }
   private def openConnections(timeout: FiniteDuration, maxConcurrent: Int) = {
     if (Container.config.akkaClient) {
-      new AkkaContainerClient(
-        addr.host,
-        addr.port,
-        timeout,
-        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
-        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
-        1024)
+      new AkkaContainerClient(addr.host, addr.port, timeout, 1024)
     } else {
-      new ApacheBlockingContainerClient(
-        s"${addr.host}:${addr.port}",
-        timeout,
-        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
-        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
-        maxConcurrent)
+      new ApacheBlockingContainerClient(s"${addr.host}:${addr.port}", timeout, maxConcurrent)
     }
   }
   private def closeConnections(toClose: Option[ContainerClient]): Future[Unit] = {

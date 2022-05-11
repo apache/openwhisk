@@ -109,6 +109,7 @@ class KubernetesContainerTests
         timeout: FiniteDuration,
         concurrent: Int,
         maxResponse: ByteSize,
+        truncation: ByteSize,
         retry: Boolean = false,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
         ccRes
@@ -265,7 +266,7 @@ class KubernetesContainerTests
       Future.successful(RunResult(interval, Right(ContainerResponse(true, result.compactPrint, None))))
     }
 
-    val runResult = container.run(JsObject.empty, JsObject.empty, 1.second, 1, 1.MB)
+    val runResult = container.run(JsObject.empty, JsObject.empty, 1.second, 1, 1.MB, 1.MB)
     await(runResult) shouldBe (interval, ActivationResponse.success(Some(result), Some(2)))
 
     // assert the starting log is there
@@ -304,7 +305,7 @@ class KubernetesContainerTests
       Future.successful(RunResult(interval, Left(Timeout(new Throwable()))))
     }
 
-    val runResult = container.run(JsObject.empty, JsObject.empty, runTimeout, 1, 1.MB)
+    val runResult = container.run(JsObject.empty, JsObject.empty, runTimeout, 1, 1.MB, 1.MB)
     await(runResult) shouldBe (interval, ActivationResponse.developerError(
       Messages.timedoutActivation(runTimeout, false)))
 

@@ -22,7 +22,6 @@ import pureconfig.generic.auto._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.size._
 
-case class NamespaceActivationEntityPayloadConf(max: ByteSize)
 case class ActivationEntityPayload(max: ByteSize, truncation: ByteSize)
 case class ActivationEntityLimitConf(serdesOverhead: ByteSize, payload: ActivationEntityPayload)
 
@@ -34,7 +33,7 @@ case class ActivationEntityLimitConf(serdesOverhead: ByteSize, payload: Activati
 protected[core] object ActivationEntityLimit {
   private val config = loadConfigOrThrow[ActivationEntityLimitConf](ConfigKeys.activation)
   private val namespacePayloadLimitConfig =
-    loadConfigOrThrow[NamespaceActivationEntityPayloadConf](ConfigKeys.namespaceActivationPayloadLimit)
+    loadConfigOrThrow[ActivationEntityPayload](ConfigKeys.namespaceActivationPayloadLimit)
 
   // system limit
   protected[core] val MAX_ACTIVATION_ENTITY_LIMIT: ByteSize = config.payload.max
@@ -43,4 +42,5 @@ protected[core] object ActivationEntityLimit {
 
   // namespace default limit
   protected[core] val MAX_ACTIVATION_ENTITY_LIMIT_DEFAULT: ByteSize = namespacePayloadLimitConfig.max
+  protected[core] val MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT_DEFAULT: ByteSize = namespacePayloadLimitConfig.truncation
 }

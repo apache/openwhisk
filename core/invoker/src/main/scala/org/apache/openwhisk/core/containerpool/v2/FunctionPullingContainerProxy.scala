@@ -1054,6 +1054,7 @@ class FunctionPullingContainerProxy(
             actionTimeout,
             action.limits.concurrency.maxConcurrent,
             msg.user.limits.allowedMaxPayloadSize,
+            msg.user.limits.allowedTruncationSize,
             resumeRun.isDefined)(msg.transid)
           .map {
             case (runInterval, response) =>

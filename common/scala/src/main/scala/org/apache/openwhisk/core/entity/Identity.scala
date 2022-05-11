@@ -47,6 +47,7 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       maxActionConcurrency: Option[ConcurrencyLimit] = None,
                       maxParameterSize: Option[ByteSize] = None,
                       maxPayloadSize: Option[ByteSize] = None,
+                      truncationSize: Option[ByteSize] = None,
                       warmedContainerKeepingCount: Option[Int] = None,
                       warmedContainerKeepingTimeout: Option[String] = None) {
 
@@ -61,6 +62,13 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
     val namespaceLimit = maxPayloadSize getOrElse (ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT_DEFAULT)
     if (namespaceLimit > ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT) {
       ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT
+    } else namespaceLimit
+  }
+
+  def allowedTruncationSize: ByteSize = {
+    val namespaceLimit = truncationSize getOrElse (ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT_DEFAULT)
+    if (namespaceLimit > ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT) {
+      ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT
     } else namespaceLimit
   }
 
@@ -125,7 +133,7 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
 object UserLimits extends DefaultJsonProtocol {
   val standardUserLimits = UserLimits()
   private implicit val byteSizeSerdes = size.serdes
-  implicit val serdes = jsonFormat17(UserLimits.apply)
+  implicit val serdes = jsonFormat18(UserLimits.apply)
 }
 
 protected[core] case class Namespace(name: EntityName, uuid: UUID)

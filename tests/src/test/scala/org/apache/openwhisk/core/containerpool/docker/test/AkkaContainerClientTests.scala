@@ -109,10 +109,10 @@ class AkkaContainerClientTests
 
   it should "not wait longer than set timeout" in {
     val timeout = 5.seconds
-    val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 1.B, 1.B, 100)
+    val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 100)
     testHang = timeout * 2
     val start = Instant.now()
-    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.B, 1.B, retry = true), 10.seconds)
 
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
@@ -123,17 +123,17 @@ class AkkaContainerClientTests
 
   it should "handle empty entity response" in {
     val timeout = 5.seconds
-    val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 1.B, 1.B, 100)
+    val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 100)
     testStatusCode = 204
-    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.B, 1.B, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
   }
 
   it should "retry till timeout on StreamTcpException" in {
     val timeout = 5.seconds
-    val connection = new AkkaContainerClient("0.0.0.0", 12345, timeout, 1.B, 1.B, 100)
+    val connection = new AkkaContainerClient("0.0.0.0", 12345, timeout, 100)
     val start = Instant.now()
-    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.B, 1.B, retry = true), 10.seconds)
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
     result match {
@@ -146,9 +146,9 @@ class AkkaContainerClientTests
 
   it should "throw ContainerHealthError on HttpHostConnectException if reschedule==true" in {
     val timeout = 5.seconds
-    val connection = new AkkaContainerClient("0.0.0.0", 12345, timeout, 1.B, 1.B, 100)
+    val connection = new AkkaContainerClient("0.0.0.0", 12345, timeout, 100)
     assertThrows[ContainerHealthError] {
-      Await.result(connection.post("/run", JsObject.empty, 1.MB, retry = false, reschedule = true), 10.seconds)
+      Await.result(connection.post("/run", JsObject.empty, 1.B, 1.B, retry = false, reschedule = true), 10.seconds)
     }
   }
 
@@ -156,11 +156,11 @@ class AkkaContainerClientTests
     val timeout = 5.seconds
     val retryInterval = 500.milliseconds
     val connection =
-      new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 1.B, 1.B, 100, retryInterval)
+      new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 100, retryInterval)
     val start = Instant.now()
     testConnectionFailCount = 5
     testResponse = ""
-    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.B, 1.B, retry = true), 10.seconds)
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
     result shouldBe Right {
@@ -173,12 +173,12 @@ class AkkaContainerClientTests
 
   it should "not truncate responses within limit" in {
     val timeout = 1.minute.toMillis
-    val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 50.B, 50.B, 100)
+    val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 100)
     Seq(true, false).foreach { success =>
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
         testResponse = r
-        val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
+        val result = Await.result(connection.post("/init", JsObject.empty, 50.B, 50.B, retry = true), 10.seconds)
         result shouldBe Right {
           ContainerResponse(okStatus = success, if (r != null) r else "", None)
         }
@@ -191,12 +191,13 @@ class AkkaContainerClientTests
     val limit = 2.B
     val truncationLimit = 1.B
     val connection =
-      new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, limit, truncationLimit, 100)
+      new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 100)
     Seq(true, false).foreach { success =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
         testResponse = r
-        val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
+        val result =
+          Await.result(connection.post("/init", JsObject.empty, limit, truncationLimit, retry = true), 10.seconds)
         result shouldBe Right {
           ContainerResponse(okStatus = success, r.take(truncationLimit.toBytes.toInt), Some((r.length.B, limit)))
         }
@@ -211,13 +212,14 @@ class AkkaContainerClientTests
     val limit = 300.KB
     val truncationLimit = 299.B
     val connection =
-      new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, limit, truncationLimit, 100)
+      new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 100)
     Seq(true, false).foreach { success =>
       // Generate a response that's 1MB
       val response = "0" * 1024 * 1024
       testStatusCode = if (success) 200 else 500
       testResponse = response
-      val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
+      val result =
+        Await.result(connection.post("/init", JsObject.empty, limit, truncationLimit, retry = true), 10.seconds)
       result shouldBe Right {
         ContainerResponse(
           okStatus = success,
