@@ -229,6 +229,7 @@ object ConfigKeys {
   val namespaceLogLimit = "whisk.namespace-default-limit.log-limit"
   val namespaceConcurrencyLimit = "whisk.namespace-default-limit.concurrency-limit"
   val namespaceParameterSizeLimit = "whisk.namespace-default-limit.parameter-size-limit"
+  val namespaceActivationPayloadLimit = "whisk.namespace-default-limit.activation.payload"
 
   val activation = "whisk.activation"
   val userEvents = "whisk.user-events"

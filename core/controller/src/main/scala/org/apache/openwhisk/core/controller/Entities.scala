@@ -35,7 +35,6 @@ import org.apache.openwhisk.core.entitlement.Privilege
 import org.apache.openwhisk.core.entitlement.Privilege.READ
 import org.apache.openwhisk.core.entitlement.Resource
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.entity.ActivationEntityLimit
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages
@@ -52,16 +51,14 @@ protected[controller] trait ValidateRequestSize extends Directives {
     }
 
   /** Checks if request entity is within allowed length range. */
-  protected def isWhithinRange(length: Long) = {
-    if (length <= allowedActivationEntitySize) {
+  protected def isWhithinRange(userLimits: UserLimits, length: Long) = {
+    if (length <= userLimits.allowedMaxPayloadSize.toBytes) {
       None
     } else
       Some {
-        SizeError(fieldDescriptionForSizeError, length.B, allowedActivationEntitySize.B)
+        SizeError(fieldDescriptionForSizeError, length.B, userLimits.allowedMaxPayloadSize.toBytes.B)
       }
   }
-
-  protected val allowedActivationEntitySize: Long = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
   protected val fieldDescriptionForSizeError = "Request"
 }
 
@@ -121,7 +118,9 @@ trait WhiskCollectionAPI
             }
           case ACTIVATE =>
             extract(_.request.entity.contentLengthOption) { length =>
-              validateSize(isWhithinRange(length.getOrElse(0)))(transid, RestApiCommons.jsonDefaultResponsePrinter) {
+              validateSize(isWhithinRange(user.limits, length.getOrElse(0)))(
+                transid,
+                RestApiCommons.jsonDefaultResponsePrinter) {
                 activate(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
               }
             }

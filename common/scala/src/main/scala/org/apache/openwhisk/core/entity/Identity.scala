@@ -46,6 +46,7 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       minActionConcurrency: Option[ConcurrencyLimit] = None,
                       maxActionConcurrency: Option[ConcurrencyLimit] = None,
                       maxParameterSize: Option[ByteSize] = None,
+                      maxPayloadSize: Option[ByteSize] = None,
                       warmedContainerKeepingCount: Option[Int] = None,
                       warmedContainerKeepingTimeout: Option[String] = None) {
 
@@ -53,6 +54,13 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
     val namespaceLimit = maxParameterSize getOrElse (Parameters.MAX_SIZE_DEFAULT)
     if (namespaceLimit > Parameters.MAX_SIZE) {
       Parameters.MAX_SIZE
+    } else namespaceLimit
+  }
+
+  def allowedMaxPayloadSize: ByteSize = {
+    val namespaceLimit = maxPayloadSize getOrElse (ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT_DEFAULT)
+    if (namespaceLimit > ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT) {
+      ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT
     } else namespaceLimit
   }
 
@@ -117,7 +125,7 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
 object UserLimits extends DefaultJsonProtocol {
   val standardUserLimits = UserLimits()
   private implicit val byteSizeSerdes = size.serdes
-  implicit val serdes = jsonFormat16(UserLimits.apply)
+  implicit val serdes = jsonFormat17(UserLimits.apply)
 }
 
 protected[core] case class Namespace(name: EntityName, uuid: UUID)

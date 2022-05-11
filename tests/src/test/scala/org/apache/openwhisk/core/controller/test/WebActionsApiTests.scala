@@ -118,12 +118,21 @@ class WebActionsApiTests extends FlatSpec with Matchers with WebActionsApiBaseTe
 }
 
 trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskWebActionsApi {
+
+  val systemPayloadLimit = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT
+  val namespacePayloadLimit = systemPayloadLimit - 100.KB
+
   val uuid = UUID()
   val systemId = Subject()
   val systemKey = BasicAuthenticationAuthKey(uuid, Secret())
   val systemIdentity =
     Future.successful(
-      Identity(systemId, Namespace(EntityName(systemId.asString), uuid), systemKey, rights = Privilege.ALL))
+      Identity(
+        systemId,
+        Namespace(EntityName(systemId.asString), uuid),
+        systemKey,
+        rights = Privilege.ALL,
+        limits = UserLimits(maxPayloadSize = Option(namespacePayloadLimit))))
   val namespace = EntityPath(systemId.asString)
   val proxyNamespace = namespace.addPath(EntityName("proxy"))
   override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)
@@ -140,6 +149,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   var requireAuthenticationKey = "example-web-action-api-key"
   var invocationCount = 0
   var invocationsAllowed = 0
+
   lazy val testFixturesToGc = {
     implicit val tid = transid()
     Seq(
@@ -1504,17 +1514,18 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       }
     }
 
-    it should s"reject requests when entity size exceeds allowed limit (auth? ${creds.isDefined})" in {
+    it should s"reject requests when entity size exceeds allowed system limit (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       Seq(s"$systemId/proxy/export_c.json").foreach { path =>
-        val largeEntity = "a" * (allowedActivationEntitySize.toInt + 1)
+        val largeEntity = "a" * (systemPayloadLimit.toBytes.toInt + 1)
 
         val content = s"""{"a":"$largeEntity"}"""
         Post(s"$testRoutePath/$path", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
           status should be(PayloadTooLarge)
           val expectedErrorMsg = Messages.entityTooBig(
-            SizeError(fieldDescriptionForSizeError, (largeEntity.length + 8).B, allowedActivationEntitySize.B))
+            // must contains namespace's payload limit size in error message
+            SizeError(fieldDescriptionForSizeError, (largeEntity.length + 8).B, namespacePayloadLimit.toBytes.B))
           confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
         }
 
@@ -1522,7 +1533,50 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         Post(s"$testRoutePath/$path", form) ~> Route.seal(routes(creds)) ~> check {
           status should be(PayloadTooLarge)
           val expectedErrorMsg = Messages.entityTooBig(
-            SizeError(fieldDescriptionForSizeError, (largeEntity.length + 2).B, allowedActivationEntitySize.B))
+            // must contains namespace's payload limit size in error message
+            SizeError(fieldDescriptionForSizeError, (largeEntity.length + 2).B, namespacePayloadLimit.toBytes.B))
+          confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
+        }
+      }
+    }
+
+    it should s"allow requests when entity size does not exceed allowed namespace limit (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(s"$systemId/proxy/export_c.json").foreach { path =>
+        val largeEntity = "a" * (namespacePayloadLimit.toBytes.toInt - 10)
+
+        val content = s"""{"a":"$largeEntity"}"""
+        Post(s"$testRoutePath/$path", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+        }
+
+        val form = FormData(Map("a" -> largeEntity))
+        Post(s"$testRoutePath/$path", form) ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+        }
+      }
+    }
+
+    it should s"reject requests when entity size exceeds allowed namespace limit (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(s"$systemId/proxy/export_c.json").foreach { path =>
+        val largeEntity = "a" * (namespacePayloadLimit.toBytes.toInt + 1)
+
+        val content = s"""{"a":"$largeEntity"}"""
+        Post(s"$testRoutePath/$path", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
+          status should be(PayloadTooLarge)
+          val expectedErrorMsg = Messages.entityTooBig(
+            SizeError(fieldDescriptionForSizeError, (largeEntity.length + 8).B, namespacePayloadLimit.toBytes.B))
+          confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
+        }
+
+        val form = FormData(Map("a" -> largeEntity))
+        Post(s"$testRoutePath/$path", form) ~> Route.seal(routes(creds)) ~> check {
+          status should be(PayloadTooLarge)
+          val expectedErrorMsg = Messages.entityTooBig(
+            SizeError(fieldDescriptionForSizeError, (largeEntity.length + 2).B, namespacePayloadLimit.toBytes.B))
           confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
         }
       }

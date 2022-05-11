@@ -32,8 +32,12 @@ case class ActivationEntityLimitConf(serdesOverhead: ByteSize, payload: Activati
  */
 protected[core] object ActivationEntityLimit {
   private val config = loadConfigOrThrow[ActivationEntityLimitConf](ConfigKeys.activation)
+  private val namespacePayloadLimitConfig =
+    loadConfigOrThrow[ActivationEntityPayload](ConfigKeys.namespaceActivationPayloadLimit)
 
-  protected[core] val MAX_ACTIVATION_ENTITY_LIMIT: ByteSize = config.payload.max
+  protected[core] val MAX_ACTIVATION_ENTITY_LIMIT: ByteSize = config.payload.max // system limit
+  protected[core] val MAX_ACTIVATION_ENTITY_LIMIT_DEFAULT
+    : ByteSize = namespacePayloadLimitConfig.max // namespace default limit
   protected[core] val MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT: ByteSize = config.payload.truncation
   protected[core] val MAX_ACTIVATION_LIMIT: ByteSize = config.payload.max + config.serdesOverhead
 }

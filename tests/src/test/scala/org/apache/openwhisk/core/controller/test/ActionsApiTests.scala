@@ -68,7 +68,13 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   def aname() = MakeName.next("action_tests")
 
   val actionLimit = Exec.sizeLimit
-  val parametersLimit = Parameters.sizeLimit
+  val parametersLimit = Parameters.MAX_SIZE
+
+  val systemPayloadLimit = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT
+  val namespacePayloadLimit = systemPayloadLimit - 100.KB
+
+  val credsWithPayloadLimit =
+    WhiskAuthHelpers.newIdentity().copy(limits = UserLimits(maxPayloadSize = Some(namespacePayloadLimit)))
 
   //// GET /actions
   it should "return empty list when no actions exist" in {
@@ -941,13 +947,25 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject activation with entity which is too big" in {
     implicit val tid = transid()
-    val code = "a" * (allowedActivationEntitySize.toInt + 1)
+    val code = "a" * (systemPayloadLimit.toBytes.toInt + 1)
     val content = s"""{"a":"$code"}""".stripMargin
     Post(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(PayloadTooLarge)
       responseAs[String] should include {
+        Messages.entityTooBig(SizeError(fieldDescriptionForSizeError, (content.length).B, systemPayloadLimit.toBytes.B))
+      }
+    }
+  }
+
+  it should "reject activation with entity size exceeds allowed namespace limit" in {
+    implicit val tid = transid()
+    val code = "a" * (namespacePayloadLimit.toBytes.toInt + 1)
+    val content = s"""{"a":"$code"}""".stripMargin
+    Post(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithPayloadLimit)) ~> check {
+      status should be(PayloadTooLarge)
+      responseAs[String] should include {
         Messages.entityTooBig(
-          SizeError(fieldDescriptionForSizeError, (content.length).B, allowedActivationEntitySize.B))
+          SizeError(fieldDescriptionForSizeError, (content.length).B, namespacePayloadLimit.toBytes.B))
       }
     }
   }
