@@ -1053,6 +1053,7 @@ class FunctionPullingContainerProxy(
             env.toJson.asJsObject,
             actionTimeout,
             action.limits.concurrency.maxConcurrent,
+            msg.user.limits.allowedMaxPayloadSize,
             resumeRun.isDefined)(msg.transid)
           .map {
             case (runInterval, response) =>

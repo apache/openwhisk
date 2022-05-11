@@ -218,6 +218,7 @@ class DockerContainer(protected val id: ContainerId,
     body: JsObject,
     timeout: FiniteDuration,
     maxConcurrent: Int,
+    maxResponse: ByteSize,
     retry: Boolean = false,
     reschedule: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
@@ -227,14 +228,14 @@ class DockerContainer(protected val id: ContainerId,
           addr.host,
           addr.port,
           timeout,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+          maxResponse,
           ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
           1024)
       } else {
         new ApacheBlockingContainerClient(
           s"${addr.host}:${addr.port}",
           timeout,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+          maxResponse,
           ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
           maxConcurrent)
       }
@@ -243,7 +244,7 @@ class DockerContainer(protected val id: ContainerId,
     }
 
     http
-      .post(path, body, retry, reschedule)
+      .post(path, body, maxResponse, retry, reschedule)
       .flatMap { response =>
         val finished = Instant.now()
 

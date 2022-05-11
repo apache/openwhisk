@@ -46,9 +46,10 @@ import org.apache.openwhisk.common.MetricEmitter
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity.ActivationResponse.ContainerHttpError
 import org.apache.openwhisk.core.entity.ActivationResponse._
-import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ByteSize}
 import org.apache.openwhisk.core.entity.size.SizeLong
 import org.apache.openwhisk.http.PoolingRestClient
+
 import java.time.Instant
 
 /**
@@ -91,7 +92,7 @@ protected class AkkaContainerClient(
    * @param reschedule whether or not to throw ContainerHealthError (triggers reschedule) on connection failure
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
-  def post(endpoint: String, body: JsValue, retry: Boolean, reschedule: Boolean = false)(
+  def post(endpoint: String, body: JsValue, maxResponse: ByteSize, retry: Boolean, reschedule: Boolean = false)(
     implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]] = {
 
     //create the request
@@ -234,7 +235,7 @@ object AkkaContainerClient {
     tid: TransactionId): Future[(Int, Option[JsObject])] = {
 
     val res = connection
-      .post(endpoint, content, true)
+      .post(endpoint, content, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, true)
       .map({
         case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
         case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")

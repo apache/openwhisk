@@ -112,7 +112,7 @@ class AkkaContainerClientTests
     val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 1.B, 1.B, 100)
     testHang = timeout * 2
     val start = Instant.now()
-    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
 
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
@@ -125,7 +125,7 @@ class AkkaContainerClientTests
     val timeout = 5.seconds
     val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 1.B, 1.B, 100)
     testStatusCode = 204
-    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
   }
 
@@ -133,7 +133,7 @@ class AkkaContainerClientTests
     val timeout = 5.seconds
     val connection = new AkkaContainerClient("0.0.0.0", 12345, timeout, 1.B, 1.B, 100)
     val start = Instant.now()
-    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
     result match {
@@ -148,7 +148,7 @@ class AkkaContainerClientTests
     val timeout = 5.seconds
     val connection = new AkkaContainerClient("0.0.0.0", 12345, timeout, 1.B, 1.B, 100)
     assertThrows[ContainerHealthError] {
-      Await.result(connection.post("/run", JsObject.empty, retry = false, reschedule = true), 10.seconds)
+      Await.result(connection.post("/run", JsObject.empty, 1.MB, retry = false, reschedule = true), 10.seconds)
     }
   }
 
@@ -160,7 +160,7 @@ class AkkaContainerClientTests
     val start = Instant.now()
     testConnectionFailCount = 5
     testResponse = ""
-    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
     result shouldBe Right {
@@ -178,7 +178,7 @@ class AkkaContainerClientTests
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
         testResponse = r
-        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+        val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
         result shouldBe Right {
           ContainerResponse(okStatus = success, if (r != null) r else "", None)
         }
@@ -196,7 +196,7 @@ class AkkaContainerClientTests
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
         testResponse = r
-        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+        val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
         result shouldBe Right {
           ContainerResponse(okStatus = success, r.take(truncationLimit.toBytes.toInt), Some((r.length.B, limit)))
         }
@@ -217,7 +217,7 @@ class AkkaContainerClientTests
       val response = "0" * 1024 * 1024
       testStatusCode = if (success) 200 else 500
       testResponse = response
-      val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+      val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
       result shouldBe Right {
         ContainerResponse(
           okStatus = success,

@@ -122,7 +122,13 @@ trait Container {
     containerHttpMaxConcurrent = maxConcurrent
     containerHttpTimeout = timeout
     val body = JsObject("value" -> initializer)
-    callContainer("/init", body, timeout, maxConcurrent, retry = true)
+    callContainer(
+      "/init",
+      body,
+      timeout,
+      maxConcurrent,
+      ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+      retry = true)
       .andThen { // never fails
         case Success(r: RunResult) =>
           transid.finished(
@@ -163,6 +169,7 @@ trait Container {
           environment: JsObject,
           timeout: FiniteDuration,
           maxConcurrent: Int,
+          maxResponse: ByteSize,
           reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
     val actionName = environment.fields.get("action_name").map(_.convertTo[String]).getOrElse("")
     val start =
@@ -174,7 +181,7 @@ trait Container {
 
     val parameterWrapper = JsObject("value" -> parameters)
     val body = JsObject(parameterWrapper.fields ++ environment.fields)
-    callContainer("/run", body, timeout, maxConcurrent, retry = false, reschedule)
+    callContainer("/run", body, timeout, maxConcurrent, maxResponse, retry = false, reschedule)
       .andThen { // never fails
         case Success(r: RunResult) =>
           transid.finished(
@@ -219,6 +226,7 @@ trait Container {
                               body: JsObject,
                               timeout: FiniteDuration,
                               maxConcurrent: Int,
+                              maxResponse: ByteSize,
                               retry: Boolean = false,
                               reschedule: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
@@ -228,7 +236,7 @@ trait Container {
       conn
     }
     http
-      .post(path, body, retry, reschedule)
+      .post(path, body, maxResponse, retry, reschedule)
       .map { response =>
         val finished = Instant.now()
         RunResult(Interval(started, finished), response)

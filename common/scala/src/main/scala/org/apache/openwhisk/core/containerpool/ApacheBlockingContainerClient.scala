@@ -36,7 +36,7 @@ import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.ActivationResponse._
-import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ByteSize}
 import org.apache.openwhisk.core.entity.size.SizeLong
 import pureconfig._
 import pureconfig.generic.auto._
@@ -91,7 +91,7 @@ protected class ApacheBlockingContainerClient(hostname: String,
    * @param retry whether or not to retry on connection failure
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
-  def post(endpoint: String, body: JsValue, retry: Boolean, reschedule: Boolean = false)(
+  def post(endpoint: String, body: JsValue, maxResponse: ByteSize, retry: Boolean, reschedule: Boolean = false)(
     implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]] = {
     val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
     entity.setContentType("application/json")
@@ -254,7 +254,7 @@ object ApacheBlockingContainerClient {
     implicit logging: Logging,
     tid: TransactionId,
     ec: ExecutionContext): Future[(Int, Option[JsObject])] = {
-    connection.post(endpoint, content, retry = true) map {
+    connection.post(endpoint, content, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT, retry = true) map {
       case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
       case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
       case Left(Timeout(_))           => throw new java.util.concurrent.TimeoutException()

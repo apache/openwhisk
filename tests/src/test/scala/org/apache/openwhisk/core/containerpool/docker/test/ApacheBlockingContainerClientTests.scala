@@ -103,7 +103,7 @@ class ApacheBlockingContainerClientTests
     val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B, 1.B)
     testHang = timeout * 2
     val start = Instant.now()
-    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
 
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
@@ -116,7 +116,7 @@ class ApacheBlockingContainerClientTests
     val timeout = 5.seconds
     val connection = new ApacheBlockingContainerClient(hostWithPort, timeout, 1.B, 1.B)
     testStatusCode = 204
-    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
   }
 
@@ -126,7 +126,7 @@ class ApacheBlockingContainerClientTests
     val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B, 1.B)
     testStatusCode = 204
     val start = Instant.now()
-    val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+    val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
     result match {
@@ -144,7 +144,7 @@ class ApacheBlockingContainerClientTests
     val badHostAndPort = "0.0.0.0:12345"
     val connection = new ApacheBlockingContainerClient(badHostAndPort, timeout, 1.B, 1.B)
     assertThrows[ContainerHealthError] {
-      Await.result(connection.post("/run", JsObject.empty, retry = false, reschedule = true), 10.seconds)
+      Await.result(connection.post("/run", JsObject.empty, 1.MB, retry = false, reschedule = true), 10.seconds)
     }
   }
 
@@ -155,7 +155,7 @@ class ApacheBlockingContainerClientTests
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
         testResponse = r
-        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+        val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
         result shouldBe Right {
           ContainerResponse(okStatus = success, if (r != null) r else "", None)
         }
@@ -172,7 +172,7 @@ class ApacheBlockingContainerClientTests
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
         testResponse = r
-        val result = Await.result(connection.post("/init", JsObject.empty, retry = true), 10.seconds)
+        val result = Await.result(connection.post("/init", JsObject.empty, 1.MB, retry = true), 10.seconds)
         result shouldBe Right {
           ContainerResponse(okStatus = success, r.take(truncationLimit.toBytes.toInt), Some((r.length.B, limit)))
         }
