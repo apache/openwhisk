@@ -203,7 +203,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
         truncated match {
           case None =>
             val sizeOpt = Option(str).map(_.length)
-            Try { str.parseJson.asJsObject } match {
+            Try { str.parseJson } match {
               case scala.util.Success(result @ JsObject(fields)) =>
                 // If the response is a JSON object container an error field, accept it as the response error.
                 val errorOpt = fields.get(ERROR_FIELD)
@@ -220,6 +220,16 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
                   // there was a useful error message in there.
                   val errorContent = errorOpt getOrElse invalidRunResponse(str).toJson
                   developerError(errorContent, sizeOpt)
+                }
+
+              case scala.util.Success(result @ JsArray(_)) =>
+                if (res.okStatus) {
+                  success(Some(result), sizeOpt)
+                } else {
+                  // Any non-200 code is treated as a container failure. We still need to check whether
+                  // there was a useful error message in there.
+                  val errorContent = invalidRunResponse(str).toJson
+                  developerErrorWithLog(errorContent, sizeOpt, None)
                 }
 
               case scala.util.Success(notAnObj) =>
