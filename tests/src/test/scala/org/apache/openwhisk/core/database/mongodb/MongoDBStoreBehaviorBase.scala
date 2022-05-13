@@ -17,31 +17,37 @@
 
 package org.apache.openwhisk.core.database.mongodb
 
-import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehaviorBase
 import org.apache.openwhisk.core.database.{ArtifactStore, AttachmentStore, DocumentSerializer}
 import org.apache.openwhisk.core.entity._
 import org.scalatest.FlatSpec
+import org.testcontainers.containers.MongoDBContainer
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
 
-import scala.reflect.{classTag, ClassTag}
-import scala.util.Try
+import scala.reflect.{ClassTag, classTag}
 
 trait MongoDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase {
+  val imageName = loadConfigOrThrow[String]("whisk.mongodb.docker-image")
+  val container = new MongoDBContainer(imageName)
+  container.start()
+
+  override def afterAll = {
+    container.close()
+    super.afterAll()
+  }
+
   override def storeType = "MongoDB"
 
-  override lazy val storeAvailableCheck: Try[Any] = storeConfigTry
-
-  val storeConfigTry = Try { loadConfigOrThrow[MongoDBConfig](ConfigKeys.mongodb) }
+  val storeConfig = MongoDBConfig(container.getReplicaSetUrl, "unittest")
 
   override lazy val authStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader
-    MongoDBArtifactStoreProvider.makeArtifactStore[WhiskAuth](storeConfigTry.get, getAttachmentStore[WhiskAuth]())
+    MongoDBArtifactStoreProvider.makeArtifactStore[WhiskAuth](storeConfig, getAttachmentStore[WhiskAuth]())
   }
 
   override lazy val entityStore =
-    MongoDBArtifactStoreProvider.makeArtifactStore[WhiskEntity](storeConfigTry.get, getAttachmentStore[WhiskEntity]())(
+    MongoDBArtifactStoreProvider.makeArtifactStore[WhiskEntity](storeConfig, getAttachmentStore[WhiskEntity]())(
       classTag[WhiskEntity],
       WhiskEntityJsonFormat,
       WhiskDocumentReader,
@@ -51,7 +57,7 @@ trait MongoDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase {
   override lazy val activationStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader
     MongoDBArtifactStoreProvider
-      .makeArtifactStore[WhiskActivation](storeConfigTry.get, getAttachmentStore[WhiskActivation]())
+      .makeArtifactStore[WhiskActivation](storeConfig, getAttachmentStore[WhiskActivation]())
   }
 
   override protected def getAttachmentStore(store: ArtifactStore[_]) =
