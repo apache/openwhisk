@@ -278,7 +278,7 @@ class ContainerManagerTests
     )
     expectGetInvokers(mockEtcd, invokers)
     expectGetInvokers(mockEtcd, invokers)
-    expectGetInvokers(mockEtcd, invokers) // this test case will run `getPrefix` twice
+    expectGetInvokers(mockEtcd, invokers) // this test case will run `getPrefix` twice, and another one for warmup
 
     val mockJobManager = TestProbe()
     val mockWatcher = TestProbe()
@@ -375,6 +375,65 @@ class ContainerManagerTests
     manager ! SuccessfulCreationJob(msg1.creationId, msg1.invocationNamespace, msg1.action, msg1.revision)
     manager ! ContainerCreation(List(msg1), 128.MB, testInvocationNamespace)
     receiver.expectMsg(s"invoker0-$msg1")
+  }
+
+  it should "not try warmed containers if revision is unmatched" in {
+    val mockEtcd = mock[EtcdClient]
+
+    // for test, only invoker2 is healthy, so that no-warmed creations can be only sent to invoker2
+    val invokers: List[InvokerHealth] = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = testMemory, tags = Seq.empty[String]), Unhealthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = testMemory, tags = Seq.empty[String]), Unhealthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = testMemory, tags = Seq.empty[String]), Healthy),
+    )
+    expectGetInvokers(mockEtcd, invokers)
+    expectGetInvokers(mockEtcd, invokers) // one for warmup
+
+    val mockJobManager = TestProbe()
+    val mockWatcher = TestProbe()
+    val receiver = TestProbe()
+
+    val manager =
+      system.actorOf(ContainerManager
+        .props(factory(mockJobManager), mockMessaging(Some(receiver.ref)), testsid, mockEtcd, config, mockWatcher.ref))
+
+    // there are 1 warmed container for `test-namespace/test-action` but with a different revision
+    manager ! WatchEndpointInserted(
+      ContainerKeys.warmedPrefix,
+      ContainerKeys.warmedContainers(
+        testInvocationNamespace,
+        testfqn,
+        DocRevision("2-testRev"),
+        InvokerInstanceId(0, userMemory = 0.bytes),
+        ContainerId("fake")),
+      "",
+      true)
+
+    val msg =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        testfqn,
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+
+    // it should not reuse the warmed container
+    manager ! ContainerCreation(List(msg), 128.MB, testInvocationNamespace)
+
+    // ignore warmUp message
+    receiver.ignoreMsg {
+      case s: String => s.contains("warmUp")
+    }
+
+    // it should be scheduled to the sole health invoker: invoker2
+    receiver.expectMsg(s"invoker2-$msg")
+
+    mockJobManager.expectMsgPF() {
+      case RegisterCreationJob(`msg`) => true
+    }
   }
 
   it should "rescheduling container creation" in {
