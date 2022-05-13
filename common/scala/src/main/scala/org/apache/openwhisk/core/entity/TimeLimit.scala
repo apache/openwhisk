@@ -68,7 +68,13 @@ case class TimeLimitConfig(max: FiniteDuration, min: FiniteDuration, std: Finite
 
 protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
   val config = loadConfigOrThrow[TimeLimitConfig](ConfigKeys.timeLimit)
-  val namespaceDefaultConfig = loadConfigOrThrow[NamespaceTimeLimitConfig](ConfigKeys.namespaceTimeLimit)
+  val namespaceDefaultConfig = try {
+    loadConfigOrThrow[NamespaceTimeLimitConfig](ConfigKeys.namespaceTimeLimit)
+  } catch {
+    case _: Throwable =>
+      // Supports backwards compatibility for openwhisk that do not use the namespace default limit
+      NamespaceTimeLimitConfig(config.max, config.min)
+  }
   val timeLimitFieldName = "duration"
 
   /**

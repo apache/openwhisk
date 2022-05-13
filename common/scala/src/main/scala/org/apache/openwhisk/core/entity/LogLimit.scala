@@ -68,7 +68,13 @@ protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
 
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
   val config = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.logLimit)
-  val namespaceDefaultConfig = loadConfigOrThrow[NamespaceMemoryLimitConfig](ConfigKeys.namespaceLogLimit)
+  val namespaceDefaultConfig = try {
+    loadConfigOrThrow[NamespaceMemoryLimitConfig](ConfigKeys.namespaceLogLimit)
+  } catch {
+    case _: Throwable =>
+      // Supports backwards compatibility for openwhisk that do not use the namespace default limit
+      NamespaceMemoryLimitConfig(config.min, config.max)
+  }
   val logLimitFieldName = "log"
 
   /**

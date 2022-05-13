@@ -217,7 +217,13 @@ protected[entity] case class ParameterValue protected[entity] (private val v: Js
 protected[core] object Parameters extends ArgNormalizer[Parameters] {
 
   protected[core] val MAX_SIZE = loadConfigOrThrow[ByteSize](ConfigKeys.parameterSizeLimit) // system limit
-  protected[core] val MAX_SIZE_DEFAULT = loadConfigOrThrow[ByteSize](ConfigKeys.namespaceParameterSizeLimit) // namespace default limit
+  protected[core] val MAX_SIZE_DEFAULT = try {
+    loadConfigOrThrow[ByteSize](ConfigKeys.namespaceParameterSizeLimit)
+  } catch {
+    case _: Throwable =>
+      // Supports backwards compatibility for openwhisk that do not use the namespace default limit
+      MAX_SIZE
+  }
 
   require(MAX_SIZE >= MAX_SIZE_DEFAULT, "The system limit must be greater than the namespace limit.")
 

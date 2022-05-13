@@ -65,8 +65,13 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
   val config = ConfigFactory.load().getConfig("test")
   private val concurrencyConfig =
     loadConfigWithFallbackOrThrow[ConcurrencyLimitConfig](config, ConfigKeys.concurrencyLimit)
-  private val namespaceConcurrencyDefaultConfig =
+  private val namespaceConcurrencyDefaultConfig = try {
     loadConfigWithFallbackOrThrow[NamespaceConcurrencyLimitConfig](config, ConfigKeys.namespaceConcurrencyLimit)
+  } catch {
+    case _: Throwable =>
+      // Supports backwards compatibility for openwhisk that do not use the namespace default limit
+      NamespaceConcurrencyLimitConfig(concurrencyConfig.min, concurrencyConfig.max)
+  }
 
   /**
    * These system limits and namespace default limits are set once at the beginning.

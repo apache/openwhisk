@@ -65,7 +65,13 @@ protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal 
 
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
   val config = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.memory)
-  val namespaceDefaultConfig = loadConfigOrThrow[NamespaceMemoryLimitConfig](ConfigKeys.namespaceMemoryLimit)
+  val namespaceDefaultConfig = try {
+    loadConfigOrThrow[NamespaceMemoryLimitConfig](ConfigKeys.namespaceMemoryLimit)
+  } catch {
+    case _: Throwable =>
+      // Supports backwards compatibility for openwhisk that do not use the namespace default limit
+      NamespaceMemoryLimitConfig(config.min, config.max)
+  }
   val memoryLimitFieldName = "memory"
 
   /**
