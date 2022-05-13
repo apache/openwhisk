@@ -384,6 +384,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       logging.info(
         this,
         s"[$invocationNamespace:$action:$stateName] The queue received StopSchedulingAsOutdated trying to stop the queue.")
+
+      handleStaleActivationsWhenActionUpdated(context.parent)
+
       cleanUpActorsAndGotoRemovedIfPossible(data.copy(outdated = true))
   }
 
@@ -560,6 +563,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       logging.info(this, s"[$invocationNamespace:$action:$stateName] stop further scheduling.")
       // let QueueManager know this queue is no longer in charge.
       context.parent ! staleQueueRemovedMsg
+
+      handleStaleActivationsWhenActionUpdated(context.parent)
 
       goto(Removing) using getRemovingData(data, outdated = true)
 
@@ -826,6 +831,23 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       queue = newQueue
       logging.info(this, s"Forward msg ${msg.activationId} to the queue manager")(msg.transid)
       queueManager ! msg
+    }
+  }
+
+
+  private def handleStaleActivationsWhenActionUpdated(queueManager: ActorRef): Unit = {
+    if (queue.size > 0) {
+      // if doesn't exist old container to pull old memoryQueue's activation, send the old activations to queueManager
+      if (containers.size == 0) {
+        logging.warn(
+          this,
+          s"[$invocationNamespace:$action:$stateName] does not exist old version container to fetch the old version activation")
+        forwardAllActivations(queueManager)
+      } else {
+        logging.info(
+          this,
+          s"[$invocationNamespace:$action:$stateName] old version activation would be fetched by old version container")
+      }
     }
   }
 

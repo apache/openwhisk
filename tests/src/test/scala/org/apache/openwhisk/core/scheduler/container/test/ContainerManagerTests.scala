@@ -22,8 +22,6 @@ import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import com.ibm.etcd.api.{KeyValue, RangeResponse}
 import common.{StreamLogging, WskActorSystem}
-import org.apache.kafka.clients.producer.RecordMetadata
-import org.apache.kafka.common.TopicPartition
 import org.apache.openwhisk.common.InvokerState.{Healthy, Unhealthy}
 import org.apache.openwhisk.common.{GracefulShutdown, InvokerHealth, Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ContainerCreationError.{
@@ -150,7 +148,7 @@ class ContainerManagerTests
       (producer
         .send(_: String, _: Message, _: Int))
         .when(*, *, *)
-        .returns(Future.successful(new RecordMetadata(new TopicPartition("fake", 0), 0, 0, 0l, 0l, 0, 0)))
+        .returns(Future.successful(ResultMetadata("fake", 0, 0)))
     }
 
     messaging
@@ -162,12 +160,11 @@ class ContainerManagerTests
     override def sentCount(): Long = 0
 
     /** Sends msg to topic. This is an asynchronous operation. */
-    override def send(topic: String, msg: Message, retry: Int): Future[RecordMetadata] = {
+    override def send(topic: String, msg: Message, retry: Int): Future[ResultMetadata] = {
       val message = s"$topic-$msg"
       receiver ! message
 
-      Future.successful(
-        new RecordMetadata(new TopicPartition(topic, 0), -1, -1, System.currentTimeMillis(), null, -1, -1))
+      Future.successful(ResultMetadata(topic, 0, -1))
     }
 
     /** Closes producer. */

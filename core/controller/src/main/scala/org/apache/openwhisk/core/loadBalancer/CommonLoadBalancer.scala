@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.LongAdder
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.common.LoggingMarkers._
@@ -189,7 +188,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   /** 3. Send the activation to the invoker */
   protected def sendActivationToInvoker(producer: MessageProducer,
                                         msg: ActivationMessage,
-                                        invoker: InvokerInstanceId): Future[RecordMetadata] = {
+                                        invoker: InvokerInstanceId): Future[ResultMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
     val topic = s"${Controller.topicPrefix}invoker${invoker.toInt}"
@@ -206,7 +205,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         transid.finished(
           this,
           start,
-          s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]",
+          s"posted to ${status.topic}[${status.partition}][${status.offset}]",
           logLevel = InfoLevel)
       case Failure(_) => transid.failed(this, start, s"error on posting to topic $topic")
     }

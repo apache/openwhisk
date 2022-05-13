@@ -24,7 +24,6 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
-import org.apache.kafka.clients.producer.RecordMetadata
 import akka.actor.{Actor, ActorRef, ActorRefFactory, FSM, Props}
 import akka.actor.FSM.CurrentState
 import akka.actor.FSM.SubscribeTransitionCallBack
@@ -76,7 +75,7 @@ final case class InvokerInfo(buffer: RingBuffer[InvocationFinishedResult])
  * by the InvokerPool and thus might not be caught by monitoring.
  */
 class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef,
-                  sendActivationToInvoker: (ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
+                  sendActivationToInvoker: (ActivationMessage, InvokerInstanceId) => Future[ResultMetadata],
                   pingConsumer: MessageConsumer,
                   monitor: Option[ActorRef])
     extends Actor {
@@ -230,7 +229,7 @@ object InvokerPool {
   }
 
   def props(f: (ActorRefFactory, InvokerInstanceId) => ActorRef,
-            p: (ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
+            p: (ActivationMessage, InvokerInstanceId) => Future[ResultMetadata],
             pc: MessageConsumer,
             m: Option[ActorRef] = None): Props = {
     Props(new InvokerPool(f, p, pc, m))
@@ -273,7 +272,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
 
   // This is done at this point to not intermingle with the state-machine especially their timeouts.
   def customReceive: Receive = {
-    case _: RecordMetadata => // Ignores the result of publishing test actions to MessageProducer.
+    case _: ResultMetadata => // Ignores the result of publishing test actions to MessageProducer.
   }
 
   override def receive: Receive = customReceive.orElse(super.receive)

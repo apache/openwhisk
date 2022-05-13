@@ -55,7 +55,7 @@ class CreationJobManagerTests
     with BeforeAndAfterEach
     with StreamLogging {
 
-  private val timeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetentionSecond)
+  private val timeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetention)
   val blackboxTimeout = FiniteDuration(timeout.toSeconds * 3, TimeUnit.SECONDS)
   implicit val ece: ExecutionContextExecutor = system.dispatcher
   val config = new WhiskConfig(ExecManifest.requiredProperties)
@@ -322,7 +322,7 @@ class CreationJobManagerTests
         registerMessage.msg.action,
         registerMessage.msg.revision,
         ContainerCreationError.TimeoutError,
-        s"timeout waiting for the ack of ${registerMessage.msg.creationId} after $timeout"))
+        s"[${registerMessage.msg.action}] timeout waiting for the ack of ${registerMessage.msg.creationId} after $timeout"))
   }
 
   it should "increase the timeout if an action is a blackbox action" in {
@@ -373,7 +373,7 @@ class CreationJobManagerTests
         registerMessage.msg.action,
         registerMessage.msg.revision,
         ContainerCreationError.TimeoutError,
-        s"timeout waiting for the ack of ${registerMessage.msg.creationId} after $blackboxTimeout"))
+        s"[${registerMessage.msg.action}] timeout waiting for the ack of ${registerMessage.msg.creationId} after $blackboxTimeout"))
   }
 
   it should "delete a creation job with too many retry and send a FailedCreationJob to a queue" in {

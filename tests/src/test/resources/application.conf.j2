@@ -161,7 +161,7 @@ whisk {
             max-retries-to-get-queue = "{{ scheduler.queueManager.maxRetriesToGetQueue }}"
         }
         max-peek = "{{ scheduler.maxPeek }}"
-        in-progress-job-retention = "{{ scheduler.inProgressJobRetentionSecond | default('20 seconds') }}"
+        in-progress-job-retention = "{{ scheduler.inProgressJobRetention | default('20 seconds') }}"
         data-management-service {
             retry-interval = "{{ scheduler.dataManagementService.retryInterval | default('1 second') }}"
         }
