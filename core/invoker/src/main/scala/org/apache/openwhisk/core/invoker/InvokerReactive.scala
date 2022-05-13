@@ -198,10 +198,10 @@ class InvokerReactive(
           val response = t match {
             case _: NoDocumentException =>
               ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
+            case e: ActionLimitsException =>
+              ActivationResponse.applicationError(e.getMessage) // return generated failed message
             case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
               ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
-            case _: ActionLimitsException =>
-              ActivationResponse.applicationError(Messages.actionLimitExceededSystemLimit)
             case _ =>
               ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
           }

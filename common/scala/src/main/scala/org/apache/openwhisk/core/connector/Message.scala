@@ -661,6 +661,8 @@ object ContainerCreationError extends Enumeration {
 
   case object TooManyConcurrentRequests extends ContainerCreationError
 
+  case object InvalidActionLimitError extends ContainerCreationError
+
   val whiskErrors: Set[ContainerCreationError] =
     Set(
       NoAvailableInvokersError,
@@ -684,6 +686,7 @@ object ContainerCreationError extends Enumeration {
     case "ZERONAMESPACELIMIT"               => ZeroNamespaceLimit
     case "TOOMANYCONCURRENTREQUESTS"        => TooManyConcurrentRequests
     case "UNKNOWNERROR"                     => UnknownError
+    case "INVALIDACTIONLIMITERROR"          => InvalidActionLimitError
   }
 
   implicit val serds = new RootJsonFormat[ContainerCreationError] {
