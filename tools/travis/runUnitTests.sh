@@ -23,7 +23,7 @@ SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
 cd $ROOTDIR/tools/travis
-# export TESTCONTAINERS_RYUK_DISABLED="true"
+export TESTCONTAINERS_RYUK_DISABLED="true"
 export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
 
 ./setupPrereq.sh
