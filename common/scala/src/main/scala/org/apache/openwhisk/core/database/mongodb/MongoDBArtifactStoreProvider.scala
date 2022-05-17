@@ -37,13 +37,16 @@ case class MongoDBConfig(uri: String, database: String) {
 }
 
 object MongoDBClient {
-  private var _client: Option[MongoClient] = None
+  private var _clientWithConfig: Option[(MongoClient, MongoDBConfig)] = None
 
   def client(config: MongoDBConfig): MongoClient = {
-    _client.getOrElse {
-      val client = MongoClient(config.uri)
-      _client = Some(client)
-      client
+    _clientWithConfig match {
+      case Some((client, oldConfig)) if oldConfig == config =>
+        client
+      case _ =>
+        val client = MongoClient(config.uri)
+        _clientWithConfig = Some(client, config)
+        client
     }
   }
 }

@@ -71,8 +71,7 @@ whisk {
     }
 
     mongodb {
-        uri         = ${?MONGODB_CONNECT_STRING}
-        database    = ${?MONGODB_DATABASE}
+        docker-image = "{{ 'mongo:' ~ mongodb.version }}"
     }
 
     controller {

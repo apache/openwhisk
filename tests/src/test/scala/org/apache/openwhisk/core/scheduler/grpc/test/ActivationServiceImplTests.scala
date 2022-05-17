@@ -64,6 +64,8 @@ class ActivationServiceImplTests
 
   private def await[T](awaitable: Future[T], timeout: FiniteDuration = 10.seconds) = Await.result(awaitable, timeout)
 
+  implicit val timeoutConfig = PatienceConfig(5.seconds)
+
   behavior of "ActivationService"
 
   implicit val ec = system.dispatcher
