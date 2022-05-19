@@ -55,7 +55,6 @@ import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{duration, ExecutionContextExecutor, Future, Promise}
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 // States
