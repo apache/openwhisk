@@ -400,6 +400,7 @@ swaggerSources {
         code {
             language = 'java'
             configFile = file('src/test/resources/swagger-config.json')
+            templateDir = file('src/test/resources/templates')
             dependsOn validation
         }
     }
