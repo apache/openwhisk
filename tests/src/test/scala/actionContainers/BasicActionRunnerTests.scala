@@ -173,7 +173,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
         initCode should be(200)
         val (runCode, out) = c.run(JsObject.empty)
         runCode should not be (200)
-        out should be(Some(JsObject("error" -> JsString("The action did not return a dictionary."))))
+        out should be(Some(JsObject("error" -> JsString("The action did not return a dictionary or array."))))
       }
 
       checkStreams(out, err, {
