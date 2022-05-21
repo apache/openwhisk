@@ -568,6 +568,15 @@ object LoggingMarkers {
   val OFFLINE_INVOKER_BLACKBOX =
     LogMarkerToken(loadbalancer, "totalOfflineInvokerBlackBox", counter)(MeasurementUnit.none)
 
+  val HEALTHY_INVOKERS =
+    LogMarkerToken(loadbalancer, "totalHealthyInvoker", counter)(MeasurementUnit.none)
+  val UNHEALTHY_INVOKERS =
+    LogMarkerToken(loadbalancer, "totalUnhealthyInvoker", counter)(MeasurementUnit.none)
+  val OFFLINE_INVOKERS =
+    LogMarkerToken(loadbalancer, "totalOfflineInvoker", counter)(MeasurementUnit.none)
+
+  val INVOKER_TOTALMEM = LogMarkerToken(loadbalancer, "totalCapacity", counter)(MeasurementUnit.none)
+
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) =
     if (TransactionId.metricsKamonTags)
