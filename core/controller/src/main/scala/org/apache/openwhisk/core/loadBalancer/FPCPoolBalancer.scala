@@ -34,6 +34,8 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Pro
 import scala.language.postfixOps
 import scala.util.{Failure, Random, Success, Try}
 
+case class FPCPoolBalancerConfig(usePerMinThrottle: Boolean)
+
 class FPCPoolBalancer(config: WhiskConfig,
                       controllerInstance: ControllerInstanceId,
                       etcdClient: EtcdClient,

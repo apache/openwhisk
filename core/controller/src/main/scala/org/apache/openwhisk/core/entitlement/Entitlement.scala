@@ -360,7 +360,7 @@ protected[core] abstract class EntitlementProvider(
    * @param resources the set of resources must contain at least one resource that can be activated else return None
    * @return future completing successfully if user is below limits else failing with a rejection
    */
-  private def checkUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
+  protected[core] def checkUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
     implicit transid: TransactionId): Future[Unit] = {
     if (right == ACTIVATE) {
       if (resources.exists(_.collection.path == Collection.ACTIONS)) {
