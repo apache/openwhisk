@@ -547,6 +547,15 @@ class QueueManagerTests
   it should "not skip outdated activation when the revision is older than the one in a datastore" in {
     stream.reset()
     val mockEtcdClient = mock[EtcdClient]
+    (mockEtcdClient
+      .get(_: String))
+      .expects(*)
+      .returning(
+        Future.successful(
+          RangeResponse
+            .newBuilder()
+            .addKvs(KeyValue.newBuilder().setKey("test").setValue(schedulerEndpoint.serialize).build())
+            .build()))
     val dataManagementService = getTestDataManagementService()
     val watcher = TestProbe()
 
@@ -617,7 +626,7 @@ class QueueManagerTests
           QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTime = 10 seconds)))
 
     queueManager ! activationMessage
-    Thread.sleep(100)
+    Thread.sleep(1000)
     (mockEtcdClient.get _) verify (*) repeated (3)
   }
 
