@@ -69,6 +69,7 @@ class MemoryQueueFlowTests
   override def afterEach(): Unit = {
     super.afterEach()
     logLines.foreach(println)
+    stream.reset()
   }
 
   behavior of "MemoryQueueFlow"
