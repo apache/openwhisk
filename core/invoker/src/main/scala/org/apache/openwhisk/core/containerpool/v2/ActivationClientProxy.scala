@@ -131,7 +131,7 @@ class ActivationClientProxy(
         .recover {
           case t =>
             logging.error(this, s"Failed to reschedule activation (error: $t)")
-            Future.successful(RescheduleResponse())
+            RescheduleResponse()
         }
         .foreach(res => {
           context.parent ! res
