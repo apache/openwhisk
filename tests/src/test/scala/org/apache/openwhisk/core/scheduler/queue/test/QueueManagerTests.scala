@@ -19,23 +19,23 @@ package org.apache.openwhisk.core.scheduler.queue.test
 
 import java.time.{Clock, Instant}
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.{Actor, ActorIdentity, ActorRef, ActorRefFactory, ActorSystem, Identify, Props}
 import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
-import com.ibm.etcd.api.RangeResponse
+import com.ibm.etcd.api.{KeyValue, RangeResponse}
 import common.{LoggedFunction, StreamLogging}
 import org.apache.openwhisk.common.{GracefulShutdown, TransactionId}
 import org.apache.openwhisk.core.WarmUp.warmUpAction
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.test.TestConnector
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage}
+import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage, StatusData, StatusQuery}
 import org.apache.openwhisk.core.database.{ArtifactStore, DocumentRevisionMismatchException, UserContext}
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdKV.QueueKeys
-import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdLeader}
+import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdFollower, EtcdLeader}
+import org.apache.openwhisk.core.etcd.EtcdType._
 import org.apache.openwhisk.core.scheduler.grpc.test.CommonVariable
 import org.apache.openwhisk.core.scheduler.grpc.{ActivationResponse, GetActivation}
 import org.apache.openwhisk.core.scheduler.queue._
@@ -78,7 +78,7 @@ class QueueManagerTests
   val testQueueCreationMessage =
     CreateQueue(testInvocationNamespace, testFQN, testDocRevision, testActionMetaData)
 
-  val schedulerEndpoint = SchedulerEndpoints("127.0.0.1", 2552, 8080)
+  val schedulerEndpoint = SchedulerEndpoints("127.0.0.1", 8080, 2552)
   val mockConsumer = new TestConnector(s"scheduler${schedulerId.asString}", 4, true)
 
   val messageTransId = TransactionId(TransactionId.testing.meta.id)
@@ -100,6 +100,7 @@ class QueueManagerTests
     ControllerInstanceId("0"),
     blocking = false,
     content = None)
+  val statusData = StatusData(testInvocationNamespace, testFQN.asString, 0, "Running", "RunningData")
 
   val activationResponse = ActivationResponse(Right(activationMessage))
 
@@ -126,6 +127,8 @@ class QueueManagerTests
         override def receive: Receive = {
           case GetActivation(_, _, _, _, _, _) =>
             sender ! ActivationResponse(Right(activationMessage))
+          case StatusQuery =>
+            sender ! statusData
         }
       }))
 
@@ -195,6 +198,34 @@ class QueueManagerTests
   it should "create a queue in response to a queue creation request" in {
     val mockEtcdClient = mock[EtcdClient]
     val dataManagementService = getTestDataManagementService()
+    val watcher = TestProbe()
+
+    val queueManager =
+      TestActorRef(
+        QueueManager
+          .props(
+            entityStore,
+            get,
+            mockEtcdClient,
+            schedulerEndpoint,
+            schedulerId,
+            dataManagementService.ref,
+            watcher.ref,
+            ack,
+            store,
+            childFactory,
+            mockConsumer))
+
+    watcher.expectMsg(watchEndpoint)
+    (queueManager ? testQueueCreationMessage).mapTo[CreateQueueResponse].futureValue shouldBe CreateQueueResponse(
+      testInvocationNamespace,
+      testFQN,
+      true)
+  }
+
+  it should "response queue creation request when failed to do election" in {
+    val mockEtcdClient = mock[EtcdClient]
+    val dataManagementService = getTestDataManagementService(false)
     val watcher = TestProbe()
 
     val queueManager =
@@ -298,18 +329,77 @@ class QueueManagerTests
     probe.expectMsg(CreateQueueResponse(testInvocationNamespace, testFQN, true))
   }
 
-  private def getTestDataManagementService() = {
+  private def getTestDataManagementService(success: Boolean = true) = {
     val dataManagementService = TestProbe()
     dataManagementService.setAutoPilot((sender: ActorRef, msg: Any) =>
       msg match {
         case ElectLeader(key, value, _, _) =>
-          sender ! ElectionResult(Right(EtcdLeader(key, value, 10)))
+          if (success) {
+            sender ! ElectionResult(Right(EtcdLeader(key, value, 10)))
+          } else {
+            sender ! ElectionResult(Left(EtcdFollower(key, value)))
+          }
           TestActor.KeepRunning
 
         case _ =>
           TestActor.KeepRunning
     })
     dataManagementService
+  }
+
+  it should "forward msg to remote queue when queue exist on remote" in {
+    stream.reset()
+    val leaderKey = QueueKeys.queue(
+      activationMessage.user.namespace.name.asString,
+      activationMessage.action.copy(version = None),
+      true)
+    val mockEtcdClient = mock[EtcdClient]
+    (mockEtcdClient
+      .get(_: String))
+      .expects(*)
+      .returning(
+        Future.successful(
+          RangeResponse
+            .newBuilder()
+            .addKvs(KeyValue.newBuilder().setKey(leaderKey).setValue(schedulerEndpoint.serialize).build())
+            .build()))
+      .once()
+    val dataManagementService = getTestDataManagementService()
+    val watcher = TestProbe()
+
+    val probe = TestProbe()
+
+    val childFactory =
+      (_: ActorRefFactory, _: String, _: FullyQualifiedEntityName, _: DocRevision, _: WhiskActionMetaData) => probe.ref
+
+    val queueManager =
+      TestActorRef(
+        QueueManager
+          .props(
+            entityStore,
+            get,
+            mockEtcdClient,
+            schedulerEndpoint,
+            schedulerId,
+            dataManagementService.ref,
+            watcher.ref,
+            ack,
+            store,
+            childFactory,
+            mockConsumer))
+    watcher.expectMsg(watchEndpoint)
+
+    // got a message but no queue created on this scheduler
+    // it should try to got leader key from etcd and forward this msg to remote queue, here is `schedulerEndpoints`
+    queueManager ! activationMessage
+    stream.toString should include(s"send activation to remote queue, key: $leaderKey")
+    stream.toString should include(s"add a new actor selection to a map with key: $leaderKey")
+    stream.reset()
+
+    // got msg again, and it should get remote queue from memory instead of etcd
+    val msg2 = activationMessage.copy(activationId = ActivationId.generate())
+    queueManager ! msg2
+    stream.toString shouldNot include(s"send activation to remote queue, key: $leaderKey")
   }
 
   it should "create a new MemoryQueue when the revision matches with the one in a datastore" in {
@@ -367,10 +457,14 @@ class QueueManagerTests
       content = None)
 
     queueManager ! activationMessage
-    queueManager ! activationMessage.copy(activationId = ActivationId.generate()) // even send two requests, we should only create one queue
+    val msgs = (0 to 10).map(i => {
+      activationMessage.copy(activationId = ActivationId.generate())
+    })
+    msgs.foreach(msg => queueManager ! msg) // even send multiple requests, we should only create new queue for once
     probe.expectMsg(StopSchedulingAsOutdated)
     probe.expectMsg(VersionUpdated)
     probe.expectMsg(activationMessage)
+    msgs.foreach(msg => probe.expectMsg(msg))
   }
 
   it should "create a new MemoryQueue correctly when the action is updated again during updating the queue" in {
@@ -559,6 +653,79 @@ class QueueManagerTests
     (mockEtcdClient.get _) verify (*) repeated (3)
   }
 
+  it should "save queue endpoint in memory" in {
+    stream.reset()
+
+    val mockEtcdClient = stub[EtcdClient]
+    val dataManagementService = getTestDataManagementService()
+    dataManagementService.ignoreMsg {
+      case _: UpdateDataOnChange => true
+    }
+    val watcher = TestProbe()
+
+    val emptyResult = Future.successful(RangeResponse.newBuilder().build())
+    (mockEtcdClient.get _) when (*) returns (emptyResult)
+
+    val queueManager =
+      TestActorRef(
+        new QueueManager(
+          entityStore,
+          get,
+          mockEtcdClient,
+          schedulerEndpoint,
+          schedulerId,
+          dataManagementService.ref,
+          watcher.ref,
+          ack,
+          store,
+          childFactory,
+          mockConsumer,
+          QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTime = 10 seconds)))
+
+    queueManager ! WatchEndpointInserted("queue", "queue/test-action/leader", schedulerEndpoint.serialize, true)
+    stream.toString should include(s"Endpoint inserted, key: queue/test-action/leader, endpoints: ${schedulerEndpoint}")
+    stream.reset()
+
+    queueManager ! WatchEndpointInserted("queue", "queue/test-action/leader", "host with wrong format", true)
+    stream.toString should include(s"Unexpected error")
+    stream.toString should include(s"when put leaderKey: queue/test-action/leader")
+    stream.reset()
+
+    queueManager ! WatchEndpointRemoved("queue", "queue/test-action/leader", schedulerEndpoint.serialize, true)
+    stream.toString should include(s"Endpoint removed for key: queue/test-action/leader")
+  }
+
+  it should "able to query queue status" in {
+    val mockEtcdClient = mock[EtcdClient]
+    val watcher = TestProbe()
+    val dataManagementService = getTestDataManagementService()
+    val queueManager =
+      TestActorRef(
+        QueueManager
+          .props(
+            entityStore,
+            get,
+            mockEtcdClient,
+            schedulerEndpoint,
+            schedulerId,
+            dataManagementService.ref,
+            watcher.ref,
+            ack,
+            store,
+            childFactory,
+            mockConsumer))
+
+    watcher.expectMsg(watchEndpoint)
+    (queueManager ? testQueueCreationMessage).mapTo[CreateQueueResponse].futureValue shouldBe CreateQueueResponse(
+      testInvocationNamespace,
+      testFQN,
+      true)
+
+    (queueManager ? QueueSize).mapTo[Int].futureValue shouldBe 1
+
+    (queueManager ? StatusQuery).mapTo[Future[Iterable[StatusData]]].futureValue.futureValue shouldBe List(statusData)
+  }
+
   it should "drop the activation message that has not been scheduled for a long time" in {
     val mockEtcdClient = mock[EtcdClient]
     val watcher = TestProbe()
@@ -606,6 +773,15 @@ class QueueManagerTests
 
   it should "not drop the unscheduled activation message that has been processed within the scheduling time limit." in {
     val mockEtcdClient = mock[EtcdClient]
+    (mockEtcdClient
+      .get(_: String))
+      .expects(*)
+      .returning(
+        Future.successful(
+          RangeResponse
+            .newBuilder()
+            .addKvs(KeyValue.newBuilder().setKey("test").setValue(schedulerEndpoint.serialize).build())
+            .build()))
     val watcher = TestProbe()
     val probe = TestProbe()
     val dataManagementService = getTestDataManagementService()
@@ -730,7 +906,7 @@ class QueueManagerTests
       testFQN.toDocId.asDocInfo(testDocRevision),
       Some(testLeaderKey))
 
-    QueuePool.size shouldBe 0
+    (queueManager ? QueueSize).mapTo[Int].futureValue shouldBe 0
   }
 
   it should "put the queue back to pool if it receives a QueueReactive message" in {
@@ -759,18 +935,18 @@ class QueueManagerTests
       testFQN,
       true)
 
-    QueuePool.size shouldBe 1
+    (queueManager ? QueueSize).mapTo[Int].futureValue shouldBe 1
 
     queueManager ! QueueRemoved(
       testInvocationNamespace,
       testFQN.toDocId.asDocInfo(testDocRevision),
       Some(testLeaderKey))
 
-    QueuePool.size shouldBe 0
+    (queueManager ? QueueSize).mapTo[Int].futureValue shouldBe 0
 
     queueManager ! QueueReactivated(testInvocationNamespace, testFQN, testFQN.toDocId.asDocInfo(testDocRevision))
 
-    QueuePool.size shouldBe 1
+    (queueManager ? QueueSize).mapTo[Int].futureValue shouldBe 1
   }
 
   it should "put pool information to data management service" in {

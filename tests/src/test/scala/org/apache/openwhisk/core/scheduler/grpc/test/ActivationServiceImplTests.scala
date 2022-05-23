@@ -33,7 +33,7 @@ import org.apache.openwhisk.core.scheduler.queue.{
   NoMemoryQueue,
   QueuePool
 }
-import org.apache.openwhisk.grpc.{FetchRequest, FetchResponse}
+import org.apache.openwhisk.grpc.{FetchRequest, FetchResponse, RescheduleRequest, RescheduleResponse}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
@@ -64,7 +64,7 @@ class ActivationServiceImplTests
 
   private def await[T](awaitable: Future[T], timeout: FiniteDuration = 10.seconds) = Await.result(awaitable, timeout)
 
-  implicit val timeoutConfig = PatienceConfig(5.seconds)
+  implicit val timeoutConfig = PatienceConfig(10.seconds)
 
   behavior of "ActivationService"
 
@@ -156,6 +156,28 @@ class ActivationServiceImplTests
     expectNoMessage(200.millis)
   }
 
+  it should "return NoActivationMessage if queue doesn't return response" in {
+
+    val activationServiceImpl = ActivationServiceImpl()
+
+    QueuePool.put(MemoryQueueKey(testEntityPath.asString, testDoc), MemoryQueueValue(testActor, true))
+
+    val tid = TransactionId(TransactionId.generateTid())
+    activationServiceImpl
+      .fetchActivation(
+        FetchRequest(
+          tid.serialize,
+          message.user.namespace.name.asString,
+          testFQN.serialize,
+          testDocRevision.serialize,
+          testContainerId,
+          false,
+          alive = true))
+      .futureValue shouldBe FetchResponse(ActivationResponse(Left(NoActivationMessage())).serialize)
+
+    expectMsg(GetActivation(tid, testFQN, testContainerId, false, None))
+  }
+
   it should "return NoActivationMessage if it is a warm-up action" in {
 
     val activationServiceImpl = ActivationServiceImpl()
@@ -217,6 +239,35 @@ class ActivationServiceImplTests
             false,
             alive = true))
     }
+  }
+
+  it should "reschedule msg if related queue exist" in {
+    QueuePool.put(MemoryQueueKey(testEntityPath.asString, testDoc), MemoryQueueValue(testActor, true))
+    val activationServiceImpl = ActivationServiceImpl()
+
+    activationServiceImpl
+      .rescheduleActivation(
+        RescheduleRequest(
+          message.user.namespace.name.asString,
+          testFQN.serialize,
+          testDocRevision.serialize,
+          message.serialize))
+      .futureValue shouldBe RescheduleResponse(true)
+
+    expectMsg(message)
+  }
+
+  it should "not reschedule msg if queue doesn't exist" in {
+    val activationServiceImpl = ActivationServiceImpl()
+
+    activationServiceImpl
+      .rescheduleActivation(
+        RescheduleRequest(
+          message.user.namespace.name.asString,
+          testFQN.serialize,
+          testDocRevision.serialize,
+          message.serialize))
+      .futureValue shouldBe RescheduleResponse()
   }
 
 }
