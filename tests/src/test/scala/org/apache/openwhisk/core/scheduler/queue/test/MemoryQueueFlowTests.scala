@@ -106,7 +106,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
