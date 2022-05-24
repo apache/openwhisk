@@ -28,10 +28,10 @@ Providing action limits for each namespace
 
 This POEM proposes a new feature that allows administrators to set action limits (memory, timeout, log, and concurrency) for each namespace.
 
-Sometimes some users want to make an action with more memory and longer duration. But, Openwhisk only has a system limit for action shared by all namespaces.
+Sometimes some users want to make an action with more memory and longer duration. But, OpenWhisk only has a system limit for action shared by all namespaces.
 There is no way to adjust the action limit for a few users, and changing the action limit setting will affect all users.
 
-In some private environments, you can operate Openwhisk more flexibly by providing different action limits.
+In some private environments, you can operate OpenWhisk more flexibly by providing different action limits.
 (For example, providing high memory only to some users.)
 
 ```
@@ -81,7 +81,7 @@ truncationSize         | string  (format: ByteSize)   | activation truncation si
 
 ### Limit document for CouchDB
 
-You can set namespace limits with `{namespace}/limits` document just like any other existing settings (invocationsPerMinute, concurrentInvocations..).
+You can set namespace limits with `{namespace}/limits` document just like any other existing settings (e.g., invocationsPerMinute, concurrentInvocations).
 
 ```json
 {
@@ -177,9 +177,9 @@ As the namespace default limit is the same as the system limit, so the administr
 
 ### Namespace limit validation
 
-Previously, system limits were validated when unmarshalls the ActionLimits object from the user request. 
+Previously, system limits were validated when deserializing the `ActionLimits` object from the user request. 
 
-However, at the time of unmarshalls the user requests, the namespace's action limit cannot be known and the limit value cannot be included in an error message, so the validation must be performed after unmarshalling.
+However, at the time of deserialization of the user requests, the namespace's action limit cannot be known and the limit value cannot be included in an error message, so the validation must be performed after deserialization.
 Therefore, the code to perform this validation has been added to the controller, scheduler, and invoker.
 
 #### 1. Validate action limits when the action is created in the controller
