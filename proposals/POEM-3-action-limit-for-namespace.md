@@ -98,8 +98,8 @@ You can set namespace limits with `{namespace}/limits` document just like any ot
 }
 ```
 
-#### Using wskadmin command (tool)
-- In general, it is recommended to use a wskadmin rather than modify the DB directly.
+#### Applying namespace limit
+- Because there is no administrator API, you must modify the DB directly or use the wskadmin tool.
 - There is plan to provide the feauture to change namespace limits in wskadmin.
 
 ### Namespace Limit API
