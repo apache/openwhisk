@@ -203,6 +203,7 @@ object WhiskConfig {
 object ConfigKeys {
   val cluster = "whisk.cluster"
   val loadbalancer = "whisk.loadbalancer"
+  val fpcLoadBalancer = "whisk.loadbalancer.fpc"
   val fraction = "whisk.fraction"
   val buildInformation = "whisk.info"
 
