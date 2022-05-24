@@ -285,6 +285,10 @@ class ContainerManagerTests
     val mockJobManager = TestProbe()
     val mockWatcher = TestProbe()
     val receiver = TestProbe()
+    // ignore warmUp message
+    receiver.ignoreMsg {
+      case s: String => s.contains("warmUp")
+    }
 
     val manager =
       system.actorOf(ContainerManager
@@ -346,11 +350,6 @@ class ContainerManagerTests
 
     // it should reuse 2 warmed containers
     manager ! ContainerCreation(msgs, 128.MB, testInvocationNamespace)
-
-    // ignore warmUp message
-    receiver.ignoreMsg {
-      case s: String => s.contains("warmUp")
-    }
 
     // msg1 will use warmed container on invoker0, msg2 use warmed container on invoker1, msg3 use the healthy invoker
     receiver.expectMsg(s"invoker0-$msg1")
@@ -414,6 +413,10 @@ class ContainerManagerTests
     val mockJobManager = TestProbe()
     val mockWatcher = TestProbe()
     val receiver = TestProbe()
+    // ignore warmUp message
+    receiver.ignoreMsg {
+      case s: String => s.contains("warmUp")
+    }
 
     val manager =
       system.actorOf(ContainerManager
@@ -444,11 +447,6 @@ class ContainerManagerTests
 
     // it should not reuse the warmed container
     manager ! ContainerCreation(List(msg), 128.MB, testInvocationNamespace)
-
-    // ignore warmUp message
-    receiver.ignoreMsg {
-      case s: String => s.contains("warmUp")
-    }
 
     // it should be scheduled to the sole health invoker: invoker2
     receiver.expectMsg(s"invoker2-$msg")
