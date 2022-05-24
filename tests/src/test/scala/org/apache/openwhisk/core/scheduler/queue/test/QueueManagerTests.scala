@@ -102,6 +102,11 @@ class QueueManagerTests
     content = None)
   val statusData = StatusData(testInvocationNamespace, testFQN.asString, 0, "Running", "RunningData")
 
+  // update start time for activation to ensure it's not stale
+  def newActivation(start: Instant = Instant.now()): ActivationMessage = {
+    activationMessage.copy(transid = TransactionId(messageTransId.meta.copy(start = start)))
+  }
+
   val activationResponse = ActivationResponse(Right(activationMessage))
 
   val ack = new ActiveAck {
@@ -126,7 +131,7 @@ class QueueManagerTests
       system.actorOf(Props(new Actor() {
         override def receive: Receive = {
           case GetActivation(_, _, _, _, _, _) =>
-            sender ! ActivationResponse(Right(activationMessage))
+            sender ! ActivationResponse(Right(newActivation()))
           case StatusQuery =>
             sender ! statusData
         }
@@ -391,13 +396,13 @@ class QueueManagerTests
 
     // got a message but no queue created on this scheduler
     // it should try to got leader key from etcd and forward this msg to remote queue, here is `schedulerEndpoints`
-    queueManager ! activationMessage
+    queueManager ! newActivation()
     stream.toString should include(s"send activation to remote queue, key: $leaderKey")
     stream.toString should include(s"add a new actor selection to a map with key: $leaderKey")
     stream.reset()
 
     // got msg again, and it should get remote queue from memory instead of etcd
-    val msg2 = activationMessage.copy(activationId = ActivationId.generate())
+    val msg2 = newActivation().copy(activationId = ActivationId.generate())
     queueManager ! msg2
     stream.toString shouldNot include(s"send activation to remote queue, key: $leaderKey")
   }
@@ -594,7 +599,7 @@ class QueueManagerTests
       true)
 
     //the activationMessage's revision(1-test-revision) is older than current queue's revision(2-test-revision)
-    queueManager ! activationMessage
+    queueManager ! newActivation()
 
     stream.toString should include(s"it will be replaced with the latest revision and invoked")
   }
@@ -625,8 +630,8 @@ class QueueManagerTests
           mockConsumer,
           QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTime = 10 seconds)))
 
-    queueManager ! activationMessage
-    Thread.sleep(1000)
+    queueManager ! newActivation()
+    Thread.sleep(100)
     (mockEtcdClient.get _) verify (*) repeated (3)
   }
 
@@ -657,7 +662,7 @@ class QueueManagerTests
           mockConsumer,
           QueueManagerConfig(maxRetriesToGetQueue = 2, maxSchedulingTime = 10 seconds)))
 
-    queueManager ! activationMessage.copy(transid = TransactionId(messageTransId.meta.copy(start = Instant.now())))
+    queueManager ! newActivation()
     Thread.sleep(100)
     (mockEtcdClient.get _) verify (*) repeated (3)
   }
@@ -753,7 +758,7 @@ class QueueManagerTests
     }
 
     val oldNow = Instant.now(Clock.systemUTC()).minusMillis(11000)
-    val oldActivationMessage = activationMessage.copy(transid = TransactionId(messageTransId.meta.copy(start = oldNow)))
+    val oldActivationMessage = newActivation(oldNow)
 
     val queueManager =
       TestActorRef(
@@ -807,7 +812,7 @@ class QueueManagerTests
     }
 
     val oldNow = Instant.now(Clock.systemUTC()).minusMillis(9000)
-    val oldActivationMessage = activationMessage.copy(transid = TransactionId(messageTransId.meta.copy(start = oldNow)))
+    val oldActivationMessage = newActivation(oldNow)
 
     val queueManager =
       TestActorRef(
@@ -877,7 +882,7 @@ class QueueManagerTests
       true)
 
     queueManager.tell(
-      UpdateMemoryQueue(testFQN.toDocId.asDocInfo(testDocRevision), newFqn, activationMessage),
+      UpdateMemoryQueue(testFQN.toDocId.asDocInfo(testDocRevision), newFqn, newActivation()),
       consumer.ref)
 
     probe.expectMsg(activationMessage.activationId)
@@ -1084,7 +1089,7 @@ class QueueManagerTests
         system.actorOf(Props(new Actor() {
           override def receive: Receive = {
             case GetActivation(_, _, _, _, _, _) =>
-              sender ! ActivationResponse(Right(activationMessage))
+              sender ! ActivationResponse(Right(newActivation()))
 
             case GracefulShutdown =>
               probe.ref ! GracefulShutdown
