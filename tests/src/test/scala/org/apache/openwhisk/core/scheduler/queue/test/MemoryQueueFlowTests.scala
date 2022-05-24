@@ -354,9 +354,7 @@ class MemoryQueueFlowTests
       fsm.underlyingActor.queue.size shouldBe 0
     }, 5.seconds)
 
-    Thread.sleep(flushGrace.toMillis)
-
-    parent.expectMsg(queueRemovedMsg)
+    parent.expectMsg(flushGrace * 2 + 5.seconds, queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Flushing, Removed))
 
     fsm ! QueueRemovedCompleted
