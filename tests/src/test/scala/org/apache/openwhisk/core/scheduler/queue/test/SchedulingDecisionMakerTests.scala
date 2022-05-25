@@ -29,6 +29,8 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpecLike, Matchers}
 
+import scala.concurrent.duration.DurationInt
+
 @RunWith(classOf[JUnitRunner])
 class SchedulingDecisionMakerTests
     extends TestKit(ActorSystem("SchedulingDecisionMakerTests"))

@@ -43,7 +43,6 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.{existingContainers, inProgressContainer}
 import org.apache.openwhisk.core.etcd._
-import org.apache.openwhisk.core.scheduler.SchedulingConfig
 import org.apache.openwhisk.core.scheduler.grpc.{GetActivation, ActivationResponse => GetActivationResponse}
 import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, FailedCreationJob, SuccessfulCreationJob}
 import org.apache.openwhisk.core.scheduler.queue.MemoryQueue.checkToDropStaleActivation

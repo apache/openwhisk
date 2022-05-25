@@ -25,7 +25,7 @@ import org.testcontainers.containers.MongoDBContainer
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
 
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 
 trait MongoDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase {
   val imageName = loadConfigOrThrow[String]("whisk.mongodb.docker-image")

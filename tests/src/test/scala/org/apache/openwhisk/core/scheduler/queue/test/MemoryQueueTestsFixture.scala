@@ -61,7 +61,7 @@ import org.apache.openwhisk.core.service.{
 }
 import org.scalamock.scalatest.MockFactory
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{DurationInt}
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.language.{higherKinds, postfixOps}
 
