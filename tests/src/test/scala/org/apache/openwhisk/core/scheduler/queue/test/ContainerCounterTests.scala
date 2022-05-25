@@ -42,6 +42,7 @@ import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.inProgressContainer
 import org.apache.openwhisk.core.scheduler.queue.NamespaceContainerCount
 import org.apache.openwhisk.core.service.{DeleteEvent, PutEvent, UnwatchEndpoint, WatchEndpoint, WatcherService}
+import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -49,7 +50,7 @@ import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.junit.JUnitRunner
 
 import scala.concurrent.Future
-import scala.concurrent.duration.TimeUnit
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class ContainerCounterTests
@@ -252,10 +253,10 @@ class ContainerCounterTests
     val watcher = system.actorOf(WatcherService.props(mockEtcdClient))
 
     val ns = NamespaceContainerCount(namespace, mockEtcdClient, watcher)
-    Thread.sleep(1000)
-
-    ns.inProgressContainerNumByNamespace shouldBe 0
-    ns.existingContainerNumByNamespace shouldBe 0
+    retry(() => {
+      ns.inProgressContainerNumByNamespace shouldBe 0
+      ns.existingContainerNumByNamespace shouldBe 0
+    }, 10, Some(100.milliseconds))
 
     val invoker = "invoker0"
     (0 to 100).foreach(i => {
@@ -271,9 +272,10 @@ class ContainerCounterTests
         "test-value")
     })
 
-    Thread.sleep(5000)
-    ns.inProgressContainerNumByNamespace shouldBe 101
-    ns.existingContainerNumByNamespace shouldBe 101
+    retry(() => {
+      ns.inProgressContainerNumByNamespace shouldBe 101
+      ns.existingContainerNumByNamespace shouldBe 101
+    }, 50, Some(100.milliseconds))
   }
 
   class MockEtcdClient(client: Client, isLeader: Boolean, leaseNotFound: Boolean = false, failedCount: Int = 0)
