@@ -313,7 +313,7 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     val run = wsk.action.invoke(name, Map("payload" -> "google.com".toJson))
     withActivation(wsk.activation, run) { activation =>
       val result = activation.response.result.get
-      result.getFields("stdout", "code") match {
+      result.asJsObject.getFields("stdout", "code") match {
         case Seq(JsString(stdout), JsNumber(code)) =>
           stdout should not include "bytes from"
           code.intValue should not be 0
@@ -390,6 +390,20 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
 
         action.create(name, Some(TestUtils.getTestActionFilename("hello.js")), update = true)
       }
+  }
+
+  it should "invoke an action with a array result" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "helloArray"
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(TestUtils.getTestActionFilename("helloArray.js")))
+    }
+
+    val run = wsk.action.invoke(name)
+    withActivation(wsk.activation, run) { activation =>
+      activation.response.status shouldBe "success"
+      activation.response.result shouldBe Some(
+        JsArray(JsObject("key1" -> JsString("value1")), JsObject("key2" -> JsString("value2"))))
+    }
   }
 
 }

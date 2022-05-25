@@ -76,7 +76,7 @@ object FullyQualifiedNames {
  * @param status a string used to indicate the status of the action
  * @param success a boolean value used to indicate whether the action is executed successfully or not
  */
-case class ActivationResponse(result: Option[JsObject], status: String, success: Boolean)
+case class ActivationResponse(result: Option[JsValue], status: String, success: Boolean)
 
 object ActivationResponse extends DefaultJsonProtocol {
   implicit val serdes = jsonFormat3(ActivationResponse.apply)
