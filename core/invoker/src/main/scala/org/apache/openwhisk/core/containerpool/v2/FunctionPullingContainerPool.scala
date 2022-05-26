@@ -116,10 +116,10 @@ class FunctionPullingContainerPool(
     val prewarmedSize = prewarmedPool.size
     val busySize = busyPool.size
     val warmedSize = warmedPool.size
-    val warmedPoolMap: Map[(String, String), Int] = warmedPool groupBy {
+    val warmedPoolMap = warmedPool groupBy {
       case (_, warmedData) => (warmedData.invocationNamespace, warmedData.action.toString)
     } mapValues (_.size)
-    for((data, size) <- warmedPoolMap) {
+    for ((data, size) <- warmedPoolMap) {
       val tags: Option[Map[String, String]] = Some(Map("namespace" -> data._1, "action" -> data._2))
       MetricEmitter.emitHistogramMetric(LoggingMarkers.INVOKER_CONTAINERPOOL_CONTAINER("warmed", tags), size)
     }
