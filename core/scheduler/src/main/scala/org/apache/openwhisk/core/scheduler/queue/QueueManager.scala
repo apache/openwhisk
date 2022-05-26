@@ -54,6 +54,9 @@ case class UpdateMemoryQueue(oldAction: DocInfo,
 case class CreateNewQueue(activationMessage: ActivationMessage,
                           action: FullyQualifiedEntityName,
                           actionMetadata: WhiskActionMetaData)
+case class RecoverQueue(activationMessage: ActivationMessage,
+                        action: FullyQualifiedEntityName,
+                        actionMetadata: WhiskActionMetaData)
 
 case class QueueManagerConfig(maxRetriesToGetQueue: Int, maxSchedulingTime: FiniteDuration)
 
@@ -80,7 +83,7 @@ class QueueManager(
 
   private val actorSelectionMap = TrieMap[String, ActorSelection]()
 
-  private val leaderElectionCallbacks = TrieMap[String, Either[EtcdFollower, EtcdLeader] => Unit]()
+  private val leaderElectionCallbacks = TrieMap[String, (Either[EtcdFollower, EtcdLeader], Boolean) => Unit]()
 
   private implicit val askTimeout = Timeout(5.seconds)
   private implicit val ec = context.dispatcher
@@ -89,6 +92,8 @@ class QueueManager(
   private val watcherName = "queue-manager"
   // watch leaders and register them into actorSelectionMap
   watcherService ! WatchEndpoint(QueueKeys.queuePrefix, "", isPrefix = true, watcherName, Set(PutEvent, DeleteEvent))
+
+  private var isShuttingDown = false
 
   override def receive: Receive = {
     case request: CreateQueue if isWarmUpAction(request.fqn) =>
@@ -114,12 +119,12 @@ class QueueManager(
       msg.leadership match {
         case Right(EtcdLeader(key, value, lease)) =>
           leaderElectionCallbacks.remove(key).foreach { callback =>
-            callback(Right(EtcdLeader(key, value, lease)))
+            callback(Right(EtcdLeader(key, value, lease)), isShuttingDown)
           }
 
         case Left(EtcdFollower(key, value)) =>
           leaderElectionCallbacks.remove(key).foreach { callback =>
-            callback(Left(EtcdFollower(key, value)))
+            callback(Left(EtcdFollower(key, value)), isShuttingDown)
           }
       }
 
@@ -129,7 +134,11 @@ class QueueManager(
         s"Got activation message ${msg.activationId} for ${msg.user.namespace}/${msg.action} from remote queue manager.")(
         msg.transid)
 
-      handleActivationMessage(msg)
+      if (sender() == self) {
+        handleCycle(msg)(msg.transid)
+      } else {
+        handleActivationMessage(msg)
+      }
 
     case UpdateMemoryQueue(oldAction, newAction, msg) =>
       logging.info(
@@ -164,6 +173,24 @@ class QueueManager(
           updateInitRevisionMap(getLeaderKey(msg.user.namespace.name.asString, msg.action), msg.revision)
           queue ! msg
           msg.transid.mark(this, LoggingMarkers.SCHEDULER_QUEUE_CREATE)
+          if (isShuttingDown) {
+            queue ! GracefulShutdown
+          }
+      }
+
+    case RecoverQueue(msg, action, actionMetaData) =>
+      QueuePool.keys.find(_.docInfo.id == action.toDocId) match {
+        // queue is already recovered or a newer queue is created, send msg to new queue
+        case Some(key) if key.docInfo.rev >= msg.revision =>
+          QueuePool.get(key) match {
+            case Some(queue) if queue.isLeader =>
+              queue.queue ! msg.copy(revision = key.docInfo.rev)
+              logging.info(this, s"Queue for action $action is already recovered, skip")(msg.transid)
+            case _ =>
+              recreateQueue(action, msg, actionMetaData)
+          }
+        case _ =>
+          recreateQueue(action, msg, actionMetaData)
       }
 
     // leaderKey is now optional, it becomes None when the stale queue is removed
@@ -208,6 +235,7 @@ class QueueManager(
       }
 
     case GracefulShutdown =>
+      isShuttingDown = true
       logging.info(this, s"Gracefully shutdown the queue manager")
 
       watcherService ! UnwatchEndpoint(QueueKeys.queuePrefix, isPrefix = true, watcherName)
@@ -313,6 +341,47 @@ class QueueManager(
             this,
             start,
             s"failed to fetch action $newAction with rev: ${msg.revision}, error ${t.getMessage}")
+          completeErrorActivation(msg, t.getMessage)
+      }
+  }
+
+  private def recreateQueue(action: FullyQualifiedEntityName,
+                            msg: ActivationMessage,
+                            actionMetaData: WhiskActionMetaData): Unit = {
+    logging.warn(this, s"recreate queue for ${msg.action}")(msg.transid)
+    val queue = createAndStartQueue(msg.user.namespace.name.asString, action, msg.revision, actionMetaData)
+    queue ! msg
+    msg.transid.mark(this, LoggingMarkers.SCHEDULER_QUEUE_RECOVER)
+    if (isShuttingDown) {
+      queue ! GracefulShutdown
+    }
+  }
+
+  private def handleCycle(msg: ActivationMessage)(implicit transid: TransactionId): Future[Any] = {
+    logging.warn(this, s"queue for ${msg.action} doesn't exist in memory but exist in etcd, recovering...")
+    val start = transid.started(this, LoggingMarkers.SCHEDULER_QUEUE_RECOVER)
+
+    logging.info(this, s"Recover a queue for ${msg.action},")
+    getWhiskActionMetaData(entityStore, msg.action.toDocId, msg.revision, false)
+      .map { actionMetaData: WhiskActionMetaData =>
+        actionMetaData.toExecutableWhiskAction match {
+          case Some(_) =>
+            self ! RecoverQueue(msg, msg.action.copy(version = Some(actionMetaData.version)), actionMetaData)
+            transid.finished(this, start, s"recovering queue for ${msg.action.toDocId.asDocInfo(actionMetaData.rev)}")
+
+          case None =>
+            val message =
+              s"non-executable action: ${msg.action} with rev: ${msg.revision} reached queueManager"
+            completeErrorActivation(msg, message)
+            transid.failed(this, start, message)
+        }
+      }
+      .recover {
+        case t =>
+          transid.failed(
+            this,
+            start,
+            s"failed to fetch action ${msg.action} with rev: ${msg.revision}, error ${t.getMessage}")
           completeErrorActivation(msg, t.getMessage)
       }
   }
@@ -451,24 +520,24 @@ class QueueManager(
           case None =>
             dataManagementService ! ElectLeader(leaderKey, schedulerEndpoints.serialize, self)
             leaderElectionCallbacks.put(
-              leaderKey, {
-                case Right(EtcdLeader(_, _, _)) =>
-                  val queue = childFactory(
-                    context,
-                    request.invocationNamespace,
-                    request.fqn,
-                    request.revision,
-                    request.whiskActionMetaData)
-                  queue ! Start
-                  QueuePool.put(
-                    MemoryQueueKey(request.invocationNamespace, request.fqn.toDocId.asDocInfo(request.revision)),
-                    MemoryQueueValue(queue, true))
-                  updateInitRevisionMap(leaderKey, request.revision)
-                  receiver.foreach(_ ! CreateQueueResponse(request.invocationNamespace, request.fqn, success = true))
+              leaderKey,
+              (electResult, isShuttingDown) => {
+                electResult match {
+                  case Right(EtcdLeader(_, _, _)) =>
+                    val queue = createAndStartQueue(
+                      request.invocationNamespace,
+                      request.fqn,
+                      request.revision,
+                      request.whiskActionMetaData)
+                    receiver.foreach(_ ! CreateQueueResponse(request.invocationNamespace, request.fqn, success = true))
+                    if (isShuttingDown) {
+                      queue ! GracefulShutdown
+                    }
 
-                // in case of follower, do nothing
-                case Left(EtcdFollower(_, _)) =>
-                  receiver.foreach(_ ! CreateQueueResponse(request.invocationNamespace, request.fqn, success = true))
+                  // in case of follower, do nothing
+                  case Left(EtcdFollower(_, _)) =>
+                    receiver.foreach(_ ! CreateQueueResponse(request.invocationNamespace, request.fqn, success = true))
+                }
               })
 
           // there is already a leader election for leaderKey, so skip it
@@ -486,6 +555,20 @@ class QueueManager(
         }
 
     }
+  }
+
+  private def createAndStartQueue(invocationNamespace: String,
+                                  action: FullyQualifiedEntityName,
+                                  revision: DocRevision,
+                                  actionMetaData: WhiskActionMetaData): ActorRef = {
+    val queue =
+      childFactory(context, invocationNamespace, action, revision, actionMetaData)
+    queue ! Start
+    QueuePool.put(
+      MemoryQueueKey(invocationNamespace, action.toDocId.asDocInfo(revision)),
+      MemoryQueueValue(queue, true))
+    updateInitRevisionMap(getLeaderKey(invocationNamespace, action), revision)
+    queue
   }
 
   private val logScheduler = context.system.scheduler.scheduleAtFixedRate(0.seconds, 1.seconds)(() => {
