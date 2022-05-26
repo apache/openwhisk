@@ -15,20 +15,6 @@
     "runtimes": {
         "nodejs": [
             {
-                "kind": "nodejs:12",
-                "default": false,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-nodejs-v12",
-                    "tag": "nightly"
-                },
-                "deprecated": false,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
                 "kind": "nodejs:14",
                 "default": true,
                 "image": {
@@ -54,6 +40,20 @@
                         }
                     }
                 ]
+            },
+            {
+                "kind": "nodejs:16",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-nodejs-v16",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "python": [
@@ -195,7 +195,7 @@
         ],
         "go": [
             {
-                "kind": "go:1.15",
+                "kind": "go:1.17",
                 "default": true,
                 "deprecated": false,
                 "attached": {
@@ -204,7 +204,7 @@
                 },
                 "image": {
                     "prefix": "openwhisk",
-                    "name": "action-golang-v1.15",
+                    "name": "action-golang-v1.17",
                     "tag": "nightly"
                 }
             }
