@@ -413,12 +413,7 @@ object LoggingMarkers {
   def INVOKER_CONTAINERPOOL_MEMORY(state: String) =
     LogMarkerToken(invoker, "containerPoolMemory", counter, Some(state), Map("state" -> state))(MeasurementUnit.none)
   def INVOKER_CONTAINERPOOL_CONTAINER(state: String, tags: Option[Map[String, String]] = None) = {
-    var map = Map("state" -> state)
-    tags.foreach { mapTags =>
-      for ((k, v) <- mapTags) {
-        map += (k -> v)
-      }
-    }
+    val map = Map("state" -> state) ++: tags.getOrElse(Map.empty)
     LogMarkerToken(invoker, "containerPoolContainer", counter, Some(state), map)(MeasurementUnit.none)
   }
 
