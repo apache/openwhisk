@@ -42,6 +42,7 @@ import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.inProgressContainer
 import org.apache.openwhisk.core.scheduler.queue.NamespaceContainerCount
 import org.apache.openwhisk.core.service.{DeleteEvent, PutEvent, UnwatchEndpoint, WatchEndpoint, WatcherService}
+import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -49,7 +50,7 @@ import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.junit.JUnitRunner
 
 import scala.concurrent.Future
-import scala.concurrent.duration.TimeUnit
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class ContainerCounterTests
@@ -247,11 +248,42 @@ class ContainerCounterTests
     NamespaceContainerCount.instances.clear()
   }
 
-  class MockEtcdClient(client: Client, isLeader: Boolean, leaseNotFound: Boolean = false, failedCount: Int = 1)
+  it should "update the number of containers correctly when multiple entries are inserted into etcd" in {
+    val mockEtcdClient = new MockEtcdClient(client, true, failedCount = 1)
+    val watcher = system.actorOf(WatcherService.props(mockEtcdClient))
+
+    val ns = NamespaceContainerCount(namespace, mockEtcdClient, watcher)
+    retry(() => {
+      ns.inProgressContainerNumByNamespace shouldBe 0
+      ns.existingContainerNumByNamespace shouldBe 0
+    }, 10, Some(100.milliseconds))
+
+    val invoker = "invoker0"
+    (0 to 100).foreach(i => {
+      mockEtcdClient.publishEvents(
+        EventType.PUT,
+        inProgressContainer(namespace, fqn, revision, schedulerId, CreationId(s"testId$i")),
+        "test-value")
+    })
+    (0 to 100).foreach(i => {
+      mockEtcdClient.publishEvents(
+        EventType.PUT,
+        s"${ContainerKeys.existingContainers(namespace, fqn, DocRevision.empty)}/${invoker}/test-container$i",
+        "test-value")
+    })
+
+    retry(() => {
+      ns.inProgressContainerNumByNamespace shouldBe 101
+      ns.existingContainerNumByNamespace shouldBe 101
+    }, 50, Some(100.milliseconds))
+  }
+
+  class MockEtcdClient(client: Client, isLeader: Boolean, leaseNotFound: Boolean = false, failedCount: Int = 0)
       extends EtcdClient(client)(ec) {
     var count = 0
     var storedValues = List.empty[(String, String, Long, Long)]
     var dataMap = Map[String, String]()
+    var totalFailedCount = 0
 
     override def putTxn[T](key: String, value: T, cmpVersion: Long, leaseId: Long): Future[TxnResponse] = {
       if (isLeader) {
@@ -264,7 +296,12 @@ class ContainerCounterTests
      * this method count the number of entries whose key starts with the given prefix
      */
     override def getCount(prefixKey: String): Future[Long] = {
-      Future.successful { dataMap.count(data => data._1.startsWith(prefixKey)) }
+      if (totalFailedCount < failedCount) {
+        totalFailedCount += 1
+        Future.failed(new Exception("error"))
+      } else {
+        Future.successful { dataMap.count(data => data._1.startsWith(prefixKey)) }
+      }
     }
 
     var watchCallbackMap = Map[String, WatchUpdate => Unit]()
