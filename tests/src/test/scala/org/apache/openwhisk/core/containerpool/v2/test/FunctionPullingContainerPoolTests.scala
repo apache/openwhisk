@@ -180,6 +180,7 @@ class FunctionPullingContainerPoolTests
                  memorySyncInterval: FiniteDuration = FiniteDuration(1, TimeUnit.SECONDS),
                  prewarmMaxRetryLimit: Int = 3,
                  prewarmPromotion: Boolean = false,
+                 batchDeletionSize: Int = 10,
                  prewarmContainerCreationConfig: Option[PrewarmContainerCreationConfig] = None) =
     ContainerPoolConfig(
       userMemory,
@@ -192,6 +193,7 @@ class FunctionPullingContainerPoolTests
       prewarmMaxRetryLimit,
       prewarmPromotion,
       memorySyncInterval,
+      batchDeletionSize,
       prewarmContainerCreationConfig)
 
   def sendAckToScheduler(producer: MessageProducer)(schedulerInstanceId: SchedulerInstanceId,
@@ -309,6 +311,118 @@ class FunctionPullingContainerPoolTests
     }
   }
 
+  it should "stop containers gradually when shut down" in within(timeout * 20) {
+    val (containers, factory) = testContainers(10)
+    val doc = put(entityStore, bigWhiskAction)
+    val topic = s"creationAck${schedulerInstanceId.asString}"
+    val consumer = new TestConnector(topic, 4, true)
+    val pool = system.actorOf(
+      Props(new FunctionPullingContainerPool(
+        factory,
+        invokerHealthService.ref,
+        poolConfig(MemoryLimit.STD_MEMORY * 20, batchDeletionSize = 3),
+        invokerInstance,
+        List.empty,
+        sendAckToScheduler(consumer.getProducer()))))
+
+    (0 to 10).foreach(_ => pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)) // 11 * stdMemory taken)
+    (0 to 10).foreach(i => {
+      containers(i).expectMsgPF() {
+        case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      }
+      // create 5 container in busy pool, and 6 in warmed pool
+      if (i < 5)
+        containers(i).send(pool, Initialized(initializedData)) // container is initialized
+      else
+        containers(i).send(
+          pool,
+          ContainerIsPaused(
+            WarmData(
+              stub[DockerContainer],
+              invocationNamespace.asString,
+              whiskAction.toExecutableWhiskAction.get,
+              doc.rev,
+              Instant.now,
+              TestProbe().ref)))
+    })
+
+    // disable
+    pool ! GracefulShutdown
+    // at first, 3 containers will be removed from busy pool, and left containers will not
+    var disablingContainers = Set.empty[Int]
+    (0 to 10).foreach(i => {
+      try {
+        containers(i).expectMsg(1.second, GracefulShutdown)
+        disablingContainers += i
+      } catch {
+        case _: Throwable =>
+      }
+    })
+    assert(disablingContainers.size == 3, "more than 3 containers is shutting down")
+    disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
+
+    Thread.sleep(3000)
+    var completedContainer = -1
+    (0 to 10)
+      .filter(!disablingContainers.contains(_))
+      .foreach(i => {
+        try {
+          containers(i).expectMsg(1.second, GracefulShutdown)
+          disablingContainers += i
+          // only make one container complete shutting down
+          if (completedContainer == -1)
+            completedContainer = i
+        } catch {
+          case _: Throwable =>
+        }
+      })
+    assert(disablingContainers.size == 6, "more than 3 containers is shutting down")
+    containers(completedContainer).send(pool, ContainerRemoved(false))
+
+    Thread.sleep(3000)
+    (0 to 10)
+      .filter(!disablingContainers.contains(_))
+      .foreach(i => {
+        try {
+          containers(i).expectMsg(1.second, GracefulShutdown)
+          disablingContainers += i
+        } catch {
+          case _: Throwable =>
+        }
+      })
+    // there should be only one more container going to shut down
+    assert(disablingContainers.size == 7, "more than 3 containers is shutting down")
+    disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
+
+    Thread.sleep(3000)
+    (0 to 10)
+      .filter(!disablingContainers.contains(_))
+      .foreach(i => {
+        try {
+          containers(i).expectMsg(1.second, GracefulShutdown)
+          disablingContainers += i
+        } catch {
+          case _: Throwable =>
+        }
+      })
+    assert(disablingContainers.size == 10, "more than 3 containers is shutting down")
+    disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
+
+    Thread.sleep(3000)
+    (0 to 10)
+      .filter(!disablingContainers.contains(_))
+      .foreach(i => {
+        try {
+          containers(i).expectMsg(1.second, GracefulShutdown)
+          disablingContainers += i
+        } catch {
+          case _: Throwable =>
+        }
+      })
+    assert(disablingContainers.size == 11, "unexpected containers is shutting down")
+    disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
+  }
+
   it should "create prewarmed containers on startup" in within(timeout) {
     stream.reset()
     val (containers, factory) = testContainers(1)
@@ -343,6 +457,7 @@ class FunctionPullingContainerPoolTests
       3,
       false,
       FiniteDuration(10, TimeUnit.SECONDS),
+      10,
       prewarmContainerCreationConfig)
 
     val pool = system.actorOf(
@@ -906,7 +1021,8 @@ class FunctionPullingContainerPoolTests
         100,
         3,
         false,
-        1.second)
+        1.second,
+        10)
     val initialCount = 2
     val pool = system.actorOf(
       Props(
@@ -958,7 +1074,8 @@ class FunctionPullingContainerPoolTests
         100,
         3,
         false,
-        1.second)
+        1.second,
+        10)
     val minCount = 0
     val initialCount = 2
     val maxCount = 4
@@ -1105,7 +1222,8 @@ class FunctionPullingContainerPoolTests
         100,
         maxRetryLimit,
         false,
-        1.second)
+        1.second,
+        10)
     val initialCount = 1
     val pool = system.actorOf(
       Props(
