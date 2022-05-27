@@ -412,6 +412,10 @@ object LoggingMarkers {
     LogMarkerToken(invoker, "sharedPackage", counter, None, Map("path" -> path))(MeasurementUnit.none)
   def INVOKER_CONTAINERPOOL_MEMORY(state: String) =
     LogMarkerToken(invoker, "containerPoolMemory", counter, Some(state), Map("state" -> state))(MeasurementUnit.none)
+  def INVOKER_CONTAINERPOOL_CONTAINER(state: String, tags: Option[Map[String, String]] = None) = {
+    val map = Map("state" -> state) ++: tags.getOrElse(Map.empty)
+    LogMarkerToken(invoker, "containerPoolContainer", counter, Some(state), map)(MeasurementUnit.none)
+  }
 
   // System overload and random invoker assignment
   val MANAGED_SYSTEM_OVERLOAD =
@@ -493,12 +497,10 @@ object LoggingMarkers {
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)(MeasurementUnit.none)
   def INVOKER_DOCKER_CMD(cmd: String) =
     LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
-  def INVOKER_DOCKER_CMD_TIMEOUT(cmd: String) =
-    LogMarkerToken(invoker, "docker", timeout, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
   def INVOKER_RUNC_CMD(cmd: String) =
     LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_KUBEAPI_CMD(cmd: String) =
-    LogMarkerToken(invoker, "kubeapi", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.none)
+    LogMarkerToken(invoker, "kubeapi", start, Some(cmd), Map("cmd" -> cmd))(MeasurementUnit.time.milliseconds)
   def INVOKER_CONTAINER_START(containerState: String, invocationNamespace: String, namespace: String, action: String) =
     LogMarkerToken(
       invoker,

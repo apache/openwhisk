@@ -34,7 +34,7 @@ import scala.util.Try
 import akka.event.Logging.{ErrorLevel, InfoLevel}
 import pureconfig._
 import pureconfig.generic.auto._
-import org.apache.openwhisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
+import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.ContainerId
 import org.apache.openwhisk.core.containerpool.ContainerAddress
@@ -207,7 +207,6 @@ class DockerClient(dockerHost: Option[String] = None,
       case Success(_) => transid.finished(this, start)
       case Failure(pte: ProcessTimeoutException) =>
         transid.failed(this, start, pte.getMessage, ErrorLevel)
-        MetricEmitter.emitCounterMetric(LoggingMarkers.INVOKER_DOCKER_CMD_TIMEOUT(args.head))
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
     }
   }
