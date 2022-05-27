@@ -308,4 +308,10 @@ object ConfigKeys {
   val whiskClusterName = "whisk.cluster.name"
 
   val dataManagementServiceRetryInterval = "whisk.scheduler.data-management-service.retry-interval"
+
+  val whiskSchedulerUsername = "whisk.scheduler.username"
+  val whiskSchedulerPassword = "whisk.scheduler.password"
+
+  val whiskInvokerUsername = "whisk.invoker.username"
+  val whiskInvokerPassword = "whisk.invoker.password"
 }

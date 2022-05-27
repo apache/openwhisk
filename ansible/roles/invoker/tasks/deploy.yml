@@ -287,6 +287,8 @@
       "CONFIG_whisk_containerPool_prewarmExpirationCheckIntervalVariance": "{{ container_pool_prewarm_expirationCheckIntervalVariance | default('10 seconds') }}"
       "CONFIG_whisk_containerPool_prewarmPromotion": "{{ container_pool_strict | default('false') | lower }}"
       "CONFIG_whisk_containerPool_prewarmMaxRetryLimit": "{{ container_pool_prewarm_max_retry_limit | default(5) }}"
+      "CONFIG_whisk_invoker_username": "{{ invoker.username }}"
+      "CONFIG_whisk_invoker_password": "{{ invoker.password }}"
 
 - name: extend invoker dns env
   set_fact:
