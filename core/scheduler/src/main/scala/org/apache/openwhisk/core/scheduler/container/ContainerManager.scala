@@ -251,7 +251,8 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
   // Filter out messages which can use warmed container
   private def filterWarmedCreations(msgs: List[ContainerCreationMessage]) = {
     msgs.filter { msg =>
-      val warmedPrefix = containerPrefix(ContainerKeys.warmedPrefix, msg.invocationNamespace, msg.action, Some(msg.revision))
+      val warmedPrefix =
+        containerPrefix(ContainerKeys.warmedPrefix, msg.invocationNamespace, msg.action, Some(msg.revision))
       val chosenInvoker = warmedContainers
         .filter(!inProgressWarmedContainers.values.toSeq.contains(_))
         .find { container =>
