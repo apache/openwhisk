@@ -48,8 +48,6 @@ import pureconfig.generic.auto._
 import pureconfig.loadConfigOrThrow
 import spray.json._
 
-import scala.compat.java8.DurationConverters._
-
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
@@ -139,6 +137,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private implicit val timeout = Timeout(5.seconds)
   private implicit val order: Ordering[BufferedRequest] = Ordering.by(_.containerId)
 
+  private val StaleDuration = Duration.ofMillis(schedulingConfig.staleThreshold.toMillis)
   private val unversionedAction = action.copy(version = None)
   private val leaderKey = QueueKeys.queue(invocationNamespace, unversionedAction, leader = true)
   private val inProgressContainerPrefixKey =
@@ -901,7 +900,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private def getStaleActivationNum(count: Int, queue: Queue[TimeSeriesActivationEntry]): Int = {
     if (queue.isEmpty || Duration
           .between(queue.head.timestamp, Instant.now)
-          .compareTo(schedulingConfig.staleThreshold.toJava) < 0) count
+          .compareTo(StaleDuration) < 0) count
     else
       getStaleActivationNum(count + 1, queue.tail)
   }
