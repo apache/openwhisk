@@ -23,8 +23,10 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.http.BasicRasService
 import org.apache.openwhisk.http.ErrorResponse.terminate
+import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -75,11 +77,9 @@ class FPCSchedulerServer(scheduler: SchedulerCore, systemUsername: String, syste
 
 object FPCSchedulerServer {
 
-  // TODO: TBD, after FPCScheduler is ready, can read the credentials from pureconfig
-  val schedulerUsername = "admin"
-  val schedulerPassword = "admin"
-
-  val queuePathPrefix = "queue"
+  private val schedulerUsername = loadConfigOrThrow[String](ConfigKeys.whiskSchedulerUsername)
+  private val schedulerPassword = loadConfigOrThrow[String](ConfigKeys.whiskSchedulerPassword)
+  private val queuePathPrefix = "queue"
 
   def instance(scheduler: SchedulerCore)(implicit ec: ExecutionContext,
                                          actorSystem: ActorSystem,
