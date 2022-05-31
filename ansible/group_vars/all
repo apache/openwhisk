@@ -213,6 +213,8 @@ invoker:
     {% endif %}"
   extraEnv: "{{ invoker_extraEnv | default({}) }}"
   protocol: "{{ invoker_protocol | default('https') }}"
+  username: "{{ invoker_username | default('invoker.user') }}"
+  password: "{{ invoker_password | default('invoker.pass') }}"
   ssl:
     cn: "openwhisk-invokers"
     keyPrefix: "{{ __invoker_ssl_keyPrefix }}"
