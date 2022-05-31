@@ -24,6 +24,7 @@ import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{ActorRef, ActorSystem, Cancellable, FSM, Props, Stash}
 import akka.util.Timeout
 import org.apache.openwhisk.common._
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.ContainerCreationError.{TooManyConcurrentRequests, ZeroNamespaceLimit}
 import org.apache.openwhisk.core.connector._
@@ -33,13 +34,6 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, QueueKeys, ThrottlingKeys}
-import org.apache.openwhisk.core.scheduler.SchedulerEndpoints
-import org.apache.openwhisk.core.scheduler.message.{
-  ContainerCreation,
-  ContainerDeletion,
-  FailedCreationJob,
-  SuccessfulCreationJob
-}
 import org.apache.openwhisk.core.scheduler.grpc.{GetActivation, ActivationResponse => GetActivationResponse}
 import org.apache.openwhisk.core.scheduler.message.{
   ContainerCreation,
@@ -47,8 +41,8 @@ import org.apache.openwhisk.core.scheduler.message.{
   FailedCreationJob,
   SuccessfulCreationJob
 }
+import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulingConfig}
 import org.apache.openwhisk.core.service._
-import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
 import pureconfig.generic.auto._
 import pureconfig.loadConfigOrThrow
@@ -59,7 +53,6 @@ import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{duration, ExecutionContextExecutor, Future, Promise}
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 // States
@@ -116,7 +109,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
                   private val durationChecker: DurationChecker,
                   private val action: FullyQualifiedEntityName,
                   messagingProducer: MessageProducer,
-                  config: WhiskConfig,
+                  schedulingConfig: SchedulingConfig,
                   invocationNamespace: String,
                   revision: DocRevision,
                   endpoints: SchedulerEndpoints,
@@ -144,11 +137,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private implicit val timeout = Timeout(5.seconds)
   private implicit val order: Ordering[BufferedRequest] = Ordering.by(_.containerId)
 
+  private val StaleDuration = Duration.ofMillis(schedulingConfig.staleThreshold.toMillis)
   private val unversionedAction = action.copy(version = None)
-  private val checkInterval: FiniteDuration = 100 milliseconds
-  private val StaleThreshold: Double = 100.0
-  private val StaleDuration = Duration.ofMillis(StaleThreshold.toLong)
-  private val dropInterval: FiniteDuration = 10 seconds
   private val leaderKey = QueueKeys.queue(invocationNamespace, unversionedAction, leader = true)
   private val inProgressContainerPrefixKey =
     containerPrefix(ContainerKeys.inProgressPrefix, invocationNamespace, action, Some(revision))
@@ -834,7 +824,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     }
   }
 
-
   private def handleStaleActivationsWhenActionUpdated(queueManager: ActorRef): Unit = {
     if (queue.size > 0) {
       // if doesn't exist old container to pull old memoryQueue's activation, send the old activations to queueManager
@@ -862,12 +851,12 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   // since there is no initial delay, it will try to create a container at initialization time
   // these schedulers will run forever and stop when the memory queue stops
   private def startMonitoring(): (ActorRef, ActorRef) = {
-    val droppingScheduler = Scheduler.scheduleWaitAtLeast(dropInterval) { () =>
+    val droppingScheduler = Scheduler.scheduleWaitAtLeast(schedulingConfig.dropInterval) { () =>
       checkToDropStaleActivation(queue, queueConfig.maxRetentionMs, invocationNamespace, action, stateName, self)
       Future.successful(())
     }
 
-    val monitoringScheduler = Scheduler.scheduleWaitAtLeast(checkInterval) { () =>
+    val monitoringScheduler = Scheduler.scheduleWaitAtLeast(schedulingConfig.checkInterval) { () =>
       // the average duration is updated every checkInterval
       if (averageDurationBuffer.nonEmpty) {
         averageDuration = Some(averageDurationBuffer.average)
@@ -1048,7 +1037,7 @@ object MemoryQueue {
             durationChecker: DurationChecker,
             fqn: FullyQualifiedEntityName,
             messagingProducer: MessageProducer,
-            config: WhiskConfig,
+            schedulingConfig: SchedulingConfig,
             invocationNamespace: String,
             revision: DocRevision,
             endpoints: SchedulerEndpoints,
@@ -1067,7 +1056,7 @@ object MemoryQueue {
         durationChecker,
         fqn: FullyQualifiedEntityName,
         messagingProducer: MessageProducer,
-        config: WhiskConfig,
+        schedulingConfig: SchedulingConfig,
         invocationNamespace: String,
         revision,
         endpoints: SchedulerEndpoints,

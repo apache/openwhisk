@@ -639,17 +639,16 @@ class FPCPoolBalancer(config: WhiskConfig,
       MetricEmitter.emitGaugeMetric(UNHEALTHY_INVOKERS, invokers.count(_.status == Unhealthy))
       MetricEmitter.emitGaugeMetric(OFFLINE_INVOKERS, invokers.count(_.status == Offline))
       // Add both user memory and busy memory because user memory represents free memory in this case
-      MetricEmitter.emitGaugeMetric(
-        INVOKER_TOTALMEM,
-        invokers.foldLeft(0L) { (total, curr) =>
-          if (curr.status.isUsable) {
-            curr.id.userMemory.toMB + curr.id.busyMemory.getOrElse(ByteSize(0, SizeUnits.BYTE)).toMB + total
-          } else {
-            total
-          }
-        })
+      MetricEmitter.emitGaugeMetric(INVOKER_TOTALMEM, invokers.foldLeft(0L) { (total, curr) =>
+        if (curr.status.isUsable) {
+          curr.id.userMemory.toMB + curr.id.busyMemory.getOrElse(ByteSize(0, SizeUnits.BYTE)).toMB + total
+        } else {
+          total
+        }
+      })
       MetricEmitter.emitGaugeMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
-      MetricEmitter.emitGaugeMetric(LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, ""), totalActivationMemory.longValue)
+      MetricEmitter
+        .emitGaugeMetric(LOADBALANCER_MEMORY_INFLIGHT(controllerInstance, ""), totalActivationMemory.longValue)
     })
   }
 

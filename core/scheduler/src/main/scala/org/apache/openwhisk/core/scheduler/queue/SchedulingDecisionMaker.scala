@@ -20,6 +20,7 @@ package org.apache.openwhisk.core.scheduler.queue
 import akka.actor.{Actor, ActorSystem, Props}
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.entity.FullyQualifiedEntityName
+import org.apache.openwhisk.core.scheduler.SchedulingConfig
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -27,8 +28,10 @@ import scala.util.{Failure, Success}
 class SchedulingDecisionMaker(
   invocationNamespace: String,
   action: FullyQualifiedEntityName,
-  StaleThreshold: Double = 100.0)(implicit val actorSystem: ActorSystem, ec: ExecutionContext, logging: Logging)
+  schedulingConfig: SchedulingConfig)(implicit val actorSystem: ActorSystem, ec: ExecutionContext, logging: Logging)
     extends Actor {
+
+  private val staleThreshold: Double = schedulingConfig.staleThreshold.toMillis.toDouble
 
   override def receive: Receive = {
     case msg: QueueSnapshot =>
@@ -135,7 +138,7 @@ class SchedulingDecisionMaker(
 
           case (Running, Some(duration)) if staleActivationNum > 0 =>
             // we can safely get the value as we already checked the existence
-            val containerThroughput = StaleThreshold / duration
+            val containerThroughput = staleThreshold / duration
             val num = ceiling(availableMsg.toDouble / containerThroughput)
             // if it tries to create more containers than existing messages, we just create shortage
             val actualNum = (if (num > availableMsg) availableMsg else num) - inProgress
@@ -153,7 +156,7 @@ class SchedulingDecisionMaker(
           // need more containers and a message is already processed
           case (Running, Some(duration)) =>
             // we can safely get the value as we already checked the existence
-            val containerThroughput = StaleThreshold / duration
+            val containerThroughput = staleThreshold / duration
             val expectedTps = containerThroughput * (existing + inProgress)
 
             if (availableMsg >= expectedTps && existing + inProgress < availableMsg) {
@@ -180,7 +183,7 @@ class SchedulingDecisionMaker(
           // this case is for that as a last resort.
           case (Removing, Some(duration)) if staleActivationNum > 0 =>
             // we can safely get the value as we already checked the existence
-            val containerThroughput = StaleThreshold / duration
+            val containerThroughput = staleThreshold / duration
             val num = ceiling(availableMsg.toDouble / containerThroughput)
             // if it tries to create more containers than existing messages, we just create shortage
             val actualNum = (if (num > availableMsg) availableMsg else num) - inProgress
@@ -252,10 +255,10 @@ class SchedulingDecisionMaker(
 }
 
 object SchedulingDecisionMaker {
-  def props(invocationNamespace: String, action: FullyQualifiedEntityName, StaleThreshold: Double = 100.0)(
+  def props(invocationNamespace: String, action: FullyQualifiedEntityName, schedulingConfig: SchedulingConfig)(
     implicit actorSystem: ActorSystem,
     ec: ExecutionContext,
     logging: Logging): Props = {
-    Props(new SchedulingDecisionMaker(invocationNamespace, action, StaleThreshold))
+    Props(new SchedulingDecisionMaker(invocationNamespace, action, schedulingConfig))
   }
 }

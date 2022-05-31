@@ -106,7 +106,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -176,7 +176,8 @@ class MemoryQueueFlowTests
     val dataMgmtService = TestProbe()
     val containerManager = TestProbe()
     val probe = TestProbe()
-    val testSchedulingDecisionMaker = system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn))
+    val testSchedulingDecisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
 
     val messages = getActivationMessages(2)
     val container = TestProbe()
@@ -190,7 +191,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -313,7 +314,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -372,7 +373,8 @@ class MemoryQueueFlowTests
     val dataMgmtService = TestProbe()
     val containerManager = TestProbe()
     val probe = TestProbe()
-    val testSchedulingDecisionMaker = system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn))
+    val testSchedulingDecisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
 
     val getUserLimit = (_: String) => Future.successful(1)
     val container = TestProbe()
@@ -388,7 +390,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -494,7 +496,8 @@ class MemoryQueueFlowTests
     val dataMgmtService = TestProbe()
     val containerManager = TestProbe()
     val probe = TestProbe()
-    val testSchedulingDecisionMaker = system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn))
+    val testSchedulingDecisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
 
     // max retention size is 10 and throttling fraction is 0.8
     // queue will be action throttled at 10 messages and disabled action throttling at 8 messages
@@ -516,7 +519,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -642,7 +645,8 @@ class MemoryQueueFlowTests
     val dataMgmtService = TestProbe()
     val containerManager = TestProbe()
     val probe = TestProbe()
-    val testSchedulingDecisionMaker = system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn))
+    val testSchedulingDecisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
 
     // generate 2 activations
     val messages = getActivationMessages(3)
@@ -661,7 +665,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -762,7 +766,8 @@ class MemoryQueueFlowTests
     val dataMgmtService = TestProbe()
     val containerManager = TestProbe()
     val probe = TestProbe()
-    val testSchedulingDecisionMaker = system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn))
+    val testSchedulingDecisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
 
     // generate 2 activations
     val messages = getActivationMessages(3)
@@ -778,7 +783,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -874,7 +879,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -943,7 +948,8 @@ class MemoryQueueFlowTests
     val watcher = TestProbe()
     val dataMgmtService = TestProbe()
     val containerManager = TestProbe()
-    val testSchedulingDecisionMaker = system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn))
+    val testSchedulingDecisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
     val probe = TestProbe()
     val container = TestProbe()
 
@@ -956,7 +962,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -1040,7 +1046,8 @@ class MemoryQueueFlowTests
     val watcher = TestProbe()
     val dataMgmtService = TestProbe()
     val containerManager = TestProbe()
-    val testSchedulingDecisionMaker = system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn))
+    val testSchedulingDecisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
     val probe = TestProbe()
 
     // generate 2 activations
@@ -1055,7 +1062,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -1143,7 +1150,8 @@ class MemoryQueueFlowTests
     val watcher = TestProbe()
     val dataMgmtService = TestProbe()
     val containerManager = TestProbe()
-    val testSchedulingDecisionMaker = system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn))
+    val testSchedulingDecisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
     val probe = TestProbe()
 
     val messages = getActivationMessages(4)
@@ -1158,7 +1166,7 @@ class MemoryQueueFlowTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
@@ -1268,7 +1276,7 @@ class MemoryQueueFlowTests
             durationChecker,
             fqn,
             mockMessaging(),
-            config,
+            schedulingConfig,
             testInvocationNamespace,
             revision,
             endpoints,
@@ -1353,7 +1361,7 @@ class MemoryQueueFlowTests
             durationChecker,
             fqn,
             mockMessaging(),
-            config,
+            schedulingConfig,
             testInvocationNamespace,
             revision,
             endpoints,
@@ -1444,7 +1452,7 @@ class MemoryQueueFlowTests
             durationChecker,
             fqn,
             mockMessaging(),
-            config,
+            schedulingConfig,
             testInvocationNamespace,
             revision,
             endpoints,
@@ -1606,7 +1614,7 @@ class MemoryQueueFlowTests
             durationChecker,
             fqn,
             mockMessaging(),
-            config,
+            schedulingConfig,
             testInvocationNamespace,
             revision,
             endpoints,

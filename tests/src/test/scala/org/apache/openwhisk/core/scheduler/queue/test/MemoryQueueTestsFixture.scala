@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.scheduler.queue.test
 
 import java.time.Instant
+
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import com.sksamuel.elastic4s.http
@@ -42,7 +43,7 @@ import org.apache.openwhisk.core.database.elasticsearch.ElasticSearchActivationS
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import org.apache.openwhisk.core.entity.{WhiskActivation, _}
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, QueueKeys, ThrottlingKeys}
-import org.apache.openwhisk.core.scheduler.SchedulerEndpoints
+import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulingConfig}
 import org.apache.openwhisk.core.scheduler.grpc.GetActivation
 import org.apache.openwhisk.core.scheduler.queue.ElasticSearchDurationChecker.{getFromDate, AverageAggregationName}
 import org.apache.openwhisk.core.scheduler.queue._
@@ -60,7 +61,7 @@ import org.apache.openwhisk.core.service.{
 }
 import org.scalamock.scalatest.MockFactory
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt}
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.language.{higherKinds, postfixOps}
 
@@ -84,6 +85,8 @@ class MemoryQueueTestsFixture
   val testInvocationNamespace = "test-invocation-namespace"
   val testNamespace = "test-namespace"
   val testAction = "test-action"
+
+  val schedulingConfig = SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds)
 
   val fqn = FullyQualifiedEntityName(EntityPath(testNamespace), EntityName(testAction), Some(SemVer(0, 0, 1)))
   val revision = DocRevision("1-testRev")

@@ -83,9 +83,11 @@ class DefaultInvokerServerTests
     val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
     Get(s"/isEnabled") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
       status should be(OK)
-      Unmarshal(responseEntity).to[String].map(response => {
-        InvokerEnabled.parseJson(response) shouldEqual InvokerEnabled(true)
-      })
+      Unmarshal(responseEntity)
+        .to[String]
+        .map(response => {
+          InvokerEnabled.parseJson(response) shouldEqual InvokerEnabled(true)
+        })
     }
   }
 

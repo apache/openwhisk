@@ -22,11 +22,14 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.core.entity.{EntityName, EntityPath, FullyQualifiedEntityName, SemVer}
+import org.apache.openwhisk.core.scheduler.SchedulingConfig
 import org.apache.openwhisk.core.scheduler.queue._
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpecLike, Matchers}
+
+import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
 class SchedulingDecisionMakerTests
@@ -44,8 +47,10 @@ class SchedulingDecisionMakerTests
   val testAction = "test-action"
   val action = FullyQualifiedEntityName(EntityPath(testNamespace), EntityName(testAction), Some(SemVer(0, 0, 1)))
 
+  val schedulingConfig = SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds)
+
   it should "decide pausing when the limit is less than equal to 0" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -68,7 +73,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "skip decision if the state is already Flushing when the limit is <= 0" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -91,7 +96,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "skip decision at any time if there is no message" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
 
     // For Throttled states, there will be always at least one message to disable the throttling
     val states = List(Running, Idle, Flushing, Removing, Removed)
@@ -119,7 +124,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "skip decision at any time if there is no message even with avg duration" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val states = List(Running, Idle, Flushing, Removing, Removed)
     val testProbe = TestProbe()
 
@@ -145,7 +150,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "enable namespace throttling with dropping msg when there is not enough capacity and no container" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -169,7 +174,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "enable namespace throttling without dropping msg when there is not enough capacity but are some containers" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -193,7 +198,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add an initial container if there is no any" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -215,7 +220,7 @@ class SchedulingDecisionMakerTests
     testProbe.expectMsg(DecisionResults(AddInitialContainer, 1))
   }
   it should "disable the namespace throttling with adding an initial container when there is no container" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -238,7 +243,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "disable the namespace throttling when there are some containers" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -262,7 +267,7 @@ class SchedulingDecisionMakerTests
 
   // this is an exceptional case
   it should "add an initial container if there is no container in the Running state" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -286,7 +291,7 @@ class SchedulingDecisionMakerTests
 
   // this is an exceptional case
   it should "not add a container if there is no message even in the Running state" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -310,7 +315,7 @@ class SchedulingDecisionMakerTests
 
   // this can happen when the limit was 0 for some reason previously but it is increased after some time.
   it should "add one container if there is no container in the Paused state" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -333,7 +338,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add one container if there is no container in the Waiting state" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -356,7 +361,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add same number of containers with the number of stale messages if there are any" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -379,7 +384,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add exclude the number of in-progress container when adding containers for stale messages when there is no available duration" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -402,7 +407,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add at most the same number with the limit when adding containers for stale messages when there is no available duration" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -425,7 +430,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "not add any container for stale messages if the increment is <= 0 when there when there is no available duration" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -448,7 +453,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add containers for stale messages based on duration when there is available duration" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -473,7 +478,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add containers for stale messages at most the number of messages when there is available duration" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -498,7 +503,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add containers for stale messages within the limit when there is available duration" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -525,7 +530,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add containers based on duration if there is no stale message" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -551,7 +556,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add containers based on duration within the capacity if there is no stale message" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -578,7 +583,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "not add container when expected TPS is bigger than available message if there is no stale message" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -604,7 +609,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add one container when there is no container and are some messages" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -627,7 +632,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add more containers when there are stale messages even in the GracefulShuttingDown state" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -653,7 +658,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "add more containers when there are stale messages even in the GracefulShuttingDown state when there is no duration" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
@@ -679,7 +684,7 @@ class SchedulingDecisionMakerTests
   }
 
   it should "enable namespace throttling while adding more container when there are stale messages even in the GracefulShuttingDown" in {
-    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action))
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
     val msg = QueueSnapshot(
