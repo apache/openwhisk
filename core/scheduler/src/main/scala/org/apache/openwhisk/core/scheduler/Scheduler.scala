@@ -70,7 +70,7 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
   val leaseService =
     actorSystem.actorOf(LeaseKeepAliveService.props(etcdClient, schedulerId, watcherService))
 
-  val schedulingConfig = loadConfigOrThrow[SchedulingConfig](ConfigKeys.schedulerQueue)
+  val schedulingConfig = loadConfigOrThrow[SchedulingConfig](ConfigKeys.schedulerScheduling)
 
   implicit val entityStore = WhiskEntityStore.datastore()
   private val activationStore =
