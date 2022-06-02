@@ -115,7 +115,8 @@ class FunctionPullingContainerProxyTests
       100,
       3,
       false,
-      1.second)
+      1.second,
+      10)
 
   val timeoutConfig = ContainerProxyTimeoutConfig(5.seconds, 5.seconds, 5.seconds)
 

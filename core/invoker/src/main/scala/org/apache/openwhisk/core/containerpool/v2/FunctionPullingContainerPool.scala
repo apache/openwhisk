@@ -94,6 +94,9 @@ class FunctionPullingContainerPool(
   private var prewarmedPool = immutable.Map.empty[ActorRef, PreWarmData]
   private var prewarmStartingPool = immutable.Map.empty[ActorRef, (String, ByteSize)]
 
+  // for shutting down
+  private var disablingPool = immutable.Set.empty[ActorRef]
+
   private var shuttingDown = false
 
   private val creationMessages = TrieMap[ActorRef, ContainerCreationMessage]()
@@ -353,18 +356,12 @@ class FunctionPullingContainerPool(
 
     // Container got removed
     case ContainerRemoved(replacePrewarm) =>
-      inProgressPool.get(sender()).foreach { _ =>
-        inProgressPool = inProgressPool - sender()
-      }
-
-      warmedPool.get(sender()).foreach { _ =>
-        warmedPool = warmedPool - sender()
-      }
+      inProgressPool = inProgressPool - sender()
+      warmedPool = warmedPool - sender()
+      disablingPool -= sender()
 
       // container was busy (busy indicates at full capacity), so there is capacity to accept another job request
-      busyPool.get(sender()).foreach { _ =>
-        busyPool = busyPool - sender()
-      }
+      busyPool = busyPool - sender()
 
       //in case this was a prewarm
       prewarmedPool.get(sender()).foreach { data =>
@@ -601,11 +598,26 @@ class FunctionPullingContainerPool(
    * Make all busyPool's memoryQueue actor shutdown gracefully
    */
   private def waitForPoolToClear(): Unit = {
-    busyPool.keys.foreach(_ ! GracefulShutdown)
-    warmedPool.keys.foreach(_ ! GracefulShutdown)
-    if (inProgressPool.nonEmpty) {
+    val pool = self
+    // how many busy containers will be removed in this term
+    val slotsForBusyPool = math.max(poolConfig.batchDeletionSize - disablingPool.size, 0)
+    (busyPool.keySet &~ disablingPool)
+      .take(slotsForBusyPool)
+      .foreach(container => {
+        disablingPool += container
+        container ! GracefulShutdown
+      })
+    // how many warm containers will be removed in this term
+    val slotsForWarmPool = math.max(poolConfig.batchDeletionSize - disablingPool.size, 0)
+    (warmedPool.keySet &~ disablingPool)
+      .take(slotsForWarmPool)
+      .foreach(container => {
+        disablingPool += container
+        container ! GracefulShutdown
+      })
+    if (inProgressPool.nonEmpty || busyPool.size + warmedPool.size > slotsForBusyPool + slotsForWarmPool) {
       context.system.scheduler.scheduleOnce(5.seconds) {
-        waitForPoolToClear()
+        pool ! GracefulShutdown
       }
     }
   }
