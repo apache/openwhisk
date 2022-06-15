@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.scheduler.queue
 
 import java.time.{Duration, Instant}
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{ActorRef, ActorSystem, Cancellable, FSM, Props, Stash}
 import akka.util.Timeout
@@ -28,6 +27,7 @@ import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.ContainerCreationError.{TooManyConcurrentRequests, ZeroNamespaceLimit}
 import org.apache.openwhisk.core.connector._
+import org.apache.openwhisk.core.containerpool.Interval
 import org.apache.openwhisk.core.database.{NoDocumentException, UserContext}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -35,12 +35,7 @@ import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, QueueKeys, ThrottlingKeys}
 import org.apache.openwhisk.core.scheduler.grpc.{GetActivation, ActivationResponse => GetActivationResponse}
-import org.apache.openwhisk.core.scheduler.message.{
-  ContainerCreation,
-  ContainerDeletion,
-  FailedCreationJob,
-  SuccessfulCreationJob
-}
+import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, ContainerDeletion, FailedCreationJob, SuccessfulCreationJob}
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulingConfig}
 import org.apache.openwhisk.core.service._
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
@@ -52,7 +47,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{duration, ExecutionContextExecutor, Future, Promise}
+import scala.concurrent.{ExecutionContextExecutor, Future, Promise, duration}
 import scala.util.{Failure, Success}
 
 // States
@@ -769,6 +764,10 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       this,
       s"[$invocationNamespace:$action:$stateName] complete activation ${activation.activationId} with error $message")(
       activation.transid)
+
+    val totalTimeInScheduler = Interval(activation.transid.meta.start, Instant.now()).duration
+    MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString), totalTimeInScheduler.toMillis)
+
     val activationResponse =
       if (isWhiskError)
         generateFallbackActivation(activation, ActivationResponse.whiskError(message))
@@ -938,6 +937,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     in.incrementAndGet()
     takeUncompletedRequest()
       .map { res =>
+        val totalTimeInScheduler = Interval(msg.transid.meta.start, Instant.now()).duration
+        MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString), totalTimeInScheduler.toMillis)
         res.trySuccess(Right(msg))
         in.decrementAndGet()
         stay
@@ -958,6 +959,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       logging.info(
         this,
         s"[$invocationNamespace:$action:$stateName] Get activation request ${request.containerId}, send one message: ${msg.activationId}")
+      val totalTimeInScheduler = Interval(msg.transid.meta.start, Instant.now()).duration
+      MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString), totalTimeInScheduler.toMillis)
+
       sender ! GetActivationResponse(Right(msg))
       tryDisableActionThrottling()
     } else {
