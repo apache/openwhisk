@@ -54,12 +54,14 @@ case class ContainerPoolConfig(userMemory: ByteSize,
                                prewarmMaxRetryLimit: Int,
                                prewarmPromotion: Boolean,
                                memorySyncInterval: FiniteDuration,
+                               batchDeletionSize: Int,
                                prewarmContainerCreationConfig: Option[PrewarmContainerCreationConfig] = None) {
   require(
     concurrentPeekFactor > 0 && concurrentPeekFactor <= 1.0,
     s"concurrentPeekFactor must be > 0 and <= 1.0; was $concurrentPeekFactor")
 
   require(prewarmExpirationCheckInterval.toSeconds > 0, "prewarmExpirationCheckInterval must be > 0")
+  require(batchDeletionSize > 0, "batch deletion size must be > 0")
 
   /**
    * The shareFactor indicates the number of containers that would share a single core, on average.

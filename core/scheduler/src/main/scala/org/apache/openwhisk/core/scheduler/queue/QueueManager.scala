@@ -391,7 +391,7 @@ class QueueManager(
 
     // Drop the message that has not been scheduled for a long time
     val schedulingWaitTime = Interval(msg.transid.meta.start, Instant.now()).duration
-    MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME, schedulingWaitTime.toMillis)
+    MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_KAFKA_WAIT_TIME, schedulingWaitTime.toMillis)
 
     if (schedulingWaitTime > queueManagerConfig.maxSchedulingTime) {
       logging.warn(
