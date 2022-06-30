@@ -71,7 +71,7 @@ protected[actions] trait SequenceActions {
   protected[actions] def invokeAction(
     user: Identity,
     action: WhiskActionMetaData,
-    payload: Option[JsObject],
+    payload: Option[JsValue],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
 
@@ -93,7 +93,7 @@ protected[actions] trait SequenceActions {
     user: Identity,
     action: WhiskActionMetaData,
     components: Vector[FullyQualifiedEntityName],
-    payload: Option[JsObject],
+    payload: Option[JsValue],
     waitForOutermostResponse: Option[FiniteDuration],
     cause: Option[ActivationId],
     topmost: Boolean,
@@ -266,7 +266,7 @@ protected[actions] trait SequenceActions {
     user: Identity,
     seqAction: WhiskActionMetaData,
     seqActivationId: ActivationId,
-    inputPayload: Option[JsObject],
+    inputPayload: Option[JsValue],
     components: Vector[FullyQualifiedEntityName],
     cause: Option[ActivationId],
     atomicActionCnt: Int)(implicit transid: TransactionId): Future[SequenceAccounting] = {
@@ -347,8 +347,16 @@ protected[actions] trait SequenceActions {
       // the accounting no longer needs to hold a reference to it once the action is
       // invoked, so previousResponse.getAndSet(null) drops the reference at this point
       // which prevents dragging the previous response for the lifetime of the next activation
-      val inputPayload = accounting.previousResponse.getAndSet(null).result.map(_.asJsObject)
-
+      val previousResult = accounting.previousResponse.getAndSet(null).result
+      var inputPayload: Option[JsValue] = None
+      previousResult match {
+        case Some(value) =>
+          inputPayload = value match {
+            case JsArray(elements) => Some(JsArray(elements))
+            case _                 => previousResult.map(_.asJsObject)
+          }
+        case None =>
+      }
       // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
       val futureWhiskActivationTuple = action.toExecutableWhiskAction match {
         case None =>
@@ -460,9 +468,15 @@ protected[actions] case class SequenceAccounting(atomicActionCnt: Int,
     // check conditions on payload that may lead to interrupting the execution of the sequence
     //     short-circuit the execution of the sequence iff the payload contains an error field
     //     and is the result of an action return, not the initial payload
-    val outputPayload = activation.response.result.map(_.asJsObject)
-    val payloadContent = outputPayload getOrElse JsObject.empty
-    val errorField = payloadContent.fields.get(ActivationResponse.ERROR_FIELD)
+    var errorField: Option[JsValue] = None
+    activation.response.result match {
+      case Some(value) =>
+        value match {
+          case JsArray(_) =>
+          case _          => errorField = value.asJsObject.fields.get(ActivationResponse.ERROR_FIELD)
+        }
+      case None =>
+    }
     val withinSeqLimit = newCnt <= maxSequenceCnt
 
     if (withinSeqLimit && errorField.isEmpty) {

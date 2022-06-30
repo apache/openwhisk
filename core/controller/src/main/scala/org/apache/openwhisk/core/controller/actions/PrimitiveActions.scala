@@ -80,7 +80,7 @@ protected[actions] trait PrimitiveActions {
     user: Identity,
     action: WhiskActionMetaData,
     components: Vector[FullyQualifiedEntityName],
-    payload: Option[JsObject],
+    payload: Option[JsValue],
     waitForOutermostResponse: Option[FiniteDuration],
     cause: Option[ActivationId],
     topmost: Boolean,
@@ -109,7 +109,7 @@ protected[actions] trait PrimitiveActions {
   protected[actions] def invokeSingleAction(
     user: Identity,
     action: ExecutableWhiskActionMetaData,
-    payload: Option[JsObject],
+    payload: Option[JsValue],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
@@ -152,12 +152,22 @@ protected[actions] trait PrimitiveActions {
   private def invokeSimpleAction(
     user: Identity,
     action: ExecutableWhiskActionMetaData,
-    payload: Option[JsObject],
+    payload: Option[JsValue],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     // merge package parameters with action (action parameters supersede), then merge in payload
-    val args = action.parameters merge payload
+    var args: Option[JsValue] = None
+    payload match {
+      case Some(value) =>
+        value match {
+          case JsArray(elements) =>
+            args = Some(JsArray(elements))
+          case _ =>
+            args = action.parameters merge Some(value.asJsObject)
+        }
+      case None => args = Some(action.parameters.toJsObject)
+    }
     val activationId = activationIdFactory.make()
 
     val startActivation = transid.started(
@@ -271,7 +281,7 @@ protected[actions] trait PrimitiveActions {
    */
   private def invokeComposition(user: Identity,
                                 action: ExecutableWhiskActionMetaData,
-                                payload: Option[JsObject],
+                                payload: Option[JsValue],
                                 waitForResponse: Option[FiniteDuration],
                                 cause: Option[ActivationId],
                                 accounting: Option[CompositionAccounting] = None)(
@@ -319,7 +329,7 @@ protected[actions] trait PrimitiveActions {
    * @param parentTid a parent transaction id
    */
   private def invokeConductor(user: Identity,
-                              payload: Option[JsObject],
+                              payload: Option[JsValue],
                               session: Session,
                               parentTid: TransactionId): Future[ActivationResponse] = {
 
@@ -330,9 +340,21 @@ protected[actions] trait PrimitiveActions {
       Future.successful(ActivationResponse.applicationError(compositionIsTooLong))
     } else {
       // inject state into payload if any
-      val params = session.state
-        .map(state => Some(JsObject(payload.getOrElse(JsObject.empty).fields ++ state.fields)))
-        .getOrElse(payload)
+      var params: Option[JsValue] = None
+      payload match {
+        case Some(value) =>
+          value match {
+            case JsArray(_) =>
+            case _ =>
+              params = session.state
+                .map(state => Some(JsObject(value.asJsObject.fields ++ state.fields)))
+                .getOrElse(payload)
+          }
+        case None =>
+          params = session.state
+            .map(state => Some(JsObject(state.fields)))
+            .getOrElse(payload)
+      }
 
       // invoke conductor action
       session.accounting.conductors += 1

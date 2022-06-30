@@ -111,7 +111,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
    * NOTE: the code is application error (since this response could be used as a response for the sequence
    * if the payload contains an error)
    */
-  protected[core] def payloadPlaceholder(payload: Option[JsObject]) = ActivationResponse(ApplicationError, payload)
+  protected[core] def payloadPlaceholder(payload: Option[JsValue]) = ActivationResponse(ApplicationError, payload)
 
   /**
    * Class of errors for invoker-container communication.

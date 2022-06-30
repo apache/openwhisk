@@ -26,7 +26,7 @@ import akka.util.ByteString
 import pureconfig._
 import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
+import spray.json.{JsObject, JsValue}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.ActivationResponse.{ContainerConnectionError, ContainerResponse}
@@ -159,7 +159,7 @@ trait Container {
   }
 
   /** Runs code in the container. Thread-safe - caller may invoke concurrently for concurrent activation processing. */
-  def run(parameters: JsObject,
+  def run(parameters: JsValue,
           environment: JsObject,
           timeout: FiniteDuration,
           maxConcurrent: Int,
