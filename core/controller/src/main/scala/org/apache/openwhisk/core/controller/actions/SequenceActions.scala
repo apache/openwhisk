@@ -348,15 +348,12 @@ protected[actions] trait SequenceActions {
       // invoked, so previousResponse.getAndSet(null) drops the reference at this point
       // which prevents dragging the previous response for the lifetime of the next activation
       val previousResult = accounting.previousResponse.getAndSet(null).result
-      var inputPayload: Option[JsValue] = None
-      previousResult match {
-        case Some(value) =>
-          inputPayload = value match {
-            case JsArray(elements) => Some(JsArray(elements))
-            case _                 => previousResult.map(_.asJsObject)
-          }
-        case None =>
+      val inputPayload: Option[JsValue] = previousResult match {
+        case Some(JsObject(fields))  => Some(JsObject(fields))
+        case Some(JsArray(elements)) => Some(JsArray(elements))
+        case _                       => None
       }
+
       // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
       val futureWhiskActivationTuple = action.toExecutableWhiskAction match {
         case None =>
@@ -468,14 +465,9 @@ protected[actions] case class SequenceAccounting(atomicActionCnt: Int,
     // check conditions on payload that may lead to interrupting the execution of the sequence
     //     short-circuit the execution of the sequence iff the payload contains an error field
     //     and is the result of an action return, not the initial payload
-    var errorField: Option[JsValue] = None
-    activation.response.result match {
-      case Some(value) =>
-        value match {
-          case JsArray(_) =>
-          case _          => errorField = value.asJsObject.fields.get(ActivationResponse.ERROR_FIELD)
-        }
-      case None =>
+    val errorField: Option[JsValue] = activation.response.result match {
+      case Some(JsObject(fields)) => fields.get(ActivationResponse.ERROR_FIELD)
+      case _                      => None
     }
     val withinSeqLimit = newCnt <= maxSequenceCnt
 

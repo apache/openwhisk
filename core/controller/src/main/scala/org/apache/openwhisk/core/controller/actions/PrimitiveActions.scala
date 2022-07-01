@@ -157,16 +157,10 @@ protected[actions] trait PrimitiveActions {
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     // merge package parameters with action (action parameters supersede), then merge in payload
-    var args: Option[JsValue] = None
-    payload match {
-      case Some(value) =>
-        value match {
-          case JsArray(elements) =>
-            args = Some(JsArray(elements))
-          case _ =>
-            args = action.parameters merge Some(value.asJsObject)
-        }
-      case None => args = Some(action.parameters.toJsObject)
+    val args: Option[JsValue] = payload match {
+      case Some(JsObject(fields))  => action.parameters merge Some(JsObject(fields))
+      case Some(JsArray(elements)) => Some(JsArray(elements))
+      case _                       => Some(action.parameters.toJsObject)
     }
     val activationId = activationIdFactory.make()
 
@@ -340,20 +334,12 @@ protected[actions] trait PrimitiveActions {
       Future.successful(ActivationResponse.applicationError(compositionIsTooLong))
     } else {
       // inject state into payload if any
-      var params: Option[JsValue] = None
-      payload match {
-        case Some(value) =>
-          value match {
-            case JsArray(_) =>
-            case _ =>
-              params = session.state
-                .map(state => Some(JsObject(value.asJsObject.fields ++ state.fields)))
-                .getOrElse(payload)
-          }
-        case None =>
-          params = session.state
-            .map(state => Some(JsObject(state.fields)))
+      val params: Option[JsValue] = payload match {
+        case Some(JsObject(fields)) =>
+          session.state
+            .map(state => Some(JsObject(JsObject(fields).fields ++ state.fields)))
             .getOrElse(payload)
+        case _ => None
       }
 
       // invoke conductor action
