@@ -541,6 +541,31 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       }
   }
 
+  it should "invoke a sequence which support array result" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "sequence-array"
+    val actions = Seq("split-array", "sort-array")
+    for (actionName <- actions) {
+      val file = TestUtils.getTestActionFilename(s"$actionName.js")
+      assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+        action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+      }
+    }
+
+    assetHelper.withCleaner(wsk.action, name) {
+      val sequence = actions.mkString(",")
+      (action, _) =>
+        action.create(name, Some(sequence), kind = Some("sequence"), timeout = Some(allowedActionDuration))
+    }
+
+    val args = Array("bbb", "aaa", "ccc")
+    val run = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
+    withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
+      checkSequenceLogsAndAnnotations(activation, 2) // 2 activations in this sequence
+      activation.cause shouldBe None // topmost sequence
+      activation.response.result shouldBe Some(JsArray(JsString("aaa"), JsString("bbb"), JsString("ccc")))
+    }
+  }
+
   /**
    * checks the result of an echo sequence connected to a trigger through a rule
    * @param triggerFireRun the run result of firing the trigger
