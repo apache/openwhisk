@@ -1338,7 +1338,7 @@ class ContainerProxyTests
     timeout) {
     val container = new TestContainer {
       override def run(
-        parameters: JsObject,
+        parameters: JsValue,
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
@@ -1519,7 +1519,7 @@ class ContainerProxyTests
     timeout) {
     val container = new TestContainer {
       override def run(
-        parameters: JsObject,
+        parameters: JsValue,
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
@@ -1688,7 +1688,7 @@ class ContainerProxyTests
   it should "resend the job to the parent if /run fails connection after Paused -> Running" in within(timeout) {
     val container = new TestContainer {
       override def run(
-        parameters: JsObject,
+        parameters: JsValue,
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
@@ -1740,7 +1740,7 @@ class ContainerProxyTests
   it should "resend the job to the parent if /run fails connection after Ready -> Running" in within(timeout) {
     val container = new TestContainer {
       override def run(
-        parameters: JsObject,
+        parameters: JsValue,
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
@@ -2160,7 +2160,7 @@ class ContainerProxyTests
       initPromise.map(_.future).getOrElse(Future.successful(initInterval))
     }
     override def run(
-      parameters: JsObject,
+      parameters: JsValue,
       environment: JsObject,
       timeout: FiniteDuration,
       concurrent: Int,

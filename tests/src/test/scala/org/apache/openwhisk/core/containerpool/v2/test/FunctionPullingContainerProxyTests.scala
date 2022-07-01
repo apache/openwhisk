@@ -1737,7 +1737,7 @@ class FunctionPullingContainerProxyTests
     val dataManagementService = TestProbe()
 
     val container = new TestContainer {
-      override def run(parameters: JsObject,
+      override def run(parameters: JsValue,
                        environment: JsObject,
                        timeout: FiniteDuration,
                        concurrent: Int,
@@ -1810,7 +1810,7 @@ class FunctionPullingContainerProxyTests
     val dataManagementService = TestProbe()
 
     val container = new TestContainer {
-      override def run(parameters: JsObject,
+      override def run(parameters: JsValue,
                        environment: JsObject,
                        timeout: FiniteDuration,
                        concurrent: Int,
@@ -2418,7 +2418,7 @@ class FunctionPullingContainerProxyTests
     val dataManagementService = TestProbe()
 
     val container = new TestContainer {
-      override def run(parameters: JsObject,
+      override def run(parameters: JsValue,
                        environment: JsObject,
                        timeout: FiniteDuration,
                        concurrent: Int,
@@ -2816,7 +2816,7 @@ class FunctionPullingContainerProxyTests
     }
 
     override def run(
-      parameters: JsObject,
+      parameters: JsValue,
       environment: JsObject,
       timeout: FiniteDuration,
       concurrent: Int,
