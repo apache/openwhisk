@@ -593,7 +593,8 @@ object LoggingMarkers {
   val SCHEDULER_KAFKA = LogMarkerToken(scheduler, kafka, start)(MeasurementUnit.time.milliseconds)
   val SCHEDULER_KAFKA_WAIT_TIME =
     LogMarkerToken(scheduler, "kafkaWaitTime", counter)(MeasurementUnit.none)
-  def SCHEDULER_WAIT_TIME(action: String) = LogMarkerToken(scheduler, "waitTime", counter, Some(action), Map("action" -> action))(MeasurementUnit.none)
+  def SCHEDULER_WAIT_TIME(action: String) =
+    LogMarkerToken(scheduler, "waitTime", counter, Some(action), Map("action" -> action))(MeasurementUnit.none)
 
   def SCHEDULER_KEEP_ALIVE(leaseId: Long) =
     LogMarkerToken(scheduler, "keepAlive", counter, None, Map("leaseId" -> leaseId.toString))(MeasurementUnit.none)
