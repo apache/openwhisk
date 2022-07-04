@@ -513,6 +513,7 @@ scheduler:
   dataManagementService:
     retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"
   inProgressJobRetention: "{{ scheduler_inProgressJobRetention | default('20 seconds') }}"
+  blackboxMultiple: "{{ scheduler_blackboxMultiple | default(15) }}"
   managedFraction: "{{ scheduler_managed_fraction | default(1.0 - (scheduler_blackbox_fraction | default(__scheduler_blackbox_fraction))) }}"
   blackboxFraction: "{{ scheduler_blackbox_fraction | default(__scheduler_blackbox_fraction) }}"
   scheduling:

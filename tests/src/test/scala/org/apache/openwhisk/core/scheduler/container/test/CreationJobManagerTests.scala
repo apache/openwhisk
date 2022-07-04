@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.scheduler.container.test
 
 import java.util.concurrent.TimeUnit
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
+import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import com.ibm.etcd.client.{EtcdClient => Client}
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
@@ -40,7 +40,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
 import pureconfig.loadConfigOrThrow
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 @RunWith(classOf[JUnitRunner])
@@ -55,8 +55,9 @@ class CreationJobManagerTests
     with BeforeAndAfterEach
     with StreamLogging {
 
-  private val timeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetention)
-  val blackboxTimeout = FiniteDuration(timeout.toSeconds * 3, TimeUnit.SECONDS)
+  val timeout = 20.seconds
+  val blackboxMultiple = 2
+  val blackboxTimeout = FiniteDuration(timeout.toSeconds * blackboxMultiple, TimeUnit.SECONDS)
   implicit val ece: ExecutionContextExecutor = system.dispatcher
   val config = new WhiskConfig(ExecManifest.requiredProperties)
   val creationIdTest = CreationId.generate()
@@ -139,8 +140,7 @@ class CreationJobManagerTests
   it should "register creation job" in {
     val probe = TestProbe()
 
-    val manager =
-      system.actorOf(CreationJobManager.props(feedFactory, sid, probe.ref))
+    val manager = TestActorRef(new CreationJobManager(feedFactory, sid, probe.ref, timeout, blackboxMultiple))
 
     manager ! registerMessage
 
@@ -150,8 +150,7 @@ class CreationJobManagerTests
   it should "skip duplicated creation job" in {
     val probe = TestProbe()
 
-    val manager =
-      system.actorOf(CreationJobManager.props(feedFactory, sid, probe.ref))
+    val manager = TestActorRef(new CreationJobManager(feedFactory, sid, probe.ref, timeout, blackboxMultiple))
 
     manager ! registerMessage
     manager ! registerMessage
@@ -206,8 +205,9 @@ class CreationJobManagerTests
     val containerManager = TestProbe()
     val dataManagementService = TestProbe()
     val probe = TestProbe()
-    val jobManager =
-      containerManager.childActorOf(CreationJobManager.props(feedFactory, sid, dataManagementService.ref))
+    val jobManager = TestActorRef(
+      Props(new CreationJobManager(feedFactory, sid, dataManagementService.ref, timeout, blackboxMultiple)),
+      containerManager.ref)
 
     QueuePool.put(
       MemoryQueueKey(testInvocationNamespace, action.toDocId.asDocInfo(revision)),
@@ -238,8 +238,9 @@ class CreationJobManagerTests
     val containerManager = TestProbe()
     val dataManagementService = TestProbe()
 
-    val jobManager =
-      containerManager.childActorOf(CreationJobManager.props(feedFactory, sid, dataManagementService.ref))
+    val jobManager = TestActorRef(
+      Props(new CreationJobManager(feedFactory, sid, dataManagementService.ref, timeout, blackboxMultiple)),
+      containerManager.ref)
 
     jobManager ! registerMessage
 
@@ -257,8 +258,9 @@ class CreationJobManagerTests
     val containerManager = TestProbe()
     val dataManagementService = TestProbe()
     val probe = TestProbe()
-    val jobManager =
-      containerManager.childActorOf(CreationJobManager.props(feedFactory, sid, dataManagementService.ref))
+    val jobManager = TestActorRef(
+      Props(new CreationJobManager(feedFactory, sid, dataManagementService.ref, timeout, blackboxMultiple)),
+      containerManager.ref)
 
     QueuePool.put(
       MemoryQueueKey(testInvocationNamespace, action.toDocId.asDocInfo(revision)),
@@ -294,8 +296,9 @@ class CreationJobManagerTests
     val containerManager = TestProbe()
     val dataManagementService = TestProbe()
 
-    val jobManager =
-      containerManager.childActorOf(CreationJobManager.props(feedFactory, sid, dataManagementService.ref))
+    val jobManager = TestActorRef(
+      Props(new CreationJobManager(feedFactory, sid, dataManagementService.ref, timeout, blackboxMultiple)),
+      containerManager.ref)
 
     jobManager ! failedFinish.copy(ack = failedFinish.ack.copy(retryCount = 5))
 
@@ -306,8 +309,9 @@ class CreationJobManagerTests
     val containerManager = TestProbe()
     val dataManagementService = TestProbe()
 
-    val jobManager =
-      containerManager.childActorOf(CreationJobManager.props(feedFactory, sid, dataManagementService.ref))
+    val jobManager = TestActorRef(
+      Props(new CreationJobManager(feedFactory, sid, dataManagementService.ref, timeout, blackboxMultiple)),
+      containerManager.ref)
 
     jobManager ! registerMessage
 
@@ -329,8 +333,9 @@ class CreationJobManagerTests
     val containerManager = TestProbe()
     val dataManagementService = TestProbe()
 
-    val jobManager =
-      containerManager.childActorOf(CreationJobManager.props(feedFactory, sid, dataManagementService.ref))
+    val jobManager = TestActorRef(
+      Props(new CreationJobManager(feedFactory, sid, dataManagementService.ref, timeout, blackboxMultiple)),
+      containerManager.ref)
 
     val execMetadata =
       BlackBoxExecMetaData(ImageName("test image"), Some("main"), native = false);
@@ -364,7 +369,7 @@ class CreationJobManagerTests
 
     // no message for timeout
     dataManagementService.expectNoMessage(timeout)
-    Thread.sleep(timeout.toMillis * 2) // timeout is doubled for blackbox actions
+    Thread.sleep(timeout.toMillis * blackboxMultiple) // timeout is doubled for blackbox actions
     dataManagementService.expectMsg(UnregisterData(testKey))
     containerManager.expectMsg(
       FailedCreationJob(
@@ -380,8 +385,10 @@ class CreationJobManagerTests
     val containerManager = TestProbe()
     val dataManagementService = TestProbe()
     val probe = TestProbe()
-    val jobManager =
-      containerManager.childActorOf(CreationJobManager.props(feedFactory, sid, dataManagementService.ref))
+    val jobManager = TestActorRef(
+      Props(new CreationJobManager(feedFactory, sid, dataManagementService.ref, timeout, blackboxMultiple)),
+      containerManager.ref)
+
     QueuePool.put(
       MemoryQueueKey(testInvocationNamespace, action.toDocId.asDocInfo(revision)),
       MemoryQueueValue(probe.ref, true))
