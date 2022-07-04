@@ -697,6 +697,60 @@ class MemoryQueueTests
     fsm.stop()
   }
 
+  it should "not send msg to a deleted container" in {
+    val mockEtcdClient = mock[EtcdClient]
+    val probe = TestProbe()
+    val tid = TransactionId(TransactionId.generateTid())
+
+    expectDurationChecking(mockEsClient, testInvocationNamespace)
+
+    val fsm =
+      TestFSMRef(
+        new MemoryQueue(
+          mockEtcdClient,
+          durationChecker,
+          fqn,
+          mockMessaging(),
+          config,
+          testInvocationNamespace,
+          revision,
+          endpoints,
+          actionMetadata,
+          probe.ref,
+          probe.ref,
+          probe.ref,
+          TestProbe().ref,
+          schedulerId,
+          ack,
+          store,
+          getUserLimit,
+          checkToDropStaleActivation,
+          queueConfig))
+
+    fsm.setState(Running, RunningData(probe.ref, probe.ref))
+
+    val sender1 = TestProbe()
+    val sender2 = TestProbe()
+    fsm.tell(GetActivation(tid, fqn, "1", false, None), sender1.ref)
+    fsm.tell(GetActivation(tid, fqn, "2", false, None), sender2.ref)
+    fsm.tell(GetActivation(tid, fqn, "2", false, None, false), sender2.ref)
+    fsm ! message
+
+    // sender 1 will get a message while sender 2 will get a NoActivationMessage
+    sender1.expectMsg(GetActivationResponse(Right(message)))
+    sender2.expectMsg(GetActivationResponse(Left(NoActivationMessage())))
+    sender2.expectMsg(GetActivationResponse(Left(NoActivationMessage())))
+
+    fsm.tell(GetActivation(tid, fqn, "1", false, None), sender1.ref)
+    fsm.tell(GetActivation(tid, fqn, "2", false, None), sender2.ref)
+    fsm ! WatchEndpointRemoved(existingContainerKey, "2", "", true) // remove container2 using watch event
+    fsm ! message
+
+    // sender 1 will get a message while sender 2 will get a NoActivationMessage
+    sender1.expectMsg(GetActivationResponse(Right(message)))
+    sender2.expectMsg(GetActivationResponse(Left(NoActivationMessage())))
+  }
+
   it should "send response to request according to the order of container id and warmed flag" in {
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
