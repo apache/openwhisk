@@ -68,6 +68,7 @@ case class InitCodeCompleted(data: WarmData)
 
 // Events received by the actor
 case class Initialize(invocationNamespace: String,
+                      fqn: FullyQualifiedEntityName,
                       action: ExecutableWhiskAction,
                       schedulerHost: String,
                       rpcPort: Int,
@@ -251,7 +252,7 @@ class FunctionPullingContainerProxy(
             clientProxyFactory(
               context,
               job.invocationNamespace,
-              job.action.fullyQualifiedName(true),
+              job.fqn, // include binding field
               job.action.rev,
               job.schedulerHost,
               job.rpcPort,
@@ -292,7 +293,7 @@ class FunctionPullingContainerProxy(
         clientProxyFactory(
           context,
           job.invocationNamespace,
-          job.action.fullyQualifiedName(true),
+          job.fqn, // include binding field
           job.action.rev,
           job.schedulerHost,
           job.rpcPort,

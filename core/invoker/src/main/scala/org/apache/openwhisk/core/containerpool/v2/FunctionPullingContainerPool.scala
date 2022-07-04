@@ -680,7 +680,13 @@ class FunctionPullingContainerPool(
       case Some(((proxy, data), containerState)) =>
         // record creationMessage so when container created failed, we can send failed message to scheduler
         creationMessages.getOrElseUpdate(proxy, create)
-        proxy ! Initialize(create.invocationNamespace, executable, create.schedulerHost, create.rpcPort, create.transid)
+        proxy ! Initialize(
+          create.invocationNamespace,
+          create.action,
+          executable,
+          create.schedulerHost,
+          create.rpcPort,
+          create.transid)
         inProgressPool = inProgressPool + (proxy -> data)
         logContainerStart(create, executable.toWhiskAction, containerState)
 
