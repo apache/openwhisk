@@ -35,7 +35,12 @@ import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, QueueKeys, ThrottlingKeys}
 import org.apache.openwhisk.core.scheduler.grpc.{GetActivation, ActivationResponse => GetActivationResponse}
-import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, ContainerDeletion, FailedCreationJob, SuccessfulCreationJob}
+import org.apache.openwhisk.core.scheduler.message.{
+  ContainerCreation,
+  ContainerDeletion,
+  FailedCreationJob,
+  SuccessfulCreationJob
+}
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulingConfig}
 import org.apache.openwhisk.core.service._
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
@@ -47,7 +52,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContextExecutor, Future, Promise, duration}
+import scala.concurrent.{duration, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success}
 
 // States
@@ -453,7 +458,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         case `inProgressContainerPrefixKey` =>
           creationIds -= key.split("/").last
         case `existingContainerPrefixKey` =>
-          containers -= key.split("/").last
+          val containerId = key.split("/").last
+          removeDeletedContainerFromRequestBuffer(containerId)
+          containers -= containerId
         case _ =>
       }
       stay
@@ -499,6 +506,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         handleActivationRequest(request)
       } else {
         logging.info(this, s"Remove containerId because ${request.containerId} is not alive")
+        removeDeletedContainerFromRequestBuffer(request.containerId)
         sender ! GetActivationResponse(Left(NoActivationMessage()))
         containers -= request.containerId
         stay
@@ -766,7 +774,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       activation.transid)
 
     val totalTimeInScheduler = Interval(activation.transid.meta.start, Instant.now()).duration
-    MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString), totalTimeInScheduler.toMillis)
+    MetricEmitter.emitHistogramMetric(
+      LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString),
+      totalTimeInScheduler.toMillis)
 
     val activationResponse =
       if (isWhiskError)
@@ -931,6 +941,16 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     } else None
   }
 
+  private def removeDeletedContainerFromRequestBuffer(containerId: String): Unit = {
+    requestBuffer = requestBuffer.filter { buffer =>
+      if (buffer.containerId.drop(1) == containerId) {
+        buffer.promise.trySuccess(Left(NoActivationMessage()))
+        false
+      } else
+        true
+    }
+  }
+
   private def handleActivationMessage(msg: ActivationMessage) = {
     logging.info(this, s"[$invocationNamespace:$action:$stateName] got a new activation message ${msg.activationId}")(
       msg.transid)
@@ -938,7 +958,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     takeUncompletedRequest()
       .map { res =>
         val totalTimeInScheduler = Interval(msg.transid.meta.start, Instant.now()).duration
-        MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString), totalTimeInScheduler.toMillis)
+        MetricEmitter.emitHistogramMetric(
+          LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString),
+          totalTimeInScheduler.toMillis)
         res.trySuccess(Right(msg))
         in.decrementAndGet()
         stay
@@ -960,7 +982,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         this,
         s"[$invocationNamespace:$action:$stateName] Get activation request ${request.containerId}, send one message: ${msg.activationId}")
       val totalTimeInScheduler = Interval(msg.transid.meta.start, Instant.now()).duration
-      MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString), totalTimeInScheduler.toMillis)
+      MetricEmitter.emitHistogramMetric(
+        LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString),
+        totalTimeInScheduler.toMillis)
 
       sender ! GetActivationResponse(Right(msg))
       tryDisableActionThrottling()
