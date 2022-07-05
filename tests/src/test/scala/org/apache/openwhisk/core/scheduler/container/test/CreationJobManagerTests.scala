@@ -17,12 +17,12 @@
 
 package org.apache.openwhisk.core.scheduler.container.test
 
-import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import com.ibm.etcd.client.{EtcdClient => Client}
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import org.apache.openwhisk.core.entity._
@@ -32,14 +32,13 @@ import org.apache.openwhisk.core.scheduler.container._
 import org.apache.openwhisk.core.scheduler.message._
 import org.apache.openwhisk.core.scheduler.queue.{MemoryQueueKey, MemoryQueueValue, QueuePool}
 import org.apache.openwhisk.core.service.{RegisterData, UnregisterData}
-import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
-import pureconfig.loadConfigOrThrow
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
