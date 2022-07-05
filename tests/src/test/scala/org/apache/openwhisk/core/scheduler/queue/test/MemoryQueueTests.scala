@@ -711,7 +711,7 @@ class MemoryQueueTests
           durationChecker,
           fqn,
           mockMessaging(),
-          config,
+          schedulingConfig,
           testInvocationNamespace,
           revision,
           endpoints,
