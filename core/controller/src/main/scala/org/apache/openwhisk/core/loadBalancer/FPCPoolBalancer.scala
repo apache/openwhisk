@@ -714,7 +714,7 @@ object FPCPoolBalancer extends LoadBalancerProvider {
       }
     }
 
-    val etcd = EtcdClient(loadConfigOrThrow[EtcdConfig](ConfigKeys.etcd).hosts)
+    val etcd = EtcdClient(loadConfigOrThrow[EtcdConfig](ConfigKeys.etcd))
 
     new FPCPoolBalancer(whiskConfig, instance, etcd, feedFactory)
   }

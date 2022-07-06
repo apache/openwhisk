@@ -63,7 +63,7 @@ class FPCPoolBalancerTests
 
   private implicit val transId = TransactionId.testing
   implicit val ece: ExecutionContextExecutor = actorSystem.dispatcher
-  private val etcd = EtcdClient(loadConfigOrThrow[EtcdConfig](ConfigKeys.etcd).hosts)
+  private val etcd = EtcdClient(loadConfigOrThrow[EtcdConfig](ConfigKeys.etcd))
 
   private val testInvocationNamespace = "test-invocation-namespace"
 
