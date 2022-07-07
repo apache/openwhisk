@@ -22,7 +22,6 @@ import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.ContainerPoolConfig
-import org.apache.openwhisk.core.entity.ControllerInstanceId
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.invoker.InvokerProvider
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}

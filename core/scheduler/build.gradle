@@ -44,7 +44,7 @@ buildscript {
     dependencies {
         // see https://plugins.gradle.org/plugin/com.lightbend.akka.grpc.gradle
         // for the currently latest version.
-        classpath 'gradle.plugin.com.lightbend.akka.grpc:akka-grpc-gradle-plugin:0.7.2'
+        classpath 'com.lightbend.akka.grpc:akka-grpc-gradle-plugin:1.0.0'
     }
 }
 
