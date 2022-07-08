@@ -363,6 +363,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       else
         cleanUpActorsAndGotoRemoved(data)
 
+    case Event(GracefulShutdown, data: FlushingData) =>
       completeAllActivations(data.reason, isWhiskError(data.error))
       logging.info(this, s"[$invocationNamespace:$action:$stateName] Received GracefulShutdown, stop the queue.")
       cleanUpActorsAndGotoRemoved(data)
