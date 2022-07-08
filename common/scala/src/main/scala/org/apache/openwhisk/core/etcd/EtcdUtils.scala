@@ -30,7 +30,7 @@ import pureconfig.loadConfigOrThrow
 import scala.language.implicitConversions
 import scala.util.Try
 
-case class EtcdConfig(hosts: String)
+case class EtcdConfig(hosts: String, username: Option[String], password: Option[String])
 
 case class EtcdException(msg: String) extends Exception(msg)
 
