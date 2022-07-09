@@ -41,7 +41,6 @@ import org.apache.openwhisk.core.scheduler.message.{
   FailedCreationJob,
   SuccessfulCreationJob
 }
-import org.apache.openwhisk.core.scheduler.queue.MemoryQueue.getRetentionTimeout
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulingConfig}
 import org.apache.openwhisk.core.service._
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
@@ -152,7 +151,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private val memory = actionMetaData.limits.memory.megabytes.MB
   private val queueRemovedMsg = QueueRemoved(invocationNamespace, action.toDocId.asDocInfo(revision), Some(leaderKey))
   private val staleQueueRemovedMsg = QueueRemoved(invocationNamespace, action.toDocId.asDocInfo(revision), None)
-  private val actionRetentionTimeout = getRetentionTimeout(actionMetaData, queueConfig)
+  private val actionRetentionTimeout = MemoryQueue.getRetentionTimeout(actionMetaData, queueConfig)
 
   private[queue] var containers = Set.empty[String]
   private[queue] var creationIds = Set.empty[String]
@@ -1164,7 +1163,7 @@ object MemoryQueue {
     }
   }
 
-  private def getRetentionTimeout(actionMetaData: WhiskActionMetaData, queueConfig: QueueConfig) = {
+  private def getRetentionTimeout(actionMetaData: WhiskActionMetaData, queueConfig: QueueConfig): Long = {
     if (actionMetaData.exec.kind == ExecMetaDataBase.BLACKBOX) {
       queueConfig.maxBlackboxRetentionMs
     } else {
