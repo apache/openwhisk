@@ -182,7 +182,9 @@ class KubernetesClient(
             case e =>
               transid.failed(this, start, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}", ErrorLevel)
               //log pod events to diagnose pod readiness failures
-              val podEvents = kubeRestClient.events
+              val podEvents = kubeRestClient
+                .v1()
+                .events()
                 .inNamespace(namespace)
                 .withField("involvedObject.name", name)
                 .list()
