@@ -358,10 +358,11 @@ class FunctionPullingContainerPoolTests
         case _: Throwable =>
       }
     })
-    assert(disablingContainers.size == 3, "more than 3 containers is shutting down")
+    awaitAssert({
+      disablingContainers.size shouldBe 3
+    }, 3.seconds)
     disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
 
-    Thread.sleep(3000)
     var completedContainer = -1
     (0 to 10)
       .filter(!disablingContainers.contains(_))
@@ -376,10 +377,11 @@ class FunctionPullingContainerPoolTests
           case _: Throwable =>
         }
       })
-    assert(disablingContainers.size == 6, "more than 3 containers is shutting down")
+    awaitAssert({
+      disablingContainers.size shouldBe 6
+    }, 3.seconds)
     containers(completedContainer).send(pool, ContainerRemoved(false))
 
-    Thread.sleep(3000)
     (0 to 10)
       .filter(!disablingContainers.contains(_))
       .foreach(i => {
@@ -390,8 +392,11 @@ class FunctionPullingContainerPoolTests
           case _: Throwable =>
         }
       })
-    // there should be only one more container going to shut down
-    assert(disablingContainers.size == 7, "more than 3 containers is shutting down")
+    // there should be only one more container going to shut down as more than 3 containers are shutting down.
+    awaitAssert({
+      disablingContainers.size shouldBe 7
+    }, 3.seconds)
+
     disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
 
     Thread.sleep(3000)
@@ -405,10 +410,11 @@ class FunctionPullingContainerPoolTests
           case _: Throwable =>
         }
       })
-    assert(disablingContainers.size == 10, "more than 3 containers is shutting down")
+    awaitAssert({
+      disablingContainers.size shouldBe 10
+    }, 3.seconds)
     disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
 
-    Thread.sleep(3000)
     (0 to 10)
       .filter(!disablingContainers.contains(_))
       .foreach(i => {
@@ -419,7 +425,10 @@ class FunctionPullingContainerPoolTests
           case _: Throwable =>
         }
       })
-    assert(disablingContainers.size == 11, "unexpected containers is shutting down")
+    // unexpected containers are shutting down.
+    awaitAssert({
+      disablingContainers.size shouldBe 11
+    }, 3.seconds)
     disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
   }
 
