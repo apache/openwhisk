@@ -221,7 +221,7 @@ class StandaloneDockerClient(pullDisabled: Boolean)(implicit log: Logging, as: A
     for {
       _ <- if (shouldPull) pull(image) else Future.successful(())
       id <- run(image, args).recoverWith {
-        case t @ BrokenDockerContainer(brokenId, _) =>
+        case t @ BrokenDockerContainer(brokenId, _, _) =>
           // Remove the broken container - but don't wait or check for the result.
           // If the removal fails, there is nothing we could do to recover from the recovery.
           rm(brokenId)

@@ -367,6 +367,18 @@ class DockerClientTests
       }
   }
 
+  it should "fail with BrokenDockerContainer when run returns with exit status 127 and a container ID" in {
+    val dc = dockerClient {
+      Future.failed(
+        ProcessUnsuccessfulException(
+          exitStatus = ExitStatus(127),
+          stdout = id.asString,
+          stderr = """Error response from daemon: OCI runtime create failed: executable file not found"""))
+    }
+    val bdc = the[BrokenDockerContainer] thrownBy await(dc.run("image", Seq.empty))
+    bdc.id shouldBe id
+  }
+
   it should "fail with ProcessTimeoutException when command times out" in {
     val expectedPTE =
       ProcessTimeoutException(timeout = 10.seconds, exitStatus = ExitStatus(143), stdout = "stdout", stderr = "stderr")
