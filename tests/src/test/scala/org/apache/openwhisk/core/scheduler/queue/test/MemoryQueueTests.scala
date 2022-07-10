@@ -1252,12 +1252,13 @@ class MemoryQueueTests
     fsm ! message
 
     // wait for event `FlushPulse`, and then some existing activations will be flushed
-    Thread.sleep(queueConfig.maxBlackboxRetentionMs + 3.seconds.toMillis)
+    Thread.sleep(queueConfig.maxBlackboxRetentionMs + queueConfig.flushGrace.toMillis)
     (1 to expectedCount).foreach(_ => probe.expectMsg(ActivationResponse.whiskError("no available invokers")))
 
-    probe.expectMsg(queueConfig.flushGrace, ActivationResponse.whiskError("no available invokers"))
+    val duration = FiniteDuration(queueConfig.maxBlackboxRetentionMs, MILLISECONDS) + queueConfig.flushGrace
+    probe.expectMsg(duration, ActivationResponse.whiskError("no available invokers"))
     parent.expectMsg(
-      queueConfig.flushGrace,
+      duration,
       QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(action.rev), Some(leaderKey)))
     parent.expectMsg(Transition(fsm, Flushing, Removed))
     fsm ! QueueRemovedCompleted
