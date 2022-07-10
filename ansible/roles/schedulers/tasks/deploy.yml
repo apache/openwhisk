@@ -125,6 +125,7 @@
       "CONFIG_whisk_scheduler_queue_gracefulShutdownTimeout": "{{ scheduler.queue.gracefulShutdownTimeout }}"
       "CONFIG_whisk_scheduler_queue_maxRetentionSize": "{{ scheduler.queue.maxRetentionSize }}"
       "CONFIG_whisk_scheduler_queue_maxRetentionMs": "{{ scheduler.queue.maxRetentionMs }}"
+      "CONFIG_whisk_scheduler_queue_maxBlackboxRetentionMs": "{{ scheduler.queue.maxBlackboxRetentionMs }}"
       "CONFIG_whisk_scheduler_queue_throttlingFraction": "{{ scheduler.queue.throttlingFraction }}"
       "CONFIG_whisk_scheduler_queue_durationBufferSize": "{{ scheduler.queue.durationBufferSize }}"
       "CONFIG_whisk_durationChecker_timeWindow": "{{ durationChecker.timeWindow }}"
