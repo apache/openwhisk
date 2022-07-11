@@ -85,7 +85,6 @@ case class QueueRemoved(invocationNamespace: String, action: DocInfo, leaderKey:
 case class QueueReactivated(invocationNamespace: String, action: FullyQualifiedEntityName, docInfo: DocInfo)
 case class CancelPoll(promise: Promise[Either[MemoryQueueError, ActivationMessage]])
 case object QueueRemovedCompleted
-case object FlushPulse
 
 // Events received by the actor
 case object Start
@@ -259,7 +258,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       // when there is no container, it moves to the Flushing state as no activations can be invoked
       if (containers.size <= 0) {
         val isWhiskError = ContainerCreationError.whiskErrors.contains(error)
-        completeAllActivations(message, isWhiskError)
+        if (!isWhiskError) {
+          completeAllActivations(message, isWhiskError)
+        }
         logging.error(
           this,
           s"[$invocationNamespace:$action:$stateName] Failed to create an initial container due to ${if (isWhiskError) "whiskError"
@@ -274,7 +275,11 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   // there is no timeout for this state as when there is no further message, it would move to the Running state again.
   when(NamespaceThrottled) {
     case Event(msg: ActivationMessage, _: ThrottledData) =>
-      handleActivationMessage(msg)
+      if (containers.size + creationIds.size == 0) {
+        completeErrorActivation(msg, tooManyConcurrentRequests, isWhiskError = false)
+      } else {
+        handleActivationMessage(msg)
+      }
       stay
 
     case Event(DisableNamespaceThrottling, data: ThrottledData) =>
@@ -420,6 +425,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
     // actors and data are already wiped
     case Event(QueueRemovedCompleted, _: NoData) =>
+      logging.info(this, "stop fsm")
       stop()
 
     // This is not supposed to happen. This will ensure the queue does not run forever.

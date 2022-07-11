@@ -975,19 +975,6 @@ class MemoryQueueTests
     val parent = TestProbe()
     val expectedCount = 3
 
-    val probe = TestProbe()
-    val newAck = new ActiveAck {
-      override def apply(tid: TransactionId,
-                         activationResult: WhiskActivation,
-                         blockingInvoke: Boolean,
-                         controllerInstance: ControllerInstanceId,
-                         userId: UUID,
-                         acknowledegment: AcknowledegmentMessage): Future[Any] = {
-        probe.ref ! activationResult.response
-        Future.successful({})
-      }
-    }
-
     expectDurationChecking(mockEsClient, testInvocationNamespace)
 
     val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10)
@@ -1009,7 +996,7 @@ class MemoryQueueTests
           testProbe.ref,
           decisionMaker.ref,
           schedulerId,
-          newAck,
+          ack,
           store,
           (s: String) => { Future.successful(10000) }, // avoid exceed user limit
           checkToDropStaleActivation,
@@ -1033,6 +1020,15 @@ class MemoryQueueTests
       ContainerCreationError.NoAvailableInvokersError,
       "no available invokers")
 
+    parent.expectMsg(Transition(fsm, Running, Flushing))
+    parent.expectNoMessage(5.seconds)
+
+    // Add 3 more messages.
+    (1 to expectedCount).foreach(_ => fsm ! message)
+    parent.expectNoMessage(5.seconds)
+
+    // After 10 seconds(action retention timeout), the first 3 messages are timed out.
+    // It does not get removed as there are still 3 messages in the queue.
     awaitAssert({
       ackedMessageCount shouldBe 3
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("no available invokers")))
@@ -1040,15 +1036,12 @@ class MemoryQueueTests
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("no available invokers")))
     }, 5.seconds)
 
-    parent.expectMsg(Transition(fsm, Running, Flushing))
-
     // should goto Running
     fsm ! SuccessfulCreationJob(testCreationId, message.user.namespace.name.asString, message.action, message.revision)
-    (1 to expectedCount).foreach(_ => fsm ! message)
-    parent.expectMsg(Transition(fsm, Flushing, Running))
-    probe.expectNoMessage(2.seconds)
 
-    // should goto WaitForFlush again as existing is always 0
+    parent.expectMsg(Transition(fsm, Flushing, Running))
+
+    // should goto Flushing again as there is no container running.
     fsm ! FailedCreationJob(
       testCreationId,
       message.user.namespace.name.asString,
@@ -1057,23 +1050,24 @@ class MemoryQueueTests
       ContainerCreationError.ResourceNotEnoughError,
       "resource not enough")
     parent.expectMsg(Transition(fsm, Running, Flushing))
-    (1 to expectedCount).foreach(_ => fsm ! message)
 
-    // wait for event `FlushPulse`, and then all existing activations will be flushed
-    Thread.sleep(flushGrace.toMillis + 3.seconds.toMillis)
+    // wait for the flush grace, and then all existing activations will be flushed
+    Thread.sleep(queueConfig.maxBlackboxRetentionMs + queueConfig.flushGrace.toMillis)
 
+    // The error message is updated from the recent error message of the FailedCreationJob.
     awaitAssert({
-      ackedMessageCount shouldBe 9
+      ackedMessageCount shouldBe 6
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("resource not enough")))
-      storedMessageCount shouldBe 9
+      storedMessageCount shouldBe 6
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("resource not enough")))
     }, 5.seconds)
 
-    // should goto Running
-    fsm ! SuccessfulCreationJob(testCreationId, message.user.namespace.name.asString, message.action, message.revision)
-    (1 to expectedCount).foreach(_ => fsm ! message)
-    parent.expectMsg(Transition(fsm, Flushing, Running))
-    probe.expectNoMessage(2.seconds)
+    parent.expectMsg(queueRemovedMsg)
+
+    // should goto Removed
+    parent.expectMsg(Transition(fsm, Flushing, Removed))
+    fsm ! QueueRemovedCompleted
+
     fsm.stop()
   }
 
@@ -1251,7 +1245,7 @@ class MemoryQueueTests
     // should wait for sometime before flush message
     fsm ! message
 
-    // wait for event `FlushPulse`, and then some existing activations will be flushed
+    // wait for the flush grace, and then some existing activations will be flushed
     Thread.sleep(queueConfig.maxBlackboxRetentionMs + queueConfig.flushGrace.toMillis)
     (1 to expectedCount).foreach(_ => probe.expectMsg(ActivationResponse.whiskError("no available invokers")))
 
