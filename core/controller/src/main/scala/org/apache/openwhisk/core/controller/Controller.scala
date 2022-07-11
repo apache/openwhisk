@@ -24,6 +24,8 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
+import akka.management.scaladsl.AkkaManagement
+import akka.management.cluster.bootstrap.ClusterBootstrap
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
@@ -185,6 +187,7 @@ object Controller {
   protected val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   protected val interface = loadConfigOrThrow[String]("whisk.controller.interface")
   protected val readinessThreshold = loadConfig[Double]("whisk.controller.readiness-fraction")
+  protected val useClusterBootstrap = loadConfigOrThrow[Boolean]("whisk.cluster.use-cluster-bootstrap")
 
   val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
   val userEventTopicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsUserEventPrefix)
@@ -230,6 +233,10 @@ object Controller {
   def main(args: Array[String]): Unit = {
     implicit val actorSystem = ActorSystem("controller-actor-system")
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    if (useClusterBootstrap) {
+      AkkaManagement(actorSystem).start()
+      ClusterBootstrap(actorSystem).start()
+    }
     start(args)
   }
 
