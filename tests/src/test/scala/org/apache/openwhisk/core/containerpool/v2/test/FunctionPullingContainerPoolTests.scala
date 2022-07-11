@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.containerpool.v2.test
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActor, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.common.{Enable, GracefulShutdown, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
@@ -55,6 +55,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Match
 import org.scalatest.concurrent.Eventually
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -311,21 +312,38 @@ class FunctionPullingContainerPoolTests
     }
   }
 
+  private def retry[T](fn: => T) = org.apache.openwhisk.utils.retry(fn, 10, Some(1.second))
+
   it should "stop containers gradually when shut down" in within(timeout * 20) {
     val (containers, factory) = testContainers(10)
+    val disablingContainers = ListBuffer[ActorRef]()
+
+    for (container <- containers) {
+      container.setAutoPilot((_: ActorRef, msg: Any) =>
+        msg match {
+          case GracefulShutdown =>
+            disablingContainers += container.ref
+            TestActor.KeepRunning
+
+          case _ =>
+            TestActor.KeepRunning
+      })
+    }
+
     val doc = put(entityStore, bigWhiskAction)
     val topic = s"creationAck${schedulerInstanceId.asString}"
     val consumer = new TestConnector(topic, 4, true)
-    val pool = system.actorOf(
-      Props(new FunctionPullingContainerPool(
+    val pool = TestActorRef(
+      new FunctionPullingContainerPool(
         factory,
         invokerHealthService.ref,
         poolConfig(MemoryLimit.STD_MEMORY * 20, batchDeletionSize = 3),
         invokerInstance,
         List.empty,
-        sendAckToScheduler(consumer.getProducer()))))
+        sendAckToScheduler(consumer.getProducer())))
 
     (0 to 10).foreach(_ => pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)) // 11 * stdMemory taken)
+
     (0 to 10).foreach(i => {
       containers(i).expectMsgPF() {
         case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
@@ -346,90 +364,54 @@ class FunctionPullingContainerPoolTests
               TestProbe().ref)))
     })
 
+    retry {
+      pool.underlyingActor.warmedPool.size shouldBe 6
+      pool.underlyingActor.busyPool.size shouldBe 5
+    }
+
     // disable
     pool ! GracefulShutdown
+
     // at first, 3 containers will be removed from busy pool, and left containers will not
-    var disablingContainers = Set.empty[Int]
-    (0 to 10).foreach(i => {
-      try {
-        containers(i).expectMsg(1.second, GracefulShutdown)
-        disablingContainers += i
-      } catch {
-        case _: Throwable =>
-      }
-    })
-    awaitAssert({
+    retry {
       disablingContainers.size shouldBe 3
-    }, 3.seconds)
-    disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
+    }
 
-    var completedContainer = -1
-    (0 to 10)
-      .filter(!disablingContainers.contains(_))
-      .foreach(i => {
-        try {
-          containers(i).expectMsg(1.second, GracefulShutdown)
-          disablingContainers += i
-          // only make one container complete shutting down
-          if (completedContainer == -1)
-            completedContainer = i
-        } catch {
-          case _: Throwable =>
-        }
-      })
-    awaitAssert({
+    // all 3 containers finish termination
+    disablingContainers.foreach(pool.tell(ContainerRemoved(false), _))
+
+    retry {
+      pool.underlyingActor.warmedPool.size + pool.underlyingActor.busyPool.size shouldBe 8
+    }
+
+    // it will disable 3 more containers.
+    retry {
       disablingContainers.size shouldBe 6
-    }, 3.seconds)
-    containers(completedContainer).send(pool, ContainerRemoved(false))
+    }
 
-    (0 to 10)
-      .filter(!disablingContainers.contains(_))
-      .foreach(i => {
-        try {
-          containers(i).expectMsg(1.second, GracefulShutdown)
-          disablingContainers += i
-        } catch {
-          case _: Throwable =>
-        }
-      })
+    // only one container of them finishes termination
+    pool.tell(ContainerRemoved(false), disablingContainers.last)
+
     // there should be only one more container going to shut down as more than 3 containers are shutting down.
-    awaitAssert({
+    retry {
       disablingContainers.size shouldBe 7
-    }, 3.seconds)
+    }
 
-    disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
+    // all 3 containers finish termination
+    disablingContainers.foreach(pool.tell(ContainerRemoved(false), _))
 
-    Thread.sleep(3000)
-    (0 to 10)
-      .filter(!disablingContainers.contains(_))
-      .foreach(i => {
-        try {
-          containers(i).expectMsg(1.second, GracefulShutdown)
-          disablingContainers += i
-        } catch {
-          case _: Throwable =>
-        }
-      })
-    awaitAssert({
+    retry {
       disablingContainers.size shouldBe 10
-    }, 3.seconds)
-    disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
+    }
 
-    (0 to 10)
-      .filter(!disablingContainers.contains(_))
-      .foreach(i => {
-        try {
-          containers(i).expectMsg(1.second, GracefulShutdown)
-          disablingContainers += i
-        } catch {
-          case _: Throwable =>
-        }
-      })
-    // unexpected containers are shutting down.
-    awaitAssert({
+    // all disabling containers finish termination
+    disablingContainers.foreach(pool.tell(ContainerRemoved(false), _))
+
+    // the last container is shutting down.
+    retry {
       disablingContainers.size shouldBe 11
-    }, 3.seconds)
-    disablingContainers.foreach(i => containers(i).send(pool, ContainerRemoved(false)))
+    }
+    disablingContainers.foreach(pool.tell(ContainerRemoved(false), _))
   }
 
   it should "create prewarmed containers on startup" in within(timeout) {
