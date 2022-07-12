@@ -158,6 +158,7 @@ class MemoryQueueTestsFixture
   val idleGrace = queueConfig.idleGrace
   val stopGrace = queueConfig.stopGrace
   val flushGrace = queueConfig.flushGrace
+  val retentionTimeout = queueConfig.maxRetentionMs
   val blackboxTimeout = queueConfig.maxBlackboxRetentionMs
   val gracefulShutdownTimeout = queueConfig.gracefulShutdownTimeout
   val testRetentionSize = queueConfig.maxRetentionSize

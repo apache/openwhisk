@@ -47,7 +47,7 @@ import spray.json.{JsObject, JsString}
 import java.time.Instant
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
@@ -74,7 +74,6 @@ class MemoryQueueFlowTests
 
   behavior of "MemoryQueueFlow"
 
-  // this is 1. normal case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "normally be created and handle an activation and became idle an finally removed" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -168,7 +167,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 1-2. normal case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "became Idle and Running again if a message arrives" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -282,7 +280,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 2. NamespaceThrottled case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "go to the Flushing state dropping messages when it can't create an initial container" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -365,7 +362,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 3. NamespaceThrottled case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "go to the NamespaceThrottled state without dropping messages and get back to the Running container" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -488,7 +484,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 4. ActionThrottled case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "go to the ActionThrottled state when there are too many stale activations including transition to NamespaceThrottling" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -637,7 +632,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 5. Paused case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "be Flushing when the limit is 0 and restarted back to Running state when the limit is increased" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -691,26 +685,18 @@ class MemoryQueueFlowTests
     expectInitialData(watcher, dataMgmtService)
     probe.expectMsg(Transition(fsm, Uninitialized, Running))
 
+    probe.expectMsg(Transition(fsm, Running, Flushing))
+    // activation received in Flushing state won't be flushed immediately if Flushing state is caused by a whisk error
+    Thread.sleep(flushGrace.toMillis)
+    fsm ! messages(1)
+
     awaitAssert({
       ackedMessageCount shouldBe 1
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString(namespaceLimitUnderZero)))
       storedMessageCount shouldBe 1
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString(namespaceLimitUnderZero)))
-      fsm.underlyingActor.queue.length shouldBe 0
-    }, 5.seconds)
-
-    probe.expectMsg(Transition(fsm, Running, Flushing))
-
-    awaitAssert({
-      // in the paused state, all incoming messages should be dropped immediately
-      fsm ! messages(1)
-      ackedMessageCount shouldBe 2
-      lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString(namespaceLimitUnderZero)))
-      storedMessageCount shouldBe 2
-      lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString(namespaceLimitUnderZero)))
-      fsm.underlyingActor.queue.length shouldBe 0
-    }, 5.seconds)
-
+      fsm.underlyingActor.queue.length shouldBe 1
+    }, FiniteDuration(retentionTimeout, MILLISECONDS))
     // limit is increased by an operator
     limit = 10
 
@@ -728,14 +714,12 @@ class MemoryQueueFlowTests
     // Queue is now working
     probe.expectMsg(Transition(fsm, Flushing, Running))
 
-    fsm ! messages(2)
-
     // one container is created
     fsm.underlyingActor.namespaceContainerCount.existingContainerNumByNamespace += 1
 
     // only one message is handled
     container.send(fsm, getActivation(true, "testContainerId1"))
-    container.expectMsg(ActivationResponse(Right(messages(2))))
+    container.expectMsg(ActivationResponse(Right(messages(1))))
 
     // deleting the container from containers set
     container.send(fsm, getActivation(false, "testContainerId1"))
@@ -758,7 +742,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 5-2. Paused case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "be Flushing when the limit is 0 and be terminated without recovering" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -770,7 +753,7 @@ class MemoryQueueFlowTests
       system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
 
     // generate 2 activations
-    val messages = getActivationMessages(3)
+    val messages = getActivationMessages(2)
 
     val getUserLimit = (_: String) => Future.successful(0)
 
@@ -804,24 +787,17 @@ class MemoryQueueFlowTests
     registerCallback(probe, fsm)
 
     fsm ! Start
+    fsm ! messages(0)
     expectInitialData(watcher, dataMgmtService)
     fsm ! testInitialDataStorageResult
 
     probe.expectMsg(Transition(fsm, Uninitialized, Running))
 
-    fsm ! messages(0)
-    awaitAssert({
-      ackedMessageCount shouldBe 1
-      lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString(namespaceLimitUnderZero)))
-      storedMessageCount shouldBe 1
-      lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString(namespaceLimitUnderZero)))
-      fsm.underlyingActor.queue.length shouldBe 0
-    }, 5.seconds)
-
     probe.expectMsg(Transition(fsm, Running, Flushing))
-
-    // in the paused state, all incoming messages should be dropped immediately
     fsm ! messages(1)
+
+    // activation received in Flushing state won't be flushed immediately if Flushing state is caused by a whisk error
+    Thread.sleep(flushGrace.toMillis)
 
     awaitAssert({
       ackedMessageCount shouldBe 2
@@ -829,10 +805,7 @@ class MemoryQueueFlowTests
       storedMessageCount shouldBe 2
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString(namespaceLimitUnderZero)))
       fsm.underlyingActor.queue.length shouldBe 0
-    }, 5.seconds)
-
-    // normal termination process
-    Thread.sleep(flushGrace.toMillis * 2)
+    }, FiniteDuration(retentionTimeout, MILLISECONDS))
 
     // In this case data clean up happens first.
     expectDataCleanUp(watcher, dataMgmtService)
@@ -844,7 +817,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 6. Waiting case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "be the Flushing state when a whisk error happens" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -921,13 +893,15 @@ class MemoryQueueFlowTests
 
     fsm ! messages(1)
 
+    Thread.sleep(flushGrace.toMillis)
+
     awaitAssert({
       ackedMessageCount shouldBe 2
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("whisk error")))
       storedMessageCount shouldBe 2
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("whisk error")))
       fsm.underlyingActor.queue.length shouldBe 0
-    }, 5.seconds)
+    }, FiniteDuration(retentionTimeout, MILLISECONDS))
 
     Thread.sleep(flushGrace.toMillis * 2)
 
@@ -941,7 +915,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 6-2. Waiting case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "be the Flushing state when a whisk error happens and be recovered when a container is created" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -952,6 +925,8 @@ class MemoryQueueFlowTests
       system.actorOf(SchedulingDecisionMaker.props(testInvocationNamespace, fqn, schedulingConfig))
     val probe = TestProbe()
     val container = TestProbe()
+    // generate 2 activations
+    val messages = getActivationMessages(2)
 
     expectDurationChecking(mockEsClient, testInvocationNamespace)
 
@@ -988,36 +963,39 @@ class MemoryQueueFlowTests
 
     probe.expectMsg(Transition(fsm, Uninitialized, Running))
 
-    fsm ! message
-    // any id is fine because it would be overridden
-    var creationId = CreationId.generate()
+    fsm ! messages(0)
 
+    // Failed to create a container
     containerManager.expectMsgPF() {
       case ContainerCreation(List(ContainerCreationMessage(_, _, _, _, _, _, _, _, _, id)), _, _) =>
-        creationId = id
+        fsm ! FailedCreationJob(id, testInvocationNamespace, fqn, revision, WhiskError, "whisk error")
     }
-    // Failed to create a container
-    fsm ! FailedCreationJob(creationId, testInvocationNamespace, fqn, revision, WhiskError, "whisk error")
+
+    probe.expectMsg(Transition(fsm, Running, Flushing))
+    Thread.sleep(1000)
+    fsm ! messages(1)
+
+    // activation received in Flushing state won't be flushed immediately if Flushing state is caused by a whisk error
+    Thread.sleep(flushGrace.toMillis)
 
     awaitAssert({
       ackedMessageCount shouldBe 1
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("whisk error")))
       storedMessageCount shouldBe 1
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("whisk error")))
-      fsm.underlyingActor.queue.length shouldBe 0
-    }, 5.seconds)
+      fsm.underlyingActor.queue.length shouldBe 1
+    }, FiniteDuration(retentionTimeout, MILLISECONDS))
 
-    probe.expectMsg(Transition(fsm, Running, Flushing))
-
-    // Failed to create a container
-    fsm ! SuccessfulCreationJob(creationId, testInvocationNamespace, fqn, revision)
+    // Succeed to create a container
+    containerManager.expectMsgPF() {
+      case ContainerCreation(List(ContainerCreationMessage(_, _, _, _, _, _, _, _, _, id)), _, _) =>
+        fsm ! SuccessfulCreationJob(id, testInvocationNamespace, fqn, revision)
+    }
 
     probe.expectMsg(Transition(fsm, Flushing, Running))
 
-    fsm ! message
-
     container.send(fsm, getActivation())
-    container.expectMsg(ActivationResponse(Right(message)))
+    container.expectMsg(ActivationResponse(Right(messages(1))))
 
     // deleting the container from containers set
     container.send(fsm, getActivation(false))
@@ -1039,7 +1017,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 7. Flushing case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "be the Flushing state when a developer error happens" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -1143,7 +1120,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 8. GracefulShuttingDown case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "be gracefully terminated when it receives a GracefulShutDown message" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
@@ -1250,7 +1226,6 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  // this is 10. deprecated case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "be deprecated when a new queue supersedes it." in {
     // GracefulShuttingDown is not applicable
     val allStates = List(Running, Idle, Flushing, ActionThrottled, NamespaceThrottled, Removing, Removed)
@@ -1335,7 +1310,6 @@ class MemoryQueueFlowTests
     }
   }
 
-  // this is 10-2. deprecated case in https://yobi.navercorp.com/Lambda-dev/posts/240?referrerId=-2099518320#1612223450057
   it should "be deprecated and stops even if the queue manager could not respond." in {
     // GracefulShuttingDown is not applicable
     val allStates = List(Running, Idle, Flushing, ActionThrottled, NamespaceThrottled, Removing, Removed)
@@ -1563,6 +1537,20 @@ class MemoryQueueFlowTests
 
           fsm ! QueueRemovedCompleted
           probe.expectTerminated(fsm, 10.seconds)
+
+        case Flushing =>
+          // queue is stale and will be removed
+          parent.expectMsg(staleQueueRemovedMsg)
+          probe.expectMsg(Transition(fsm, state, Removed))
+
+          fsm ! QueueRemovedCompleted
+
+          Thread.sleep(gracefulShutdownTimeout.toMillis)
+
+          watcher.expectMsgAllOf(
+            UnwatchEndpoint(inProgressContainerKey, isPrefix = true, watcherName),
+            UnwatchEndpoint(existingContainerKey, isPrefix = true, watcherName),
+            UnwatchEndpoint(leaderKey, isPrefix = false, watcherName))
 
         case _ =>
           parent.expectMsg(staleQueueRemovedMsg)
