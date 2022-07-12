@@ -19,17 +19,17 @@ package org.apache.openwhisk.core.database.elasticsearch
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit
-
 import scala.language.postfixOps
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl.Flow
-import com.sksamuel.elastic4s.http.search.SearchHit
-import com.sksamuel.elastic4s.http.{ElasticClient, ElasticProperties, NoOpRequestConfigCallback}
-import com.sksamuel.elastic4s.indexes.IndexRequest
-import com.sksamuel.elastic4s.searches.queries.RangeQuery
-import com.sksamuel.elastic4s.searches.queries.matches.MatchPhrase
+import com.sksamuel.elastic4s.http.{JavaClient, NoOpRequestConfigCallback}
+import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
+import com.sksamuel.elastic4s.requests.indexes.IndexRequest
+import com.sksamuel.elastic4s.requests.searches.SearchHit
+import com.sksamuel.elastic4s.requests.searches.queries.RangeQuery
+import com.sksamuel.elastic4s.requests.searches.queries.matches.MatchPhrase
 import org.apache.http.auth.{AuthScope, UsernamePasswordCredentials}
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder
@@ -60,18 +60,16 @@ class ElasticSearchActivationStore(
   useBatching: Boolean = false)(implicit actorSystem: ActorSystem, override val logging: Logging)
     extends ActivationStore {
 
-  import com.sksamuel.elastic4s.http.ElasticDsl._
+  import com.sksamuel.elastic4s.ElasticDsl._
   import ElasticSearchActivationStore.{generateIndex, httpClientCallback}
 
   private implicit val executionContextExecutor: ExecutionContextExecutor = actorSystem.dispatcher
+  private val javaClient = JavaClient(ElasticProperties(s"${elasticSearchConfig.protocol}://${elasticSearchConfig.hosts}"),
+    NoOpRequestConfigCallback,
+    httpClientCallback)
 
-  private val client =
-    ElasticClient(
-      ElasticProperties(s"${elasticSearchConfig.protocol}://${elasticSearchConfig.hosts}"),
-      NoOpRequestConfigCallback,
-      httpClientCallback)
+  private val client = ElasticClient(javaClient)
 
-  private val esType = "_doc"
   private val maxOpenDbRequests = actorSystem.settings.config
     .getInt("akka.http.host-connection-pool.max-connections") / 2
   private val batcher: Batcher[IndexRequest, Either[ArtifactStoreException, DocInfo]] =
@@ -111,7 +109,7 @@ class ElasticSearchActivationStore(
         "response" -> response))
 
     val index = generateIndex(activation.namespace.namespace)
-    val op = indexInto(index, esType).doc(payload.toString).id(activation.docid.asString)
+    val op = indexInto(index).doc(payload.toString).id(activation.docid.asString)
 
     // always use batching
     val res = batcher.put(op).map {
@@ -185,7 +183,7 @@ class ElasticSearchActivationStore(
       }
       .map { res =>
         if (res.status == StatusCodes.OK.intValue) {
-          if (res.result.hits.total == 0) {
+          if (res.result.hits.total.value == 0) {
             transid.finished(this, start, s"[GET] 'activations', document: '$activationId'; not found.")
             throw NoDocumentException("not found on 'get'")
           } else {
@@ -227,7 +225,7 @@ class ElasticSearchActivationStore(
 
     val res = client
       .execute {
-        deleteByQuery(index, esType, termQuery("_id", activationId.asString))
+        deleteByQuery(index, termQuery("_id", activationId.asString))
       }
       .map { res =>
         if (res.status == StatusCodes.OK.intValue) {

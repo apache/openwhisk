@@ -17,9 +17,10 @@
 package org.apache.openwhisk.core.scheduler.queue
 
 import akka.actor.ActorSystem
-import com.sksamuel.elastic4s.http.ElasticDsl._
-import com.sksamuel.elastic4s.http.{ElasticClient, ElasticProperties, NoOpRequestConfigCallback}
-import com.sksamuel.elastic4s.searches.queries.Query
+import com.sksamuel.elastic4s.ElasticDsl._
+import com.sksamuel.elastic4s.http.{JavaClient, NoOpRequestConfigCallback}
+import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties}
+import com.sksamuel.elastic4s.requests.searches.queries.Query
 import com.sksamuel.elastic4s.{ElasticDate, ElasticDateMath, Seconds}
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
@@ -28,7 +29,7 @@ import org.apache.openwhisk.spi.Spi
 import pureconfig.loadConfigOrThrow
 import spray.json.{JsArray, JsNumber, JsValue, RootJsonFormat, deserializationError, _}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 import scala.util.{Failure, Try}
@@ -45,7 +46,7 @@ object ElasticSearchDurationChecker {
   val FilterAggregationName = "filterAggregation"
   val AverageAggregationName = "averageAggregation"
 
-  implicit val serde = new ElasticSearchDurationCheckResultFormat()
+  implicit val serde: ElasticSearchDurationCheckResultFormat = new ElasticSearchDurationCheckResultFormat()
 
   def getFromDate(timeWindow: FiniteDuration): ElasticDateMath =
     ElasticDate.now minus (timeWindow.toSeconds.toInt, Seconds)
@@ -58,7 +59,7 @@ class ElasticSearchDurationChecker(private val client: ElasticClient, val timeWi
   import ElasticSearchDurationChecker._
   import org.apache.openwhisk.core.database.elasticsearch.ElasticSearchActivationStore.generateIndex
 
-  implicit val ec = actorSystem.getDispatcher
+  implicit val ec: ExecutionContextExecutor = actorSystem.getDispatcher
 
   override def checkAverageDuration(invocationNamespace: String, actionMetaData: WhiskActionMetaData)(
     callback: DurationCheckResult => DurationCheckResult): Future[DurationCheckResult] = {
@@ -104,7 +105,7 @@ class ElasticSearchDurationChecker(private val client: ElasticClient, val timeWi
       .map(callback(_))
       .andThen {
         case Failure(t) =>
-          logging.error(this, s"failed to check the average duration: ${t}")
+          logging.error(this, s"failed to check the average duration: $t")
       }
   }
 }
@@ -116,11 +117,11 @@ object ElasticSearchDurationCheckerProvider extends DurationCheckerProvider {
     implicit val as: ActorSystem = actorSystem
     implicit val logging: Logging = log
 
-    val elasticClient =
-      ElasticClient(
-        ElasticProperties(s"${elasticSearchConfig.protocol}://${elasticSearchConfig.hosts}"),
-        NoOpRequestConfigCallback,
-        httpClientCallback)
+    val javaClient = JavaClient(ElasticProperties(s"${elasticSearchConfig.protocol}://${elasticSearchConfig.hosts}"),
+      NoOpRequestConfigCallback,
+      httpClientCallback)
+
+    val elasticClient = ElasticClient(javaClient)
 
     new ElasticSearchDurationChecker(elasticClient, durationCheckerConfig.timeWindow)
   }
@@ -187,7 +188,7 @@ class ElasticSearchDurationCheckResultFormat extends RootJsonFormat[DurationChec
           "took": 0
       }
    */
-  implicit def read(json: JsValue) = {
+  implicit def read(json: JsValue): DurationCheckResult = {
     val jsObject = json.asJsObject
 
     jsObject.getFields("aggregations", "took", "hits") match {

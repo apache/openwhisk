@@ -89,8 +89,8 @@ dependencies {
     compile "io.reactivex:rxjava:1.3.8"
     compile "io.reactivex:rxjava-reactive-streams:1.2.1"
     compile "com.microsoft.azure:azure-cosmosdb:2.6.2"
+    compile "com.sksamuel.elastic4s:elastic4s-client-esjava_${gradle.scala.depVersion}:7.10.3"
 
-    compile "com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}:6.7.4"
     //for mongo
     compile "org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.7.0"
 

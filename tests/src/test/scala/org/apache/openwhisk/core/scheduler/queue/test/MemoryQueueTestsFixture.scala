@@ -18,14 +18,13 @@
 package org.apache.openwhisk.core.scheduler.queue.test
 
 import java.time.Instant
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import com.sksamuel.elastic4s.http
-import com.sksamuel.elastic4s.http.ElasticDsl.{avgAgg, boolQuery, matchQuery, rangeQuery, search}
-import com.sksamuel.elastic4s.http._
-import com.sksamuel.elastic4s.http.search.{SearchHits, SearchResponse}
-import com.sksamuel.elastic4s.searches.SearchRequest
+import com.sksamuel.elastic4s.Executor
+import com.sksamuel.elastic4s.ElasticDsl.{avgAgg, boolQuery, matchQuery, rangeQuery, search}
+import com.sksamuel.elastic4s._
+import com.sksamuel.elastic4s.requests.common.Shards
+import com.sksamuel.elastic4s.requests.searches.{SearchHits, SearchRequest, SearchResponse, Total}
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.common.WhiskInstants.InstantImplicits
@@ -45,20 +44,9 @@ import org.apache.openwhisk.core.entity.{WhiskActivation, _}
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, QueueKeys, ThrottlingKeys}
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulingConfig}
 import org.apache.openwhisk.core.scheduler.grpc.GetActivation
-import org.apache.openwhisk.core.scheduler.queue.ElasticSearchDurationChecker.{getFromDate, AverageAggregationName}
+import org.apache.openwhisk.core.scheduler.queue.ElasticSearchDurationChecker.{AverageAggregationName, getFromDate}
 import org.apache.openwhisk.core.scheduler.queue._
-import org.apache.openwhisk.core.service.{
-  AlreadyExist,
-  DeleteEvent,
-  Done,
-  InitialDataStorageResults,
-  PutEvent,
-  RegisterData,
-  RegisterInitialData,
-  UnregisterData,
-  UnwatchEndpoint,
-  WatchEndpoint
-}
+import org.apache.openwhisk.core.service.{AlreadyExist, DeleteEvent, Done, InitialDataStorageResults, PutEvent, RegisterData, RegisterInitialData, UnregisterData, UnwatchEndpoint, WatchEndpoint}
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration.{DurationInt}
@@ -239,17 +227,18 @@ class MemoryQueueTestsFixture
 
     (mockEsClient
       .execute[SearchRequest, SearchResponse, Future](_: SearchRequest)(
+        _: Executor[Future],
         _: Functor[Future],
-        _: http.Executor[Future],
         _: Handler[SearchRequest, SearchResponse],
-        _: Manifest[SearchResponse]))
-      .expects(searchRequest, *, *, *, *)
+        _: Manifest[SearchResponse],
+        _: CommonRequestOptions))
+      .expects(searchRequest, *, *, *, *, *)
       .returns(
         Future.successful(RequestSuccess(
           200,
           None,
           Map.empty,
-          SearchResponse(1, false, false, Map.empty, Shards(0, 0, 0), None, Map.empty, SearchHits(0, 0, Array.empty)))))
+          SearchResponse(1, false, false, Map.empty, Shards(0, 0, 0), None, Map.empty, SearchHits(Total(0, "eq"), 0, Array.empty)))))
       .once()
   }
 
