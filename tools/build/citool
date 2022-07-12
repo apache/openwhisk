@@ -87,6 +87,7 @@ def parseArgs():
     subparser.add_argument('-s', '--sort', help='sort logs by timestamp', action='store_true')
     subparser.add_argument('-n', '--invokers', help='number of invokers', type=int, default=3)
     subparser.add_argument('-c', '--controllers', help='number of controllers', type=int, default=1)
+    subparser.add_argument('-c', '--schedulers', help='number of schedulers', type=int, default=1)
 
     return parser.parse_args()
 
@@ -312,6 +313,7 @@ def cat(args):
     else:
         components = {
             'controller': args.controllers,
+            'scheduler': args.schedulers,
             'invoker': args.invokers
         }
         logs = map(getComponentLogs, getComponentList(components))

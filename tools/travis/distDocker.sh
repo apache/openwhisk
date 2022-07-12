@@ -29,6 +29,7 @@ TERM=dumb ./gradlew clean # Run a clean step before build
 TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
 
 TERM=dumb ./gradlew :core:controller:distDockerCoverage -PdockerImagePrefix=testing
+TERM=dumb ./gradlew :core:scheduler:distDockerCoverage -PdockerImagePrefix=testing
 TERM=dumb ./gradlew :core:invoker:distDockerCoverage -PdockerImagePrefix=testing
 TERM=dumb ./gradlew :core:standalone:build
 
