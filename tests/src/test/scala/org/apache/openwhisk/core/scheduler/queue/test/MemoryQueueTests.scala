@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.scheduler.queue.test
 import java.time.Instant
 import java.util.concurrent.Executor
 import java.{lang, util}
-
 import akka.actor.ActorRef
 import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
 import akka.pattern.ask
@@ -39,6 +38,7 @@ import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.ContainerId
 import org.apache.openwhisk.core.database.NoDocumentException
+import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.{existingContainers, inProgressContainer}
@@ -953,8 +953,12 @@ class MemoryQueueTests
     parent.expectMsg(Transition(fsm, Running, Flushing))
     (1 to expectedCount).foreach(_ => probe.expectMsg(ActivationResponse.developerError("nonExecutbleAction error")))
 
+    // flush msg immediately
+    fsm ! message
+    probe.expectMsg(ActivationResponse.developerError("nonExecutbleAction error"))
+
     parent.expectMsg(
-      queueConfig.stopGrace + 5.seconds,
+      2 * queueConfig.flushGrace + 5.seconds,
       QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(action.rev), Some(leaderKey)))
     parent.expectMsg(Transition(fsm, Flushing, Removed))
     fsm ! QueueRemovedCompleted
@@ -971,11 +975,9 @@ class MemoryQueueTests
     val parent = TestProbe()
     val expectedCount = 3
 
-    val probe = TestProbe()
-
     expectDurationChecking(mockEsClient, testInvocationNamespace)
 
-    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 180000, 0.9, 10)
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10)
 
     val fsm =
       TestFSMRef(
@@ -1018,6 +1020,15 @@ class MemoryQueueTests
       ContainerCreationError.NoAvailableInvokersError,
       "no available invokers")
 
+    parent.expectMsg(Transition(fsm, Running, Flushing))
+    parent.expectNoMessage(5.seconds)
+
+    // Add 3 more messages.
+    (1 to expectedCount).foreach(_ => fsm ! message)
+    parent.expectNoMessage(5.seconds)
+
+    // After 10 seconds(action retention timeout), the first 3 messages are timed out.
+    // It does not get removed as there are still 3 messages in the queue.
     awaitAssert({
       ackedMessageCount shouldBe 3
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("no available invokers")))
@@ -1025,15 +1036,12 @@ class MemoryQueueTests
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("no available invokers")))
     }, 5.seconds)
 
-    parent.expectMsg(Transition(fsm, Running, Flushing))
-
     // should goto Running
     fsm ! SuccessfulCreationJob(testCreationId, message.user.namespace.name.asString, message.action, message.revision)
-    (1 to expectedCount).foreach(_ => fsm ! message)
-    parent.expectMsg(Transition(fsm, Flushing, Running))
-    probe.expectNoMessage(2.seconds)
 
-    // should goto WaitForFlush again as existing is always 0
+    parent.expectMsg(Transition(fsm, Flushing, Running))
+
+    // should goto Flushing again as there is no container running.
     fsm ! FailedCreationJob(
       testCreationId,
       message.user.namespace.name.asString,
@@ -1042,23 +1050,24 @@ class MemoryQueueTests
       ContainerCreationError.ResourceNotEnoughError,
       "resource not enough")
     parent.expectMsg(Transition(fsm, Running, Flushing))
-    (1 to expectedCount).foreach(_ => fsm ! message)
 
-    // wait for event `FlushPulse`, and then all existing activations will be flushed
-    Thread.sleep(flushGrace.toMillis + 3.seconds.toMillis)
+    // wait for the flush grace, and then all existing activations will be flushed
+    Thread.sleep(queueConfig.maxBlackboxRetentionMs + queueConfig.flushGrace.toMillis)
 
+    // The error message is updated from the recent error message of the FailedCreationJob.
     awaitAssert({
-      ackedMessageCount shouldBe 9
+      ackedMessageCount shouldBe 6
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("resource not enough")))
-      storedMessageCount shouldBe 9
+      storedMessageCount shouldBe 6
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("resource not enough")))
     }, 5.seconds)
 
-    // should goto Running
-    fsm ! SuccessfulCreationJob(testCreationId, message.user.namespace.name.asString, message.action, message.revision)
-    (1 to expectedCount).foreach(_ => fsm ! message)
-    parent.expectMsg(Transition(fsm, Flushing, Running))
-    probe.expectNoMessage(2.seconds)
+    parent.expectMsg(queueRemovedMsg)
+
+    // should goto Removed
+    parent.expectMsg(Transition(fsm, Flushing, Removed))
+    fsm ! QueueRemovedCompleted
+
     fsm.stop()
   }
 
@@ -1146,6 +1155,109 @@ class MemoryQueueTests
     (fsm ? GetActivation(tid, fqn, testContainerId, false, None))
       .mapTo[GetActivationResponse]
       .futureValue shouldBe GetActivationResponse(Right(message))
+    fsm.stop()
+  }
+
+  it should "complete error activation after blackbox timeout when the action is a blackbox action and received FailedCreationJob with a whisk error(recoverable)" in {
+    val mockEtcdClient = mock[EtcdClient]
+    val testProbe = TestProbe()
+    val decisionMaker = TestProbe()
+    decisionMaker.ignoreMsg { case _: QueueSnapshot => true }
+    val parent = TestProbe()
+    val expectedCount = 3
+
+    val probe = TestProbe()
+    val newAck = new ActiveAck {
+      override def apply(tid: TransactionId,
+                         activationResult: WhiskActivation,
+                         blockingInvoke: Boolean,
+                         controllerInstance: ControllerInstanceId,
+                         userId: UUID,
+                         acknowledegment: AcknowledegmentMessage): Future[Any] = {
+        probe.ref ! activationResult.response
+        Future.successful({})
+      }
+    }
+
+    val execMetadata = BlackBoxExecMetaData(ImageName("test"), None, native = false)
+
+    val blackboxActionMetadata =
+      WhiskActionMetaData(
+        action.namespace,
+        action.name,
+        execMetadata,
+        action.parameters,
+        action.limits,
+        action.version,
+        action.publish,
+        action.annotations)
+        .revision[WhiskActionMetaData](action.rev)
+
+    expectDurationChecking(mockEsClient, testInvocationNamespace)
+
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10)
+
+    val fsm =
+      TestFSMRef(
+        new MemoryQueue(
+          mockEtcdClient,
+          durationChecker,
+          fqn,
+          mockMessaging(),
+          schedulingConfig,
+          testInvocationNamespace,
+          revision,
+          endpoints,
+          blackboxActionMetadata,
+          testProbe.ref,
+          testProbe.ref,
+          testProbe.ref,
+          decisionMaker.ref,
+          schedulerId,
+          newAck,
+          store,
+          (s: String) => { Future.successful(10000) }, // avoid exceed user limit
+          checkToDropStaleActivation,
+          queueConfig),
+        parent.ref,
+        "MemoryQueue")
+
+    fsm ! SubscribeTransitionCallBack(parent.ref)
+    parent.expectMsg(CurrentState(fsm, Uninitialized))
+    parent watch fsm
+
+    fsm ! Start
+
+    parent.expectMsg(Transition(fsm, Uninitialized, Running))
+
+    (1 to expectedCount).foreach(_ => fsm ! message)
+    fsm ! FailedCreationJob(
+      testCreationId,
+      message.user.namespace.name.asString,
+      message.action,
+      message.revision,
+      ContainerCreationError.NoAvailableInvokersError,
+      "no available invokers")
+
+    parent.expectMsg(Transition(fsm, Running, Flushing))
+    probe.expectNoMessage()
+
+    // should wait for sometime before flush message
+    fsm ! message
+
+    // wait for the flush grace, and then some existing activations will be flushed
+    Thread.sleep(queueConfig.maxBlackboxRetentionMs + queueConfig.flushGrace.toMillis)
+    (1 to expectedCount).foreach(_ => probe.expectMsg(ActivationResponse.whiskError("no available invokers")))
+
+    val duration = FiniteDuration(queueConfig.maxBlackboxRetentionMs, MILLISECONDS) + queueConfig.flushGrace
+    probe.expectMsg(duration, ActivationResponse.whiskError("no available invokers"))
+    parent.expectMsg(
+      duration,
+      QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(action.rev), Some(leaderKey)))
+    parent.expectMsg(Transition(fsm, Flushing, Removed))
+    fsm ! QueueRemovedCompleted
+    parent.expectTerminated(fsm)
+
     fsm.stop()
   }
 
@@ -1320,7 +1432,7 @@ class MemoryQueueTests
     // it always induces the throttling
     val getZeroLimit = (_: String) => { Future.successful(2) }
 
-    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 1, 5000, 0.9, 10)
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 1, 5000, 10000, 0.9, 10)
 
     expectDurationChecking(mockEsClient, testInvocationNamespace)
 
@@ -1366,7 +1478,7 @@ class MemoryQueueTests
     val probe = TestProbe()
     val parent = TestProbe()
 
-    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 5000, 0.9, 10)
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 5000, 10000, 0.9, 10)
     val msgRetentionSize = queueConfig.maxRetentionSize
 
     val tid = TransactionId(TransactionId.generateTid())
@@ -1717,7 +1829,11 @@ class MemoryQueueTests
 
     Thread.sleep(5000)
 
-    queue = MemoryQueue.dropOld(queue, java.time.Duration.ofMillis(1000), completeErrorActivation)
+    queue = MemoryQueue.dropOld(
+      queue,
+      java.time.Duration.ofMillis(1000),
+      "activation processing is not initiated for 1000 ms",
+      completeErrorActivation)
 
     queue.size shouldBe 3
   }
@@ -1726,7 +1842,11 @@ class MemoryQueueTests
     var queue = Queue.empty[TimeSeriesActivationEntry]
 
     noException should be thrownBy {
-      queue = MemoryQueue.dropOld(queue, java.time.Duration.ofMillis(1000), completeErrorActivation)
+      queue = MemoryQueue.dropOld(
+        queue,
+        java.time.Duration.ofMillis(1000),
+        "activation processing is not initiated for 1000 ms",
+        completeErrorActivation)
     }
   }
 
