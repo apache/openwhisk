@@ -174,7 +174,7 @@ class FPCPoolBalancer(config: WhiskConfig,
     if (retryCount >= 0)
       scheduler
         .getRemoteRef(QueueManager.actorName)
-        .ask(CreateQueue(invocationNamespace, fullyQualifiedEntityName.copy(binding = None), revision, actionMetaData))
+        .ask(CreateQueue(invocationNamespace, fullyQualifiedEntityName, revision, actionMetaData))
         .mapTo[CreateQueueResponse]
         .onComplete {
           case Success(_) =>

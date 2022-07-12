@@ -227,12 +227,12 @@ class FunctionPullingContainerPoolTests
 
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(1).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
   }
 
@@ -254,7 +254,7 @@ class FunctionPullingContainerPoolTests
     // Start first action
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction) // 1 * stdMemory taken
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // Send second action to the pool
@@ -267,7 +267,7 @@ class FunctionPullingContainerPoolTests
     pool ! CreationContainer(creationMessageLarge.copy(revision = bigDoc.rev), bigWhiskAction)
     // Second container should run now
     containers(1).expectMsgPF() {
-      case Initialize(invocationNamespace, bigExecuteAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, bigExecuteAction, schedulerHost, rpcPort, _) => true
     }
   }
 
@@ -307,7 +307,7 @@ class FunctionPullingContainerPoolTests
     pool ! Enable
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction) // 1 * stdMemory taken
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
   }
 
@@ -328,7 +328,7 @@ class FunctionPullingContainerPoolTests
     (0 to 10).foreach(_ => pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)) // 11 * stdMemory taken)
     (0 to 10).foreach(i => {
       containers(i).expectMsgPF() {
-        case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+        case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
       }
       // create 5 container in busy pool, and 6 in warmed pool
       if (i < 5)
@@ -526,7 +526,7 @@ class FunctionPullingContainerPoolTests
     // the prewarm container with matched memory should be chose
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // prewarm a new container
@@ -537,7 +537,7 @@ class FunctionPullingContainerPoolTests
     // the prewarm container with bigger memory should not be chose
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(3).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
   }
 
@@ -566,7 +566,7 @@ class FunctionPullingContainerPoolTests
     // the prewarm container with smallest memory should be chose
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // prewarm a new container
@@ -577,7 +577,7 @@ class FunctionPullingContainerPoolTests
     // the prewarm container with bigger memory should be chose
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(1).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // prewarm a new container
@@ -589,7 +589,7 @@ class FunctionPullingContainerPoolTests
     // a new container should be created
     pool ! CreationContainer(creationMessageLarge.copy(revision = doc.rev), bigWhiskAction)
     containers(4).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // no new prewarmed container should be created
@@ -616,7 +616,7 @@ class FunctionPullingContainerPoolTests
 
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(1).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
   }
 
@@ -640,7 +640,7 @@ class FunctionPullingContainerPoolTests
 
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(1).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
   }
 
@@ -674,24 +674,24 @@ class FunctionPullingContainerPoolTests
     // the revision doesn't match, create 1 container
     pool ! CreationContainer(creationMessage, whiskAction)
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // the invocation namespace doesn't match, create 1 container
     pool ! CreationContainer(creationMessage.copy(invocationNamespace = "otherNamespace"), whiskAction)
     containers(1).expectMsgPF() {
-      case Initialize("otherNamespace", executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize("otherNamespace", fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     container.expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // warmed container is occupied, create 1 more container
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(2).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
   }
 
@@ -726,7 +726,7 @@ class FunctionPullingContainerPoolTests
     // choose the warmed container
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     container.expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // warmed container is failed to resume
@@ -743,7 +743,7 @@ class FunctionPullingContainerPoolTests
 
     // then a new container will be created
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
   }
 
@@ -806,7 +806,7 @@ class FunctionPullingContainerPoolTests
 
     // a new container will be created
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
   }
 
@@ -850,7 +850,7 @@ class FunctionPullingContainerPoolTests
 
     pool ! CreationContainer(actualCreationMessage, whiskAction)
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
     containers(0).send(pool, Initialized(initializedData)) // container is initialized
 
@@ -898,7 +898,7 @@ class FunctionPullingContainerPoolTests
     // choose the warmed container
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     container.expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
     pool.tell(
       Resumed(
@@ -956,7 +956,7 @@ class FunctionPullingContainerPoolTests
 
     pool ! CreationContainer(actualCreationMessage, whiskAction)
     containers(0).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
     containers(0).send(pool, ContainerRemoved(true)) // the container0 init failed or create container failed
 
@@ -1127,11 +1127,11 @@ class FunctionPullingContainerPoolTests
     // 2 cold start happened
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(2).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(3).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
     // Make sure AdjustPrewarmedContainer is sent by ContainerPool's scheduler after prewarmExpirationCheckIntervel time
     Thread.sleep(prewarmExpirationCheckIntervel.toMillis)
@@ -1165,23 +1165,23 @@ class FunctionPullingContainerPoolTests
     // 5 code start happened(5 > maxCount)
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(6).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(7).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(8).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(9).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
     pool ! CreationContainer(creationMessage.copy(revision = doc.rev), whiskAction)
     containers(10).expectMsgPF() {
-      case Initialize(invocationNamespace, executeAction, schedulerHost, rpcPort, _) => true
+      case Initialize(invocationNamespace, fqn, executeAction, schedulerHost, rpcPort, _) => true
     }
 
     // Make sure AdjustPrewarmedContainer is sent by ContainerPool's scheduler after prewarmExpirationCheckIntervel time

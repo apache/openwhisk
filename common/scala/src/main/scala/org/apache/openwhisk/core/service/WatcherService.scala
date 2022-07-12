@@ -128,6 +128,7 @@ class WatcherService(etcdClient: EtcdClient)(implicit logging: Logging, actorSys
           deleteWatchers.update(watcherKey, sender())
 
     case request: UnwatchEndpoint =>
+      logging.info(this, s"unwatch endpoint: $request")
       val watcherKey = WatcherKey(request.watchKey, request.watchName)
       if (request.isPrefix) {
         prefixPutWatchers.remove(watcherKey)
