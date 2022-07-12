@@ -74,8 +74,8 @@ class RunCliCmdTests extends FlatSpec with RunCliCmd with BeforeAndAfterEach {
     cmdCount shouldBe 1
   }
 
-  it should "not retry commands if failure is not retriable" in {
-    Seq(MISUSE_EXIT, ERROR_EXIT, SUCCESS_EXIT).foreach { code =>
+  it should "retry commands if any failure is happen" in {
+    Seq(MISUSE_EXIT, ERROR_EXIT).foreach { code =>
       cmdCount = 0
 
       rr = Some(TestRunResult(code))
@@ -83,7 +83,7 @@ class RunCliCmdTests extends FlatSpec with RunCliCmd with BeforeAndAfterEach {
         cli(Seq.empty, expectedExitCode = DONTCARE_EXIT, retriesOnNetworkError = 3)
       }
 
-      cmdCount shouldBe 1
+      cmdCount shouldBe 4
     }
   }
 
