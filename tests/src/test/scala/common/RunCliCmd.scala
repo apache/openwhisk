@@ -66,8 +66,8 @@ trait RunCliCmd extends Matchers {
           stdinFile: Option[File] = None,
           showCmd: Boolean = false,
           hideFromOutput: Seq[String] = Seq.empty,
-          retriesOnNetworkError: Int = 3): RunResult = {
-    require(retriesOnNetworkError >= 0, "retry count on network error must not be negative")
+          retriesOnError: Int = 3): RunResult = {
+    require(retriesOnError >= 0, "retry count on network error must not be negative")
 
     val args = baseCommand
     if (verbose) args += "--verbose"
@@ -79,7 +79,7 @@ trait RunCliCmd extends Matchers {
     if (showCmd) println(args.mkString(" "))
 
     val rr =
-      retry(0, retriesOnNetworkError, () => runCmd(DONTCARE_EXIT, workingDir, sys.env ++ env, stdinFile, args.toSeq))
+      retry(0, retriesOnError, () => runCmd(DONTCARE_EXIT, workingDir, sys.env ++ env, stdinFile, args.toSeq))
 
     withClue(hideStr(reportFailure(args, expectedExitCode, rr).toString(), hideFromOutput)) {
       if (expectedExitCode != TestUtils.DONTCARE_EXIT) {

@@ -68,7 +68,7 @@ class RunCliCmdTests extends FlatSpec with RunCliCmd with BeforeAndAfterEach {
   it should "not retry commands if retry is disabled" in {
     rr = Some(TestRunResult(NETWORK_ERROR_EXIT))
     noException shouldBe thrownBy {
-      cli(Seq.empty, expectedExitCode = ANY_ERROR_EXIT, retriesOnNetworkError = 0)
+      cli(Seq.empty, expectedExitCode = ANY_ERROR_EXIT, retriesOnError = 0)
     }
 
     cmdCount shouldBe 1
@@ -80,7 +80,7 @@ class RunCliCmdTests extends FlatSpec with RunCliCmd with BeforeAndAfterEach {
 
       rr = Some(TestRunResult(code))
       noException shouldBe thrownBy {
-        cli(Seq.empty, expectedExitCode = DONTCARE_EXIT, retriesOnNetworkError = 3)
+        cli(Seq.empty, expectedExitCode = DONTCARE_EXIT, retriesOnError = 3)
       }
 
       cmdCount shouldBe 4
