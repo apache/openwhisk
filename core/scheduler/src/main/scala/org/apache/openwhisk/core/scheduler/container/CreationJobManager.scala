@@ -224,7 +224,7 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
 }
 
 object CreationJobManager {
-  private val baseTimeout = loadConfigOrThrow[Int](ConfigKeys.schedulerInProgressJobRetention).seconds
+  private val baseTimeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetention)
   private val blackboxMultiple = loadConfigOrThrow[Int](ConfigKeys.schedulerBlackboxMultiple)
 
   def props(feedFactory: (ActorRefFactory, String, String, Int, Array[Byte] => Future[Unit]) => ActorRef,
