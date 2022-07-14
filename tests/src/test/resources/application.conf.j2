@@ -152,6 +152,7 @@ whisk {
             graceful-shutdown-timeout = "{{ scheduler.queue.gracefulShutdownTimeout | default('5 seconds') }}"
             max-retention-size = "{{ scheduler.queue.maxRetentionSize | default(10000) }}"
             max-retention-ms = "{{ scheduler.queue.maxRetentionMs | default(60000) }}"
+            max-blackbox-retention-ms = "{{ scheduler.queue.maxBlackboxRetentionMs}}"
             throttling-fraction = "{{ scheduler.queue.throttlingFraction | default(0.9) }}"
             duration-buffer-size = "{{ scheduler.queue.durationBufferSize | default(10) }}"
         }

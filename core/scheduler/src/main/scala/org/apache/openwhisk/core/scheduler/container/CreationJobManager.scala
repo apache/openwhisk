@@ -47,10 +47,11 @@ case class JobEntry(action: FullyQualifiedEntityName, timer: Cancellable)
 
 class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Array[Byte] => Future[Unit]) => ActorRef,
                          schedulerInstanceId: SchedulerInstanceId,
-                         dataManagementService: ActorRef)(implicit actorSystem: ActorSystem, logging: Logging)
+                         dataManagementService: ActorRef,
+                         baseTimeout: FiniteDuration,
+                         blackboxMultiple: Int)(implicit actorSystem: ActorSystem, logging: Logging)
     extends Actor {
   private implicit val ec: ExecutionContext = actorSystem.dispatcher
-  private val baseTimeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetention)
   private val retryLimit = 5
 
   /**
@@ -152,10 +153,10 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
     // If there is a JobEntry, delete it.
     creationJobPool
       .remove(creationId)
-      .foreach(entry => {
-        sendState(state)
-        entry.timer.cancel()
-      })
+      .map(entry => entry.timer.cancel())
+
+    // even if there is no entry because of timeout, we still need to send the state to the queue if the queue exists
+    sendState(state)
 
     dataManagementService ! UnregisterData(key)
     Future.successful({})
@@ -176,7 +177,8 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
                             revision: DocRevision,
                             creationId: CreationId,
                             isBlackbox: Boolean): Cancellable = {
-    val timeout = if (isBlackbox) FiniteDuration(baseTimeout.toSeconds * 3, TimeUnit.SECONDS) else baseTimeout
+    val timeout =
+      if (isBlackbox) FiniteDuration(baseTimeout.toSeconds * blackboxMultiple, TimeUnit.SECONDS) else baseTimeout
     actorSystem.scheduler.scheduleOnce(timeout) {
       logging.warn(
         this,
@@ -222,8 +224,12 @@ class CreationJobManager(feedFactory: (ActorRefFactory, String, String, Int, Arr
 }
 
 object CreationJobManager {
+  private val baseTimeout = loadConfigOrThrow[FiniteDuration](ConfigKeys.schedulerInProgressJobRetention)
+  private val blackboxMultiple = loadConfigOrThrow[Int](ConfigKeys.schedulerBlackboxMultiple)
+
   def props(feedFactory: (ActorRefFactory, String, String, Int, Array[Byte] => Future[Unit]) => ActorRef,
             schedulerInstanceId: SchedulerInstanceId,
             dataManagementService: ActorRef)(implicit actorSystem: ActorSystem, logging: Logging) =
-    Props(new CreationJobManager(feedFactory, schedulerInstanceId, dataManagementService))
+    Props(
+      new CreationJobManager(feedFactory, schedulerInstanceId, dataManagementService, baseTimeout, blackboxMultiple))
 }

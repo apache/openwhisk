@@ -425,7 +425,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     preWarm(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, transid)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, transid)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -490,7 +490,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     preWarm(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -554,7 +554,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -623,7 +623,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -696,7 +696,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     preWarm(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     probe.expectMsg(ContainerRemoved(true))
 
@@ -757,7 +757,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     probe.expectMsg(ContainerRemoved(true))
 
@@ -809,7 +809,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientClosed)
@@ -864,7 +864,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -924,7 +924,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -996,7 +996,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     probe watch machine
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1075,7 +1075,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     probe watch machine
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1152,7 +1152,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     probe watch machine
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1233,7 +1233,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     probe watch machine
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1310,7 +1310,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     probe watch machine
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1386,7 +1386,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     probe watch machine
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1429,7 +1429,7 @@ class FunctionPullingContainerProxyTests
           Some(testContainerId))))
     probe.expectMsg(Transition(machine, Pausing, Paused))
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     dataManagementService.expectMsgAllOf(
       UnregisterData(
         ContainerKeys
@@ -1495,7 +1495,7 @@ class FunctionPullingContainerProxyTests
             timeoutConfig))
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, noLogsAction, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, noLogsAction, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1563,7 +1563,7 @@ class FunctionPullingContainerProxyTests
             timeoutConfig))
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsgAllOf(
       Transition(machine, Uninitialized, CreatingClient),
       ContainerCreationFailed(exception),
@@ -1626,7 +1626,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     preWarm(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1700,7 +1700,7 @@ class FunctionPullingContainerProxyTests
             timeoutConfig))
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1777,7 +1777,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1856,7 +1856,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -1946,7 +1946,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2009,7 +2009,7 @@ class FunctionPullingContainerProxyTests
             timeoutConfig))
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2075,7 +2075,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2145,7 +2145,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2228,7 +2228,7 @@ class FunctionPullingContainerProxyTests
 
     registerCallback(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2305,7 +2305,7 @@ class FunctionPullingContainerProxyTests
     mockNamespaceBlacklist.refreshBlacklist()
     //the namespace:invocationSpace will be added to namespaceBlackboxlist
     mockNamespaceBlacklist.refreshBlacklist()
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2372,7 +2372,7 @@ class FunctionPullingContainerProxyTests
 
     //first refresh, the namespace:invocationSpace is not in namespaceBlacklist, so activations are executed successfully
     mockNamespaceBlacklist.refreshBlacklist()
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2458,7 +2458,7 @@ class FunctionPullingContainerProxyTests
     registerCallback(machine, probe)
     preWarm(machine, probe)
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2538,7 +2538,7 @@ class FunctionPullingContainerProxyTests
     tcpProbe.expectMsg(Connect(new InetSocketAddress("0.0.0.0", 12345)))
 
     //pings should repeat till the container goes into Running state
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, transid)
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, transid)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2606,7 +2606,10 @@ class FunctionPullingContainerProxyTests
     // throw health error
     initPromise.failure(ContainerHealthError(messageTransId, "intentional failure"))
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    val fqn = action.fullyQualifiedName(withVersion = true)
+    val rev = action.rev
+
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2617,8 +2620,6 @@ class FunctionPullingContainerProxyTests
     client.send(machine, message)
 
     // message should be rescheduled
-    val fqn = action.fullyQualifiedName(withVersion = true)
-    val rev = action.rev
     client.expectMsg(RescheduleActivation(invocationNamespace.asString, fqn, rev, message))
   }
 
@@ -2667,7 +2668,10 @@ class FunctionPullingContainerProxyTests
     // throw health error
     runPromises.head.failure(ContainerHealthError(messageTransId, "intentional failure"))
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    val fqn = action.fullyQualifiedName(withVersion = true)
+    val rev = action.rev
+
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2678,8 +2682,6 @@ class FunctionPullingContainerProxyTests
     client.send(machine, message)
 
     // message should be rescheduled
-    val fqn = action.fullyQualifiedName(withVersion = true)
-    val rev = action.rev
     client.expectMsg(ContainerWarmed)
     client.expectMsg(RescheduleActivation(invocationNamespace.asString, fqn, rev, message))
   }
@@ -2732,7 +2734,10 @@ class FunctionPullingContainerProxyTests
     // throw health error
     runPromises(1).failure(ContainerHealthError(messageTransId, "intentional failure"))
 
-    machine ! Initialize(invocationNamespace.asString, action, schedulerHost, rpcPort, messageTransId)
+    val fqn = action.fullyQualifiedName(withVersion = true)
+    val rev = action.rev
+
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
@@ -2751,8 +2756,6 @@ class FunctionPullingContainerProxyTests
     client.send(machine, message)
 
     // message should be rescheduled
-    val fqn = action.fullyQualifiedName(withVersion = true)
-    val rev = action.rev
     client.expectMsg(RescheduleActivation(invocationNamespace.asString, fqn, rev, message))
   }
 

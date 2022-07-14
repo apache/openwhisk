@@ -172,7 +172,8 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
 
     WhiskAction.get(entityStore, docId).onComplete {
       case Success(action) =>
-        val initialize = Initialize(namespace, action.toExecutableWhiskAction.get, "", 0, transid)
+        val initialize =
+          Initialize(namespace, action.fullyQualifiedName(true), action.toExecutableWhiskAction.get, "", 0, transid)
         startHealthAction(initialize, manager)
       case Failure(t) => logging.error(this, s"get health action error: ${t.getMessage}")
     }

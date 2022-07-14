@@ -179,7 +179,8 @@ class QueueManager(
       }
 
     case RecoverQueue(msg, action, actionMetaData) =>
-      QueuePool.keys.find(_.docInfo.id == action.toDocId) match {
+      QueuePool.keys.find(k =>
+        k.invocationNamespace == msg.user.namespace.name.asString && k.docInfo.id == action.toDocId) match {
         // queue is already recovered or a newer queue is created, send msg to new queue
         case Some(key) if key.docInfo.rev >= msg.revision =>
           QueuePool.get(key) match {
@@ -358,10 +359,12 @@ class QueueManager(
   }
 
   private def handleCycle(msg: ActivationMessage)(implicit transid: TransactionId): Future[Any] = {
-    logging.warn(this, s"queue for ${msg.action} doesn't exist in memory but exist in etcd, recovering...")
+    logging.warn(
+      this,
+      s"queue for ${msg.user.namespace.name.asString}/${msg.action} doesn't exist in memory but exist in etcd, recovering...")
     val start = transid.started(this, LoggingMarkers.SCHEDULER_QUEUE_RECOVER)
 
-    logging.info(this, s"Recover a queue for ${msg.action},")
+    logging.info(this, s"Recover a queue for ${msg.user.namespace.name.asString}/${msg.action},")
     getWhiskActionMetaData(entityStore, msg.action.toDocId, msg.revision, false)
       .map { actionMetaData: WhiskActionMetaData =>
         actionMetaData.toExecutableWhiskAction match {
@@ -397,7 +400,7 @@ class QueueManager(
       logging.warn(
         this,
         s"[${msg.activationId}] the activation message has not been scheduled for ${queueManagerConfig.maxSchedulingTime.toSeconds} sec")
-      completeErrorActivation(msg, "The activation has not been processed")
+      completeErrorActivation(msg, "The activation has not been processed: too old activation is arrived.")
     } else {
       QueuePool.get(MemoryQueueKey(msg.user.namespace.name.asString, msg.action.toDocId.asDocInfo(msg.revision))) match {
         case Some(memoryQueueValue) if memoryQueueValue.isLeader =>
@@ -466,13 +469,15 @@ class QueueManager(
         .recoverWith {
           case t =>
             logging.warn(this, s"[${msg.activationId}] failed to parse endpoints (${t.getMessage})")
-            completeErrorActivation(msg, "The activation has not been processed")
+            completeErrorActivation(
+              msg,
+              "The activation has not been processed: failed to parse the scheduler endpoint.")
         }
 
     } recoverWith {
       case t =>
         logging.warn(this, s"[${msg.activationId}] activation has been dropped (${t.getMessage})")
-        completeErrorActivation(msg, "The activation has not been processed")
+        completeErrorActivation(msg, "The activation has not been processed: failed to get the queue endpoint.")
     }
   }
 

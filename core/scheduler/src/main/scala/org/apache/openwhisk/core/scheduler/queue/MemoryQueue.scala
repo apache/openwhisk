@@ -35,7 +35,12 @@ import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, QueueKeys, ThrottlingKeys}
 import org.apache.openwhisk.core.scheduler.grpc.{GetActivation, ActivationResponse => GetActivationResponse}
-import org.apache.openwhisk.core.scheduler.message.{ContainerCreation, ContainerDeletion, FailedCreationJob, SuccessfulCreationJob}
+import org.apache.openwhisk.core.scheduler.message.{
+  ContainerCreation,
+  ContainerDeletion,
+  FailedCreationJob,
+  SuccessfulCreationJob
+}
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulingConfig}
 import org.apache.openwhisk.core.service._
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
@@ -47,7 +52,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContextExecutor, Future, Promise, duration}
+import scala.concurrent.{duration, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success}
 
 // States
@@ -80,7 +85,6 @@ case class QueueRemoved(invocationNamespace: String, action: DocInfo, leaderKey:
 case class QueueReactivated(invocationNamespace: String, action: FullyQualifiedEntityName, docInfo: DocInfo)
 case class CancelPoll(promise: Promise[Either[MemoryQueueError, ActivationMessage]])
 case object QueueRemovedCompleted
-case object FlushPulse
 
 // Events received by the actor
 case object Start
@@ -120,7 +124,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
                   checkToDropStaleActivation: (Queue[TimeSeriesActivationEntry],
                                                Long,
                                                String,
-                                               FullyQualifiedEntityName,
+                                               WhiskActionMetaData,
                                                MemoryQueueState,
                                                ActorRef) => Unit,
                   queueConfig: QueueConfig)(implicit logging: Logging)
@@ -146,6 +150,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private val memory = actionMetaData.limits.memory.megabytes.MB
   private val queueRemovedMsg = QueueRemoved(invocationNamespace, action.toDocId.asDocInfo(revision), Some(leaderKey))
   private val staleQueueRemovedMsg = QueueRemoved(invocationNamespace, action.toDocId.asDocInfo(revision), None)
+  private val actionRetentionTimeout = MemoryQueue.getRetentionTimeout(actionMetaData, queueConfig)
 
   private[queue] var containers = Set.empty[String]
   private[queue] var creationIds = Set.empty[String]
@@ -192,7 +197,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
   when(Uninitialized) {
     case Event(Start, _) =>
-      logging.info(this, s"[$invocationNamespace:$action:$stateName] a new queue is created.")
+      logging.info(
+        this,
+        s"[$invocationNamespace:$action:$stateName] a new queue is created, retentionTimeout: $actionRetentionTimeout, kind: ${actionMetaData.exec.kind}.")
       val (schedulerActor, droppingActor) = startMonitoring()
       initializeThrottling()
 
@@ -251,7 +258,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       // when there is no container, it moves to the Flushing state as no activations can be invoked
       if (containers.size <= 0) {
         val isWhiskError = ContainerCreationError.whiskErrors.contains(error)
-        completeAllActivations(message, isWhiskError)
+        if (!isWhiskError) {
+          completeAllActivations(message, isWhiskError)
+        }
         logging.error(
           this,
           s"[$invocationNamespace:$action:$stateName] Failed to create an initial container due to ${if (isWhiskError) "whiskError"
@@ -266,7 +275,11 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   // there is no timeout for this state as when there is no further message, it would move to the Running state again.
   when(NamespaceThrottled) {
     case Event(msg: ActivationMessage, _: ThrottledData) =>
-      handleActivationMessage(msg)
+      if (containers.size + creationIds.size == 0) {
+        completeErrorActivation(msg, tooManyConcurrentRequests, isWhiskError = false)
+      } else {
+        handleActivationMessage(msg)
+      }
       stay
 
     case Event(DisableNamespaceThrottling, data: ThrottledData) =>
@@ -323,33 +336,51 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       goto(Running) using RunningData(schedulerActor, droppingActor)
 
     // log the failed information
-    case Event(FailedCreationJob(creationId, _, _, _, _, message), data: FlushingData) =>
+    case Event(FailedCreationJob(creationId, _, _, _, error, message), data: FlushingData) =>
       creationIds -= creationId.asString
       logging.info(
         this,
         s"[$invocationNamespace:$action:$stateName][$creationId] Failed to create a container due to $message")
 
       // keep updating the reason
-      stay using data.copy(reason = message)
+      stay using data.copy(error = error, reason = message)
 
     // since there is no container, activations cannot be handled.
     case Event(msg: ActivationMessage, data: FlushingData) =>
-      completeErrorActivation(msg, data.reason, ContainerCreationError.whiskErrors.contains(data.error))
+      logging.info(this, s"[$invocationNamespace:$action:$stateName] got a new activation message ${msg.activationId}")(
+        msg.transid)
+      val whiskError = isWhiskError(data.error)
+      if (whiskError)
+        queue = queue.enqueue(TimeSeriesActivationEntry(Instant.now, msg))
+      else
+        completeErrorActivation(msg, data.reason, whiskError)
       stay() using data.copy(activeDuringFlush = true)
 
     // Since SchedulingDecisionMaker keep sending a message to create a container, this state is not automatically timed out.
     // Instead, StateTimeout message will be sent by a timer.
-    case Event(StateTimeout, data: FlushingData) =>
-      completeAllActivations(data.reason, ContainerCreationError.whiskErrors.contains(data.error))
-      if (data.activeDuringFlush)
+    case Event(StateTimeout | DropOld, data: FlushingData) =>
+      logging.info(this, s"[$invocationNamespace:$action:$stateName] Received StateTimeout, drop stale messages.")
+      queue =
+        MemoryQueue.dropOld(queue, Duration.ofMillis(actionRetentionTimeout), data.reason, completeErrorActivation)
+      if (data.activeDuringFlush || queue.nonEmpty)
         stay using data.copy(activeDuringFlush = false)
       else
         cleanUpActorsAndGotoRemoved(data)
 
     case Event(GracefulShutdown, data: FlushingData) =>
-      completeAllActivations(data.reason, ContainerCreationError.whiskErrors.contains(data.error))
+      completeAllActivations(data.reason, isWhiskError(data.error))
       logging.info(this, s"[$invocationNamespace:$action:$stateName] Received GracefulShutdown, stop the queue.")
       cleanUpActorsAndGotoRemoved(data)
+
+    case Event(StopSchedulingAsOutdated, data: FlushingData) =>
+      logging.info(this, s"[$invocationNamespace:$action:$stateName] stop further scheduling.")
+      completeAllActivations(data.reason, isWhiskError(data.error))
+      // let QueueManager know this queue is no longer in charge.
+      context.parent ! staleQueueRemovedMsg
+      cleanUpActors(data)
+      cleanUpData()
+
+      goto(Removed) using NoData()
   }
 
   // in case there is any activation in the queue, it waits until all of them are handled.
@@ -394,6 +425,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
     // actors and data are already wiped
     case Event(QueueRemovedCompleted, _: NoData) =>
+      logging.info(this, "stop fsm")
       stop()
 
     // This is not supposed to happen. This will ensure the queue does not run forever.
@@ -453,7 +485,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         case `inProgressContainerPrefixKey` =>
           creationIds -= key.split("/").last
         case `existingContainerPrefixKey` =>
-          containers -= key.split("/").last
+          val containerId = key.split("/").last
+          removeDeletedContainerFromRequestBuffer(containerId)
+          containers -= containerId
         case _ =>
       }
       stay
@@ -499,6 +533,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         handleActivationRequest(request)
       } else {
         logging.info(this, s"Remove containerId because ${request.containerId} is not alive")
+        removeDeletedContainerFromRequestBuffer(request.containerId)
         sender ! GetActivationResponse(Left(NoActivationMessage()))
         containers -= request.containerId
         stay
@@ -515,7 +550,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     case Event(DropOld, _) =>
       if (queue.nonEmpty && Duration
             .between(queue.head.timestamp, Instant.now)
-            .compareTo(Duration.ofMillis(queueConfig.maxRetentionMs)) < 0) {
+            .compareTo(Duration.ofMillis(actionRetentionTimeout)) < 0) {
         logging.error(
           this,
           s"[$invocationNamespace:$action:$stateName] Drop some stale activations for $revision, existing container is ${containers.size}, inProgress container is ${creationIds.size}, state data: $stateData, in is $in, current: ${queue.size}.")
@@ -523,7 +558,11 @@ class MemoryQueue(private val etcdClient: EtcdClient,
           this,
           s"[$invocationNamespace:$action:$stateName] the head stale message: ${queue.head.msg.activationId}")
       }
-      queue = MemoryQueue.dropOld(queue, Duration.ofMillis(queueConfig.maxRetentionMs), completeErrorActivation)
+      queue = MemoryQueue.dropOld(
+        queue,
+        Duration.ofMillis(actionRetentionTimeout),
+        s"Activation processing is not initiated for $actionRetentionTimeout ms",
+        completeErrorActivation)
 
       stay
 
@@ -766,7 +805,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       activation.transid)
 
     val totalTimeInScheduler = Interval(activation.transid.meta.start, Instant.now()).duration
-    MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString), totalTimeInScheduler.toMillis)
+    MetricEmitter.emitHistogramMetric(
+      LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString),
+      totalTimeInScheduler.toMillis)
 
     val activationResponse =
       if (isWhiskError)
@@ -851,7 +892,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   // these schedulers will run forever and stop when the memory queue stops
   private def startMonitoring(): (ActorRef, ActorRef) = {
     val droppingScheduler = Scheduler.scheduleWaitAtLeast(schedulingConfig.dropInterval) { () =>
-      checkToDropStaleActivation(queue, queueConfig.maxRetentionMs, invocationNamespace, action, stateName, self)
+      checkToDropStaleActivation(queue, actionRetentionTimeout, invocationNamespace, actionMetaData, stateName, self)
       Future.successful(())
     }
 
@@ -931,6 +972,16 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     } else None
   }
 
+  private def removeDeletedContainerFromRequestBuffer(containerId: String): Unit = {
+    requestBuffer = requestBuffer.filter { buffer =>
+      if (buffer.containerId.drop(1) == containerId) {
+        buffer.promise.trySuccess(Left(NoActivationMessage()))
+        false
+      } else
+        true
+    }
+  }
+
   private def handleActivationMessage(msg: ActivationMessage) = {
     logging.info(this, s"[$invocationNamespace:$action:$stateName] got a new activation message ${msg.activationId}")(
       msg.transid)
@@ -938,7 +989,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     takeUncompletedRequest()
       .map { res =>
         val totalTimeInScheduler = Interval(msg.transid.meta.start, Instant.now()).duration
-        MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString), totalTimeInScheduler.toMillis)
+        MetricEmitter.emitHistogramMetric(
+          LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString),
+          totalTimeInScheduler.toMillis)
         res.trySuccess(Right(msg))
         in.decrementAndGet()
         stay
@@ -960,7 +1013,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         this,
         s"[$invocationNamespace:$action:$stateName] Get activation request ${request.containerId}, send one message: ${msg.activationId}")
       val totalTimeInScheduler = Interval(msg.transid.meta.start, Instant.now()).duration
-      MetricEmitter.emitHistogramMetric(LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString), totalTimeInScheduler.toMillis)
+      MetricEmitter.emitHistogramMetric(
+        LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString),
+        totalTimeInScheduler.toMillis)
 
       sender ! GetActivationResponse(Right(msg))
       tryDisableActionThrottling()
@@ -1031,11 +1086,12 @@ class MemoryQueue(private val etcdClient: EtcdClient,
           causedBy ++ limits ++ binding
       })
   }
+
+  private def isWhiskError(error: ContainerCreationError): Boolean = ContainerCreationError.whiskErrors.contains(error)
 }
 
 object MemoryQueue {
   private[queue] val queueConfig = loadConfigOrThrow[QueueConfig](ConfigKeys.schedulerQueue)
-  private[queue] val MaxRetentionTime = queueConfig.maxRetentionMs
 
   def props(etcdClient: EtcdClient,
             durationChecker: DurationChecker,
@@ -1081,21 +1137,27 @@ object MemoryQueue {
   def dropOld(
     queue: Queue[TimeSeriesActivationEntry],
     retention: Duration,
+    reason: String,
     completeErrorActivation: (ActivationMessage, String, Boolean) => Future[Any]): Queue[TimeSeriesActivationEntry] = {
     if (queue.isEmpty || Duration.between(queue.head.timestamp, Instant.now).compareTo(retention) < 0)
       queue
     else {
-      completeErrorActivation(queue.head.msg, s"activation processing is not initiated for $MaxRetentionTime ms", true)
-      dropOld(queue.tail, retention, completeErrorActivation)
+      completeErrorActivation(queue.head.msg, reason, true)
+      dropOld(queue.tail, retention, reason, completeErrorActivation)
     }
   }
 
   def checkToDropStaleActivation(queue: Queue[TimeSeriesActivationEntry],
                                  maxRetentionMs: Long,
                                  invocationNamespace: String,
-                                 action: FullyQualifiedEntityName,
+                                 actionMetaData: WhiskActionMetaData,
                                  stateName: MemoryQueueState,
                                  queueRef: ActorRef)(implicit logging: Logging) = {
+    val action = actionMetaData.fullyQualifiedName(true)
+    logging.debug(
+      this,
+      s"[$invocationNamespace:$action:$stateName] use the given retention timeout: $maxRetentionMs for this action kind: ${actionMetaData.exec.kind}.")
+
     if (queue.nonEmpty && Duration
           .between(queue.head.timestamp, Instant.now)
           .compareTo(Duration.ofMillis(maxRetentionMs)) >= 0) {
@@ -1104,6 +1166,14 @@ object MemoryQueue {
         s"[$invocationNamespace:$action:$stateName] some activations are stale msg: ${queue.head.msg.activationId}.")
 
       queueRef ! DropOld
+    }
+  }
+
+  private def getRetentionTimeout(actionMetaData: WhiskActionMetaData, queueConfig: QueueConfig): Long = {
+    if (actionMetaData.exec.kind == ExecMetaDataBase.BLACKBOX) {
+      queueConfig.maxBlackboxRetentionMs
+    } else {
+      queueConfig.maxRetentionMs
     }
   }
 }
@@ -1127,6 +1197,7 @@ case class QueueConfig(idleGrace: FiniteDuration,
                        gracefulShutdownTimeout: FiniteDuration,
                        maxRetentionSize: Int,
                        maxRetentionMs: Long,
+                       maxBlackboxRetentionMs: Long,
                        throttlingFraction: Double,
                        durationBufferSize: Int)
 

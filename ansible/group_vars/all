@@ -52,6 +52,11 @@ whisk:
     require_api_key_annotation: "{{ require_api_key_annotation | default(true) | lower }}"
     require_response_payload: "{{ require_response_payload | default(true) | lower }}"
   cluster_name: "{{ whisk_cluster_name | default('whisk') }}"
+  containerProxy:
+    timeouts:
+      idleContainer: "{{ containerProxy_timeouts_idleContainer | default('10 minutes') }}"
+      pauseGrace: "{{ containerProxy_timeouts_pauseGrace | default('10 seconds') }}"
+      keepingDuration: "{{ containerProxy_timeouts_keepingDuration | default('10 minutes') }}"
 
 ##
 # configuration parameters related to support runtimes (see org.apache.openwhisk.core.entity.ExecManifest for schema of the manifest).
@@ -513,6 +518,7 @@ scheduler:
   dataManagementService:
     retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"
   inProgressJobRetention: "{{ scheduler_inProgressJobRetention | default('20 seconds') }}"
+  blackboxMultiple: "{{ scheduler_blackboxMultiple | default(15) }}"
   managedFraction: "{{ scheduler_managed_fraction | default(1.0 - (scheduler_blackbox_fraction | default(__scheduler_blackbox_fraction))) }}"
   blackboxFraction: "{{ scheduler_blackbox_fraction | default(__scheduler_blackbox_fraction) }}"
   scheduling:

@@ -88,14 +88,14 @@ class FunctionPullingContainerPool(
 
   implicit val ec = context.system.dispatcher
 
-  private var busyPool = immutable.Map.empty[ActorRef, Data]
-  private var inProgressPool = immutable.Map.empty[ActorRef, Data]
-  private var warmedPool = immutable.Map.empty[ActorRef, WarmData]
-  private var prewarmedPool = immutable.Map.empty[ActorRef, PreWarmData]
-  private var prewarmStartingPool = immutable.Map.empty[ActorRef, (String, ByteSize)]
+  protected[containerpool] var busyPool = immutable.Map.empty[ActorRef, Data]
+  protected[containerpool] var inProgressPool = immutable.Map.empty[ActorRef, Data]
+  protected[containerpool] var warmedPool = immutable.Map.empty[ActorRef, WarmData]
+  protected[containerpool] var prewarmedPool = immutable.Map.empty[ActorRef, PreWarmData]
+  protected[containerpool] var prewarmStartingPool = immutable.Map.empty[ActorRef, (String, ByteSize)]
 
   // for shutting down
-  private var disablingPool = immutable.Set.empty[ActorRef]
+  protected[containerpool] var disablingPool = immutable.Set.empty[ActorRef]
 
   private var shuttingDown = false
 
@@ -680,7 +680,13 @@ class FunctionPullingContainerPool(
       case Some(((proxy, data), containerState)) =>
         // record creationMessage so when container created failed, we can send failed message to scheduler
         creationMessages.getOrElseUpdate(proxy, create)
-        proxy ! Initialize(create.invocationNamespace, executable, create.schedulerHost, create.rpcPort, create.transid)
+        proxy ! Initialize(
+          create.invocationNamespace,
+          create.action,
+          executable,
+          create.schedulerHost,
+          create.rpcPort,
+          create.transid)
         inProgressPool = inProgressPool + (proxy -> data)
         logContainerStart(create, executable.toWhiskAction, containerState)
 

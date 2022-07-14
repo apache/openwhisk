@@ -174,7 +174,7 @@ class FPCPoolBalancer(config: WhiskConfig,
     if (retryCount >= 0)
       scheduler
         .getRemoteRef(QueueManager.actorName)
-        .ask(CreateQueue(invocationNamespace, fullyQualifiedEntityName.copy(binding = None), revision, actionMetaData))
+        .ask(CreateQueue(invocationNamespace, fullyQualifiedEntityName, revision, actionMetaData))
         .mapTo[CreateQueueResponse]
         .onComplete {
           case Success(_) =>
@@ -714,7 +714,7 @@ object FPCPoolBalancer extends LoadBalancerProvider {
       }
     }
 
-    val etcd = EtcdClient(loadConfigOrThrow[EtcdConfig](ConfigKeys.etcd).hosts)
+    val etcd = EtcdClient(loadConfigOrThrow[EtcdConfig](ConfigKeys.etcd))
 
     new FPCPoolBalancer(whiskConfig, instance, etcd, feedFactory)
   }

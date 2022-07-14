@@ -1170,7 +1170,7 @@ class ContainerManager2Tests
     with DbUtils {
 
   implicit val dispatcher = actorSystem.dispatcher
-  val etcdClient = EtcdClient(loadConfigOrThrow[EtcdConfig](ConfigKeys.etcd).hosts)
+  val etcdClient = EtcdClient(loadConfigOrThrow[EtcdConfig](ConfigKeys.etcd))
   val testInvocationNamespace = "test-invocation-namespace"
 
   override def afterAll(): Unit = {
