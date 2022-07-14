@@ -135,6 +135,13 @@ trait Container {
           transid.failed(this, start, s"initializiation failed with $t")
       }
       .flatMap { result =>
+        // if runtime container is shutting down, reschedule the activation message
+        result.response.right.map { res =>
+          if (res.shuttingDown) {
+            throw ContainerHealthError(transid, containerId.asString)
+          }
+        }
+
         if (result.ok) {
           Future.successful(result.interval)
         } else if (result.interval.duration >= timeout) {
@@ -180,6 +187,13 @@ trait Container {
           transid.failed(this, start, s"run failed with $t")
       }
       .map { result =>
+        // if runtime container is shutting down, reschedule the activation message
+        result.response.right.map { res =>
+          if (res.shuttingDown) {
+            throw ContainerHealthError(transid, containerId.asString)
+          }
+        }
+
         val response = if (result.interval.duration >= timeout) {
           ActivationResponse.developerError(Messages.timedoutActivation(timeout, false))
         } else {
