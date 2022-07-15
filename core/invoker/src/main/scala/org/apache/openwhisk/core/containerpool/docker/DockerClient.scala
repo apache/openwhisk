@@ -147,11 +147,15 @@ class DockerClient(dockerHost: Option[String] = None,
           // Examples:
           // - Unrecognized option specified
           // - Not enough disk space
-          case pre: ProcessUnsuccessfulException if pre.exitStatus == ExitStatus(125) =>
+          // Exit status 127 means an error that container command cannot be found.
+          // Examples:
+          // - executable file not found in $PATH": unknown
+          case pre: ProcessUnsuccessfulException
+              if pre.exitStatus == ExitStatus(125) || pre.exitStatus == ExitStatus(127) =>
             Future.failed(
               DockerContainerId
                 .parse(pre.stdout)
-                .map(BrokenDockerContainer(_, s"Broken container: ${pre.getMessage}"))
+                .map(BrokenDockerContainer(_, s"Broken container: ${pre.getMessage}", Some(pre.exitStatus.statusValue)))
                 .getOrElse(pre))
         }
     }
@@ -296,4 +300,4 @@ trait DockerApi {
 }
 
 /** Indicates any error while starting a container that leaves a broken container behind that needs to be removed */
-case class BrokenDockerContainer(id: ContainerId, msg: String) extends Exception(msg)
+case class BrokenDockerContainer(id: ContainerId, msg: String, existStatus: Option[Int] = None) extends Exception(msg)
