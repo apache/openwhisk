@@ -551,7 +551,14 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
     withActivation(wsk.activation, triggerFireRun) { triggerActivation =>
       val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult]).head
       withActivation(wsk.activation, ruleActivation.activationId) { actionActivation =>
-        actionActivation.response.result shouldBe Some(triggerPayload)
+        actionActivation.response.result match {
+          case Some(result) =>
+            val (_, part2) = result.fields partition (p => p._1 == "__ow_headers") // excluding headers
+            JsObject(part2) shouldBe triggerPayload
+          case others =>
+            fail(s"no result found: $others")
+
+        }
         actionActivation.cause shouldBe None
       }
     }
