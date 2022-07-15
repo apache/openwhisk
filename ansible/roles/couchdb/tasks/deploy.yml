@@ -132,7 +132,7 @@
 
 - name: check clustered nodes
   uri:
-    url: "{{ db.protocol }}://{{ ansible_host }}:{{ db.port }}/_membership"
+    url: "{{ db.protocol }}://{{ coordinator }}:{{ db.port }}/_membership"
     method: GET
     status_code: 200
     user: "{{ db.credentials.admin.user }}"
