@@ -157,17 +157,19 @@ gitProperties {
 install.dependsOn(bootJar)
 
 dependencies {
-    compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile project(':core:controller')
-    compile project(':tools:admin')
-    compile "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
+    implementation "org.scala-lang:scala-library:${gradle.scala.version}"
+    implementation project(':common:scala')
+    implementation project(':core:controller')
+    implementation project(':core:invoker')
+    implementation project(':tools:admin')
+    implementation "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 
-    compile "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
-    compile "org.scala-lang:scala-reflect:${gradle.scala.version}"
-    compile "ch.megard:akka-http-cors_${gradle.scala.depVersion}:0.4.2"
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
+    implementation "org.scala-lang:scala-reflect:${gradle.scala.version}"
+    implementation "ch.megard:akka-http-cors_${gradle.scala.depVersion}:0.4.2"
 
-    testCompile "junit:junit:4.11"
-    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
+    testImplementation "junit:junit:4.11"
+    testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
 }
 
 gradle.projectsEvaluated {

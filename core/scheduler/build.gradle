@@ -63,10 +63,9 @@ dependencies {
         resolutionStrategy.force "com.typesafe.akka:akka-parsing_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-http_${gradle.scala.depVersion}:${gradle.akka_http.version}"
     }
-
-    compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile "io.altoo:akka-kryo-serialization_${gradle.scala.depVersion}:1.0.0"
-    compile project(':common:scala')
+    implementation "org.scala-lang:scala-library:${gradle.scala.version}"
+    implementation project(':common:scala')
+    implementation "io.altoo:akka-kryo-serialization_${gradle.scala.depVersion}:1.0.0"
 }
 
 // workaround for akka-grpc

@@ -20,6 +20,7 @@ plugins {
     id 'maven'
     id 'org.scoverage'
     id 'scala'
+    id 'java-library'
 }
 
 ext.dockerImageName = 'scala'
@@ -28,80 +29,80 @@ apply from: '../../gradle/docker.gradle'
 project.archivesBaseName = "openwhisk-common"
 
 dependencies {
-    compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    api "org.scala-lang:scala-library:${gradle.scala.version}"
 
-    compile ("com.github.pureconfig:pureconfig_${gradle.scala.depVersion}:0.11.1") {
+    api ("com.github.pureconfig:pureconfig_${gradle.scala.depVersion}:0.11.1") {
         exclude group: 'org.scala-lang', module: 'scala-compiler'
         exclude group: 'org.scala-lang', module: 'scala-reflect'
     }
-    compile "io.spray:spray-json_${gradle.scala.depVersion}:1.3.5"
-    compile "com.lihaoyi:fastparse_${gradle.scala.depVersion}:2.1.3"
+    api "io.spray:spray-json_${gradle.scala.depVersion}:1.3.5"
+    api "com.lihaoyi:fastparse_${gradle.scala.depVersion}:2.1.3"
 
-    compile "com.typesafe.akka:akka-actor_${gradle.scala.depVersion}:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-stream_${gradle.scala.depVersion}:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-slf4j_${gradle.scala.depVersion}:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-cluster_${gradle.scala.depVersion}:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-cluster-metrics_${gradle.scala.depVersion}:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-cluster-tools_${gradle.scala.depVersion}:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-distributed-data_${gradle.scala.depVersion}:${gradle.akka.version}"
+    api "com.typesafe.akka:akka-actor_${gradle.scala.depVersion}:${gradle.akka.version}"
+    api "com.typesafe.akka:akka-stream_${gradle.scala.depVersion}:${gradle.akka.version}"
+    api "com.typesafe.akka:akka-slf4j_${gradle.scala.depVersion}:${gradle.akka.version}"
+    api "com.typesafe.akka:akka-cluster_${gradle.scala.depVersion}:${gradle.akka.version}"
+    api "com.typesafe.akka:akka-cluster-metrics_${gradle.scala.depVersion}:${gradle.akka.version}"
+    api "com.typesafe.akka:akka-cluster-tools_${gradle.scala.depVersion}:${gradle.akka.version}"
+    api "com.typesafe.akka:akka-distributed-data_${gradle.scala.depVersion}:${gradle.akka.version}"
 
-    compile "com.typesafe.akka:akka-http-core_${gradle.scala.depVersion}:${gradle.akka_http.version}"
-    compile "com.typesafe.akka:akka-http-spray-json_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+    api "com.typesafe.akka:akka-http-core_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+    api "com.typesafe.akka:akka-http-spray-json_${gradle.scala.depVersion}:${gradle.akka_http.version}"
 
-    compile "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:1.1.2"
+    api "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:1.1.2"
 
-    compile "ch.qos.logback:logback-classic:1.2.3"
-    compile "org.slf4j:jcl-over-slf4j:1.7.25"
-    compile "org.slf4j:log4j-over-slf4j:1.7.25"
-    compile "commons-codec:commons-codec:1.9"
-    compile "commons-io:commons-io:2.6"
-    compile "commons-collections:commons-collections:3.2.2"
-    compile "org.apache.kafka:kafka-clients:2.4.0"
-    compile "org.apache.httpcomponents:httpclient:4.5.5"
-    compile "com.fasterxml.uuid:java-uuid-generator:3.1.3"
-    compile "com.github.ben-manes.caffeine:caffeine:2.6.2"
-    compile "com.google.code.findbugs:jsr305:3.0.2"
-    compile "io.fabric8:kubernetes-client:${gradle.kube_client.version}"
+    api "ch.qos.logback:logback-classic:1.2.3"
+    api "org.slf4j:jcl-over-slf4j:1.7.25"
+    api "org.slf4j:log4j-over-slf4j:1.7.25"
+    api "commons-codec:commons-codec:1.9"
+    api "commons-io:commons-io:2.6"
+    api "commons-collections:commons-collections:3.2.2"
+    api "org.apache.kafka:kafka-clients:2.4.0"
+    api "org.apache.httpcomponents:httpclient:4.5.5"
+    api "com.fasterxml.uuid:java-uuid-generator:3.1.3"
+    api "com.github.ben-manes.caffeine:caffeine:2.6.2"
+    api "com.google.code.findbugs:jsr305:3.0.2"
+    api "io.fabric8:kubernetes-client:${gradle.kube_client.version}"
 
     //metrics
-    compile ("io.kamon:kamon-core_${gradle.scala.depVersion}:2.1.12") {
+    api ("io.kamon:kamon-core_${gradle.scala.depVersion}:2.1.12") {
         exclude group: 'com.lihaoyi'
     }
-    compile "io.kamon:kamon-statsd_${gradle.scala.depVersion}:2.1.12"
-    compile ("io.kamon:kamon-system-metrics_${gradle.scala.depVersion}:2.1.12") {
+    api "io.kamon:kamon-statsd_${gradle.scala.depVersion}:2.1.12"
+    api ("io.kamon:kamon-system-metrics_${gradle.scala.depVersion}:2.1.12") {
         exclude group: 'io.kamon', module: 'sigar-loader'
     }
-    compile "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.1.12"
-    compile "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
+    api "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.1.12"
+    api "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
 
     // for etcd
-    compile("com.ibm.etcd:etcd-java:0.0.13")
+    api "com.ibm.etcd:etcd-java:0.0.13"
 
     //tracing support
-    compile "io.opentracing:opentracing-api:0.31.0"
-    compile "io.opentracing:opentracing-util:0.31.0"
-    compile ("io.opentracing.brave:brave-opentracing:0.31.0") {
+    api "io.opentracing:opentracing-api:0.31.0"
+    api "io.opentracing:opentracing-util:0.31.0"
+    api ("io.opentracing.brave:brave-opentracing:0.31.0") {
         exclude group: 'io.zipkin.brave', module:'brave-tests'
     }
-    compile "io.zipkin.reporter2:zipkin-sender-okhttp3:2.6.1"
-    compile "io.zipkin.reporter2:zipkin-reporter:2.6.1"
+    api "io.zipkin.reporter2:zipkin-sender-okhttp3:2.6.1"
+    api "io.zipkin.reporter2:zipkin-reporter:2.6.1"
 
-    compile "io.reactivex:rxjava:1.3.8"
-    compile "io.reactivex:rxjava-reactive-streams:1.2.1"
-    compile "com.microsoft.azure:azure-cosmosdb:2.6.2"
+    api "io.reactivex:rxjava:1.3.8"
+    api "io.reactivex:rxjava-reactive-streams:1.2.1"
+    api "com.microsoft.azure:azure-cosmosdb:2.6.2"
 
-    compile "com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}:6.7.4"
+    api "com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}:6.7.4"
     //for mongo
-    compile "org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.7.0"
+    api "org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.7.0"
 
-    compile ("com.lightbend.akka:akka-stream-alpakka-s3_${gradle.scala.depVersion}:1.1.2") {
+    api ("com.lightbend.akka:akka-stream-alpakka-s3_${gradle.scala.depVersion}:1.1.2") {
         exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
-    compile "com.amazonaws:aws-java-sdk-cloudfront:1.11.517"
+    api "com.amazonaws:aws-java-sdk-cloudfront:1.11.517"
 
-    compile ("com.azure:azure-storage-blob:12.7.0") {
+    api ("com.azure:azure-storage-blob:12.7.0") {
         exclude group: "com.azure", module: "azure-core-test"
     }
 }
