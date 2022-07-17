@@ -33,7 +33,6 @@ ext.coverageDirs = [
     "${buildDir}/classes/scala/scoverage",
     "${project(':common:scala').buildDir.absolutePath}/classes/scala/scoverage"
 ]
-distDockerCoverage.dependsOn ':common:scala:scoverageClasses', 'scoverageClasses'
 
 dependencies {
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"

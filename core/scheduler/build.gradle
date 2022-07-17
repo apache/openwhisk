@@ -32,7 +32,6 @@ ext.coverageDirs = [
         "${buildDir}/classes/scala/scoverage",
         "${project(':common:scala').buildDir.absolutePath}/classes/scala/scoverage"
 ]
-distDockerCoverage.dependsOn ':common:scala:scoverageClasses', 'scoverageClasses'
 
 buildscript {
     repositories {
