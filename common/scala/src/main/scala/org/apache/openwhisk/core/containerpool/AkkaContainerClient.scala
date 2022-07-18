@@ -201,6 +201,19 @@ object AkkaContainerClient {
     result
   }
 
+  /** A helper method to post one single request to a connection. Used for container tests. */
+  def postForJsArray(host: String, port: Int, endPoint: String, content: JsValue, timeout: FiniteDuration)(
+    implicit logging: Logging,
+    as: ActorSystem,
+    ec: ExecutionContext,
+    tid: TransactionId): (Int, Option[JsArray]) = {
+    val connection = new AkkaContainerClient(host, port, timeout, 1.MB, 1.MB, 1)
+    val response = executeRequestForJsArray(connection, endPoint, content)
+    val result = Await.result(response, timeout + 10.seconds) //additional timeout to complete futures
+    connection.close()
+    result
+  }
+
   /** A helper method to post multiple concurrent requests to a single connection. Used for container tests. */
   def concurrentPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue], timeout: FiniteDuration)(
     implicit logging: Logging,
@@ -224,6 +237,26 @@ object AkkaContainerClient {
       .post(endpoint, content, true)
       .map({
         case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
+        case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
+        case Left(Timeout(_))           => throw new java.util.concurrent.TimeoutException()
+        case Left(ConnectionError(t: java.net.SocketTimeoutException)) =>
+          throw new java.util.concurrent.TimeoutException()
+        case Left(ConnectionError(t)) => throw new IllegalStateException(t.getMessage)
+      })
+
+    res
+  }
+
+  private def executeRequestForJsArray(connection: AkkaContainerClient, endpoint: String, content: JsValue)(
+    implicit logging: Logging,
+    as: ActorSystem,
+    ec: ExecutionContext,
+    tid: TransactionId): Future[(Int, Option[JsArray])] = {
+
+    val res = connection
+      .post(endpoint, content, true)
+      .map({
+        case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.convertTo[JsArray]).toOption)
         case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
         case Left(Timeout(_))           => throw new java.util.concurrent.TimeoutException()
         case Left(ConnectionError(t: java.net.SocketTimeoutException)) =>
