@@ -54,7 +54,7 @@ configurations {
 
 dependencies {
     configurations.all {
-        resolutionStrategy.force "com.lihaoyi:fastparse_${gradle.scala.depVersion}:2.1.3"
+        resolutionStrategy.force "com.lihaoyi:fastparse_${gradle.scala.depVersion}:2.3.0"
         resolutionStrategy.force "com.typesafe.akka:akka-http-core_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-http_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-http2-support_${gradle.scala.depVersion}:${gradle.akka_http.version}"
