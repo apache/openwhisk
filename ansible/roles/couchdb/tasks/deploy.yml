@@ -59,6 +59,7 @@
     path: "{{ db_confdir }}"
     state: directory
   become: "{{ db.dir.become }}"
+  become_user: couchdb
   when: db_confdir is defined
 
 - name: synchronize default configuration files from local to remote in CouchDB config directory
@@ -68,6 +69,7 @@
     delete: yes
     recursive: yes
   become: "{{ db.dir.become }}"
+  become_user: couchdb
   when: db_confdir is defined
 
 - name: "(re)start CouchDB from '{{ couchdb_image }} ' "
