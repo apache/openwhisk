@@ -218,7 +218,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
         onComplete(checkAdditionalPrivileges) {
           case Success(_) =>
-            putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request) _, () => {
+            putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request), () => {
               make(user, entityName, request)
             })
           case Failure(f) =>
@@ -449,7 +449,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         l.timeout getOrElse TimeLimit(),
         l.memory getOrElse MemoryLimit(),
         l.logs getOrElse LogLimit(),
-        l.concurrency getOrElse ConcurrencyLimit())
+        l.concurrency getOrElse ConcurrencyLimit(),
+        l.maxContainerConcurrency)
     } getOrElse ActionLimits()
     // This is temporary while we are making sequencing directly supported in the controller.
     // The parameter override allows this to work with Pipecode.code. Any parameters other
@@ -497,37 +498,41 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   /** Creates a WhiskAction from PUT content, generating default values where necessary. */
   private def make(user: Identity, entityName: FullyQualifiedEntityName, content: WhiskActionPut)(
     implicit transid: TransactionId) = {
-    content.exec map {
-      case seq: SequenceExec =>
-        // check that the sequence conforms to max length and no recursion rules
-        checkSequenceActionLimits(entityName, seq.components) map { _ =>
-          makeWhiskAction(content.replace(seq), entityName)
-        }
-      case supportedExec if !supportedExec.deprecated =>
-        Future successful makeWhiskAction(content, entityName)
-      case deprecatedExec =>
-        Future failed RejectRequest(BadRequest, runtimeDeprecated(deprecatedExec))
+    checkContainerConcurrencyLessThanNamespaceConcurrency(user, content) flatMap { _ =>
+      content.exec map {
+        case seq: SequenceExec =>
+          // check that the sequence conforms to max length and no recursion rules
+          checkSequenceActionLimits(entityName, seq.components) map { _ =>
+            makeWhiskAction(content.replace(seq), entityName)
+          }
+        case supportedExec if !supportedExec.deprecated =>
+          Future successful makeWhiskAction(content, entityName)
+        case deprecatedExec =>
+          Future failed RejectRequest(BadRequest, runtimeDeprecated(deprecatedExec))
 
-    } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
+      } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
+    }
   }
 
   /** Updates a WhiskAction from PUT content, merging old action where necessary. */
   private def update(user: Identity, content: WhiskActionPut)(action: WhiskAction)(implicit transid: TransactionId) = {
-    content.exec map {
-      case seq: SequenceExec =>
-        // check that the sequence conforms to max length and no recursion rules
-        checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), seq.components) map { _ =>
-          updateWhiskAction(content.replace(seq), action)
+    checkContainerConcurrencyLessThanNamespaceConcurrency(user, content) flatMap { _ =>
+      content.exec map {
+        case seq: SequenceExec =>
+          // check that the sequence conforms to max length and no recursion rules
+          checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), seq.components) map { _ =>
+            updateWhiskAction(content.replace(seq), action)
+          }
+        case supportedExec if !supportedExec.deprecated =>
+          Future successful updateWhiskAction(content, action)
+        case deprecatedExec =>
+          Future failed RejectRequest(BadRequest, runtimeDeprecated(deprecatedExec))
+      } getOrElse {
+        if (!action.exec.deprecated) {
+          Future successful updateWhiskAction(content, action)
+        } else {
+          Future failed RejectRequest(BadRequest, runtimeDeprecated(action.exec))
         }
-      case supportedExec if !supportedExec.deprecated =>
-        Future successful updateWhiskAction(content, action)
-      case deprecatedExec =>
-        Future failed RejectRequest(BadRequest, runtimeDeprecated(deprecatedExec))
-    } getOrElse {
-      if (!action.exec.deprecated) {
-        Future successful updateWhiskAction(content, action)
-      } else {
-        Future failed RejectRequest(BadRequest, runtimeDeprecated(action.exec))
       }
     }
   }
@@ -541,7 +546,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         l.timeout getOrElse action.limits.timeout,
         l.memory getOrElse action.limits.memory,
         l.logs getOrElse action.limits.logs,
-        l.concurrency getOrElse action.limits.concurrency)
+        l.concurrency getOrElse action.limits.concurrency,
+        if (l.maxContainerConcurrency.isDefined) l.maxContainerConcurrency else action.limits.maxContainerConcurrency)
     } getOrElse action.limits
 
     // This is temporary while we are making sequencing directly supported in the controller.
@@ -659,6 +665,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       case _: SequenceWithCycle        => Future failed RejectRequest(BadRequest, sequenceIsCyclic)
       case _: NoDocumentException      => Future failed RejectRequest(BadRequest, sequenceComponentNotFound)
     }
+  }
+
+  private def checkContainerConcurrencyLessThanNamespaceConcurrency(user: Identity, content: WhiskActionPut)(implicit transid: TransactionId): Future[Unit] = {
+    val namespaceConcurrencyLimit = user.limits.concurrentInvocations.getOrElse(whiskConfig.actionInvokeConcurrentLimit.toInt)
+    content.limits.map(l => l.maxContainerConcurrency.map(m => if (m.maxConcurrentContainers > namespaceConcurrencyLimit) Future failed RejectRequest(BadRequest, maxActionContainerConcurrencyExceedsNamespace(namespaceConcurrencyLimit)) else Future.successful({}))
+      .getOrElse(Future.successful({}))).getOrElse(Future.successful({}))
   }
 
   /**

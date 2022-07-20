@@ -63,7 +63,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 0,
       inProgressContainerCountInNamespace = 0,
       averageDuration = None,
-      limit = 0, // limit is 0
+      namespaceLimit = 0, // limit is 0
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -86,7 +86,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 0,
       inProgressContainerCountInNamespace = 0,
       averageDuration = None,
-      limit = 0, // limit is 0
+      namespaceLimit = 0, // limit is 0
       stateName = Flushing,
       recipient = testProbe.ref)
 
@@ -113,7 +113,7 @@ class SchedulingDecisionMakerTests
         existingContainerCountInNamespace = 1,
         inProgressContainerCountInNamespace = 2,
         averageDuration = None, // No average duration available
-        limit = 10,
+        namespaceLimit = 10,
         stateName = state,
         recipient = testProbe.ref)
 
@@ -139,7 +139,7 @@ class SchedulingDecisionMakerTests
         existingContainerCountInNamespace = 5,
         inProgressContainerCountInNamespace = 8,
         averageDuration = Some(1.0), // Some average duration available
-        limit = 20,
+        namespaceLimit = 20,
         stateName = state,
         recipient = testProbe.ref)
 
@@ -163,7 +163,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1, // but there are already 2 containers in this namespace
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 2,
+      namespaceLimit = 2,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -187,7 +187,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 2, // but there are already 2 containers in this namespace
       inProgressContainerCountInNamespace = 2, // this value includes the count of this action as well.
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -211,7 +211,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -233,7 +233,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = NamespaceThrottled,
       recipient = testProbe.ref)
 
@@ -256,7 +256,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = NamespaceThrottled,
       recipient = testProbe.ref)
 
@@ -280,7 +280,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -304,7 +304,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -328,7 +328,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Flushing,
       recipient = testProbe.ref)
 
@@ -351,7 +351,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Flushing,
       recipient = testProbe.ref)
 
@@ -374,7 +374,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -397,7 +397,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -420,7 +420,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = None,
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -443,7 +443,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 6,
       averageDuration = None,
-      limit = 10,
+      namespaceLimit = 10,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -466,7 +466,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 0,
       averageDuration = Some(50), // the average duration exists
-      limit = 10,
+      namespaceLimit = 10,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -491,7 +491,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 0,
       averageDuration = Some(1000), // the average duration exists
-      limit = 10,
+      namespaceLimit = 10,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -516,7 +516,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 0,
       averageDuration = Some(1000), // the average duration exists
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -543,7 +543,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 0,
       averageDuration = Some(1000), // the average duration exists
-      limit = 10,
+      namespaceLimit = 10,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -569,7 +569,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 0,
       averageDuration = Some(1000), // the average duration exists
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -596,7 +596,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 5,
       inProgressContainerCountInNamespace = 0,
       averageDuration = Some(1000), // the average duration exists
-      limit = 10,
+      namespaceLimit = 10,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -622,7 +622,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 0,
       inProgressContainerCountInNamespace = 0,
       averageDuration = None, // the average duration exists
-      limit = 10,
+      namespaceLimit = 10,
       stateName = Running,
       recipient = testProbe.ref)
 
@@ -645,7 +645,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 1,
       averageDuration = Some(1000), // the average duration exists
-      limit = 10,
+      namespaceLimit = 10,
       stateName = Removing,
       recipient = testProbe.ref)
 
@@ -671,7 +671,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 2,
       averageDuration = None, // the average duration does not exist
-      limit = 10,
+      namespaceLimit = 10,
       stateName = Removing,
       recipient = testProbe.ref)
 
@@ -697,7 +697,7 @@ class SchedulingDecisionMakerTests
       existingContainerCountInNamespace = 1,
       inProgressContainerCountInNamespace = 2,
       averageDuration = None, // the average duration does not exist
-      limit = 4,
+      namespaceLimit = 4,
       stateName = Removing,
       recipient = testProbe.ref)
 

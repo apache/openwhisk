@@ -57,20 +57,23 @@ class SchedulingDecisionMaker(
       existingContainerCountInNs,
       inProgressContainerCountInNs,
       averageDuration,
-      limit,
+      namespaceLimit,
+      actionLimit,
       stateName,
       _) = snapshot
     val totalContainers = existing + inProgress
     val availableMsg = currentMsg + incoming.get()
 
-    if (limit <= 0) {
+    if (Math.min(namespaceLimit, actionLimit) <= 0) {
       // this is an error case, the limit should be bigger than 0
       stateName match {
         case Flushing => Future.successful(DecisionResults(Skip, 0))
         case _        => Future.successful(DecisionResults(Pausing, 0))
       }
     } else {
-      val capacity = limit - existingContainerCountInNs - inProgressContainerCountInNs
+      val actionCapacity = actionLimit - totalContainers
+      val namespaceCapacity = namespaceLimit - existingContainerCountInNs - inProgressContainerCountInNs
+      val capacity = Math.min(namespaceCapacity, actionCapacity)
       if (capacity <= 0) {
         stateName match {
 
@@ -82,7 +85,7 @@ class SchedulingDecisionMaker(
           case Running =>
             logging.info(
               this,
-              s"there is no capacity activations will be dropped or throttled, (availableMsg: $availableMsg totalContainers: $totalContainers, limit: $limit, namespaceContainers: ${existingContainerCountInNs}, namespaceInProgressContainer: ${inProgressContainerCountInNs}) [$invocationNamespace:$action]")
+              s"there is no capacity activations will be dropped or throttled, (availableMsg: $availableMsg totalContainers: $totalContainers, actionLimit: $actionLimit, namespaceLimit: $namespaceLimit, namespaceContainers: $existingContainerCountInNs, namespaceInProgressContainer: $inProgressContainerCountInNs) [$invocationNamespace:$action]")
             Future.successful(DecisionResults(EnableNamespaceThrottling(dropMsg = totalContainers == 0), 0))
 
           // do nothing
@@ -246,7 +249,7 @@ class SchedulingDecisionMaker(
       // we need to create one more container than expected because existing container would already took the message
       logging.info(
         this,
-        s"[$state]add $actualNum container, staleActivationNum: $staleActivationNum, duration: ${duration}, containerThroughput: $containerThroughput, availableMsg: $availableMsg, existing: $existing, inProgress: $inProgress, capacity: $capacity [$invocationNamespace:$action]")
+        s"[$state]add $actualNum container, staleActivationNum: $staleActivationNum, duration: $duration, containerThroughput: $containerThroughput, availableMsg: $availableMsg, existing: $existing, inProgress: $inProgress, capacity: $capacity [$invocationNamespace:$action]")
       Future.successful(DecisionResults(AddContainer, actualNum))
     }
   }

@@ -75,6 +75,8 @@ object Messages {
   def tooManyConcurrentRequests(count: Int, allowed: Int) =
     s"Too many concurrent requests in flight (count: $count, allowed: $allowed)."
 
+  def maxActionContainerConcurrencyExceedsNamespace(namespaceConcurrencyLimit: Int) = s"Max action container concurrency must not exceed your namespace concurrency of $namespaceConcurrencyLimit."
+
   /** System overload message. */
   val systemOverloaded = "System is overloaded, try again later."
 

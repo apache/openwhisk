@@ -901,8 +901,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       if (averageDurationBuffer.nonEmpty) {
         averageDuration = Some(averageDurationBuffer.average)
       }
+
       getUserLimit(invocationNamespace).andThen {
-        case Success(limit) =>
+        case Success(namespaceLimit) =>
           decisionMaker ! QueueSnapshot(
             initialized,
             in,
@@ -913,7 +914,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
             namespaceContainerCount.existingContainerNumByNamespace,
             namespaceContainerCount.inProgressContainerNumByNamespace,
             averageDuration,
-            limit,
+            namespaceLimit,
+            actionMetaData.limits.maxContainerConcurrency.getOrElse(ContainerConcurrencyLimit(namespaceLimit)).maxConcurrentContainers,
             stateName,
             self)
         case Failure(_: NoDocumentException) =>
@@ -1187,7 +1189,8 @@ case class QueueSnapshot(initialized: Boolean,
                          existingContainerCountInNamespace: Int,
                          inProgressContainerCountInNamespace: Int,
                          averageDuration: Option[Double],
-                         limit: Int,
+                         namespaceLimit: Int,
+                         actionLimit: Int,
                          stateName: MemoryQueueState,
                          recipient: ActorRef)
 
