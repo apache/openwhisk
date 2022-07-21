@@ -470,6 +470,33 @@ case class InvokerResourceMessage(status: String,
    * Serializes message to string. Must be idempotent.
    */
   override def serialize: String = InvokerResourceMessage.serdes.write(this).compactPrint
+
+  def canEqual(a: Any) = a.isInstanceOf[InvokerResourceMessage]
+
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: InvokerResourceMessage => {
+        that.canEqual(this) &&
+        this.status == that.status &&
+        this.freeMemory == that.freeMemory &&
+        this.busyMemory == that.busyMemory &&
+        this.inProgressMemory == that.inProgressMemory &&
+        this.tags.toSet == that.tags.toSet &&
+        this.dedicatedNamespaces.toSet == that.dedicatedNamespaces.toSet
+      }
+      case _ => false
+    }
+
+  override def hashCode: Int = {
+    var result = 1
+    val prime = 31
+    result = prime * 31 + status.hashCode()
+    result = prime * 31 + freeMemory.hashCode()
+    result = prime * 31 + busyMemory.hashCode()
+    result = prime * 31 + inProgressMemory.hashCode()
+    result = prime * 31 + tags.hashCode()
+    result
+  }
 }
 
 object InvokerResourceMessage extends DefaultJsonProtocol {

@@ -389,6 +389,24 @@ case class SchedulerStates(sid: SchedulerInstanceId, queueSize: Int, endpoints: 
   def getSchedulerId(): SchedulerInstanceId = sid
 
   def serialize = SchedulerStates.serdes.write(this).compactPrint
+
+  def canEqual(a: Any) = a.isInstanceOf[SchedulerStates]
+
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: SchedulerStates => {
+        that.canEqual(this) &&
+        this.queueSize == that.queueSize
+      }
+      case _ => false
+    }
+
+  override def hashCode: Int = {
+    var result = 1
+    val prime = 31
+    result = prime * 31 + queueSize.hashCode()
+    result
+  }
 }
 
 object SchedulerStates extends DefaultJsonProtocol {
