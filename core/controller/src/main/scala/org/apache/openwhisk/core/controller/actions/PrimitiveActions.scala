@@ -173,6 +173,10 @@ protected[actions] trait PrimitiveActions {
     val startLoadbalancer =
       transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${activationId}")
 
+    val keySet = payload match {
+      case Some(JsObject(fields)) => Some(fields.keySet)
+      case _                      => None
+    }
     val message = ActivationMessage(
       transid,
       FullyQualifiedEntityName(action.namespace, action.name, Some(action.version), action.binding),
@@ -183,7 +187,7 @@ protected[actions] trait PrimitiveActions {
       waitForResponse.isDefined,
       args,
       action.parameters.initParameters,
-      action.parameters.lockedParameters(payload.map(_.fields.keySet).getOrElse(Set.empty)),
+      action.parameters.lockedParameters(keySet.getOrElse(Set.empty)),
       cause = cause,
       WhiskTracerProvider.tracer.getTraceContext(transid))
 

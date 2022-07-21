@@ -229,7 +229,8 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
                   // Any non-200 code is treated as a container failure. We still need to check whether
                   // there was a useful error message in there.
                   val errorContent = invalidRunResponse(str).toJson
-                  developerErrorWithLog(errorContent, sizeOpt, None)
+                  //developerErrorWithLog(errorContent, sizeOpt, None)
+                  developerError(errorContent, sizeOpt)
                 }
 
               case scala.util.Success(notAnObj) =>

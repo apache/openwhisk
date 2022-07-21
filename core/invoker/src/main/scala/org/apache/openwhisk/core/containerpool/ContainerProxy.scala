@@ -1093,15 +1093,17 @@ object ContainerProxy {
     }
   }
 
-  def unlockArguments(content: Option[JsObject],
+  def unlockArguments(content: Option[JsValue],
                       lockedArgs: Map[String, String],
-                      decoder: ParameterEncryption): Option[JsObject] = {
-    content.map {
-      case JsObject(fields) =>
-        JsObject(fields.map {
+                      decoder: ParameterEncryption): Option[JsValue] = {
+    content match {
+      case Some(JsObject(fields)) =>
+        Some(JsObject(fields.map {
           case (k, v: JsString) if lockedArgs.contains(k) => (k -> decoder.encryptor(lockedArgs(k)).decrypt(v))
           case p                                          => p
-        })
+        }))
+      // keep the original for other type(e.g. JsArray)
+      case contentValue => contentValue
     }
   }
 }
