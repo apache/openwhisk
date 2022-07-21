@@ -404,7 +404,7 @@ case class SchedulerStates(sid: SchedulerInstanceId, queueSize: Int, endpoints: 
   override def hashCode: Int = {
     var result = 1
     val prime = 31
-    result = prime * 31 + queueSize.hashCode()
+    result = prime * result + queueSize.hashCode()
     result
   }
 }

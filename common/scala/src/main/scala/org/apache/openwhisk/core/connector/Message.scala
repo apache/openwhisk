@@ -490,11 +490,11 @@ case class InvokerResourceMessage(status: String,
   override def hashCode: Int = {
     var result = 1
     val prime = 31
-    result = prime * 31 + status.hashCode()
-    result = prime * 31 + freeMemory.hashCode()
-    result = prime * 31 + busyMemory.hashCode()
-    result = prime * 31 + inProgressMemory.hashCode()
-    result = prime * 31 + tags.hashCode()
+    result = prime * result + status.hashCode()
+    result = prime * result + freeMemory.hashCode()
+    result = prime * result + busyMemory.hashCode()
+    result = prime * result + inProgressMemory.hashCode()
+    result = prime * result + tags.hashCode()
     result
   }
 }
