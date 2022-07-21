@@ -25,7 +25,7 @@ Currently, openwhisk supports return json object only, e.g.
     "greeting": "Hello stranger!"
 }
 ```
-It is necessary to support return array, e.g.
+It is necessary to support return array for common action, e.g.
 ```shell
 # wsk action invoke hello-array -r
 [
@@ -33,6 +33,7 @@ It is necessary to support return array, e.g.
     "b"
 ]
 ```
+For sequence action, need to support as well.
 
 # Status
 * Current state: In-progress
@@ -50,7 +51,7 @@ Make controller and invoker support array result both.
 ## Runtime repos
 All runtime images should support array result. e.g.
 
-* nodejs
+* nodejs (supports by default)
 * go
 * java
 * python
@@ -61,6 +62,8 @@ All runtime images should support array result. e.g.
 * dotnet
 * rust
 * swift 
+* deno
+* ballerina
 
 ## Openwhisk-cli repo
 * When use wsk to execute action, need to support parse array result.
