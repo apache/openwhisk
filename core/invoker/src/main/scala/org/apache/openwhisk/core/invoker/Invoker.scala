@@ -115,6 +115,7 @@ object Invoker {
       .map(_.split(",").toSeq)
       .getOrElse(Seq.empty[String])
 
+    logger.info(this, s"invoker tags: $tags")
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
       logger.info(this, s"Shutting down Kamon with coordinated shutdown")
