@@ -495,6 +495,7 @@ case class InvokerResourceMessage(status: String,
     result = prime * result + busyMemory.hashCode()
     result = prime * result + inProgressMemory.hashCode()
     result = prime * result + tags.hashCode()
+    result = prime * result + dedicatedNamespaces.hashCode()
     result
   }
 }
