@@ -114,6 +114,11 @@ object Invoker {
       .filter(_ != "")
       .map(_.split(",").toSeq)
       .getOrElse(Seq.empty[String])
+    val dedicatedNamespaces: Seq[String] = Some(loadConfigOrThrow[String](ConfigKeys.invokerDedicatedNamespaces))
+      .map(_.trim())
+      .filter(_ != "")
+      .map(_.split(",").toSeq)
+      .getOrElse(Seq.empty[String])
 
     logger.info(this, s"invoker tags: (${tags.mkString(", ")})")
     // Prepare Kamon shutdown
@@ -202,7 +207,8 @@ object Invoker {
         cmdLineArgs.displayedName,
         poolConfig.userMemory,
         None,
-        tags)
+        tags,
+        dedicatedNamespaces)
 
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider
