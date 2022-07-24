@@ -905,9 +905,8 @@ class FunctionPullingContainerProxy(
                 logging.error(this, s"An unknown DB connection error occurred while fetching an action: $e.")
                 ExecutionResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
             }
-            logging.error(
-              this,
-              s"Error to fetch action ${msg.action} for msg ${msg.activationId}, error is ${t.getMessage}")
+            val errMsg = s"Error to fetch action ${msg.action} for msg ${msg.activationId}, error is ${t.getMessage}"
+            logging.error(this, errMsg)
 
             val context = UserContext(msg.user)
             val activation = generateFallbackActivation(action, msg, response)
@@ -921,7 +920,7 @@ class FunctionPullingContainerProxy(
             storeActivation(msg.transid, activation, msg.blocking, context)
 
             // in case action is removed container proxy should be terminated
-            Future.failed(new IllegalStateException("action does not exist"))
+            Future.failed(new IllegalStateException(errMsg))
         }
     } else {
       // Iff the current namespace is blacklisted, an active-ack is only produced to keep the loadbalancer protocol
