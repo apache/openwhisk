@@ -488,7 +488,7 @@ class DockerContainerTests
     val initResult = container.initialize(JsObject.empty, 1.second, 1)
     an[ContainerHealthError] should be thrownBy await(initResult)
 
-    val runResult = container.run(JsObject.empty, JsObject.empty, 1.second, 1)
+    val runResult = container.run(JsObject.empty, JsObject.empty, 1.second, 1, 1.MB, 1.MB)
     an[ContainerHealthError] should be thrownBy await(runResult)
   }
 
