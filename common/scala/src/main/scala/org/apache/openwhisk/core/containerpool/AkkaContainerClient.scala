@@ -86,6 +86,7 @@ protected class AkkaContainerClient(
    * @param endpoint the path the api call relative to hostname
    * @param body the JSON value to post (this is usually a JSON objecT)
    * @param maxResponse the maximum size in bytes the connection will accept
+   * @param truncation the truncation size in bytes
    * @param retry whether or not to retry on connection failure
    * @param reschedule whether or not to throw ContainerHealthError (triggers reschedule) on connection failure
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
