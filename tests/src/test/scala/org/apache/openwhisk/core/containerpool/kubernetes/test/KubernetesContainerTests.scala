@@ -281,7 +281,7 @@ class KubernetesContainerTests
 
   it should "throw ContainerHealthError if runtime container returns 503 response" in {
     implicit val kubernetes = stub[KubernetesApi]
-
+    val runTimeout = 1.second
     val interval = intervalOf(1.millisecond)
     val result = JsObject.empty
     val container = kubernetesContainer() {
@@ -291,7 +291,7 @@ class KubernetesContainerTests
     val initResult = container.initialize(JsObject.empty, 1.second, 1)
     an[ContainerHealthError] should be thrownBy await(initResult)
 
-    val runResult = container.run(JsObject.empty, JsObject.empty, 1.second, 1)
+    val runResult = container.run(JsObject.empty, JsObject.empty, runTimeout, 1, 1.MB, 1.MB)
     an[ContainerHealthError] should be thrownBy await(runResult)
   }
 
