@@ -471,19 +471,16 @@ case class InvokerResourceMessage(status: String,
    */
   override def serialize: String = InvokerResourceMessage.serdes.write(this).compactPrint
 
-  def canEqual(a: Any) = a.isInstanceOf[InvokerResourceMessage]
-
   override def equals(that: Any): Boolean =
     that match {
-      case that: InvokerResourceMessage => {
-        that.canEqual(this) &&
+      case that: InvokerResourceMessage =>
         this.status == that.status &&
-        this.freeMemory == that.freeMemory &&
-        this.busyMemory == that.busyMemory &&
-        this.inProgressMemory == that.inProgressMemory &&
-        this.tags.toSet == that.tags.toSet &&
-        this.dedicatedNamespaces.toSet == that.dedicatedNamespaces.toSet
-      }
+          this.freeMemory == that.freeMemory &&
+          this.busyMemory == that.busyMemory &&
+          this.inProgressMemory == that.inProgressMemory &&
+          this.tags.toSet == that.tags.toSet &&
+          this.dedicatedNamespaces.toSet == that.dedicatedNamespaces.toSet
+
       case _ => false
     }
 
