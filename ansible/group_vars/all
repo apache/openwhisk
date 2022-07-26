@@ -298,9 +298,9 @@ db:
     backend: "{{ db_activation_backend | default('CouchDB') }}"
   elasticsearch:
     protocol: "{{ elastic_protocol | default('http') }}"
-    port: 9200
+    port: "{{ elastic_port | default(9200) }}"
     index_pattern: "{{ elastic_index_pattern | default('openwhisk-%s') }}"
-    base_transport_port: 9300
+    base_transport_port: "{{ elastic_transport_port_base | default(9300) }}"
     confdir: "{{ config_root_dir }}/elasticsearch"
     dir:
       become: "{{ elastic_dir_become | default(false) }}"
@@ -343,7 +343,7 @@ elasticsearch:
 
 elasticsearch_connect_string: "{% set ret = [] %}\
                                {% for host in groups['elasticsearch'] %}\
-                               {{ ret.append( hostvars[host].ansible_host + ':' + ((db.elasticsearch.port+loop.index-1)|string) ) }}\
+                               {{ ret.append( hostvars[host].ansible_host + ':' + ((db.elasticsearch.port|int+loop.index-1)|string) ) }}\
                                {% endfor %}\
                                {{ ret | join(',') }}"
 mongodb:
