@@ -390,12 +390,9 @@ case class SchedulerStates(sid: SchedulerInstanceId, queueSize: Int, endpoints: 
 
   def serialize = SchedulerStates.serdes.write(this).compactPrint
 
-  def canEqual(a: Any) = a.isInstanceOf[SchedulerStates]
-
   override def equals(that: Any): Boolean =
     that match {
       case that: SchedulerStates => {
-        that.canEqual(this) &&
         this.queueSize == that.queueSize
       }
       case _ => false
