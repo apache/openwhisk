@@ -18,14 +18,14 @@
 -->
 # Title
 
-Currently, openwhisk supports return json object only, e.g.
+Currently, OpenWhisk supports returning a JSON object only, e.g.
 ```shell
 # wsk action invoke hello -r
 {
     "greeting": "Hello stranger!"
 }
 ```
-It is necessary to support return array for common action, e.g.
+It is necessary to support returning an array too as an array is also a proper JSON object, e.g.
 ```shell
 # wsk action invoke hello-array -r
 [
@@ -33,7 +33,7 @@ It is necessary to support return array for common action, e.g.
     "b"
 ]
 ```
-For sequence action, need to support as well.
+The sequence action should be considered support as well.
 
 # Status
 * Current state: In-progress
@@ -41,15 +41,15 @@ For sequence action, need to support as well.
 
 # Summary and Motivation
 
-This POEM proposes a new feature that allows user to write their own action which supports array result.
-So the result will support object and array both in future.
+This POEM proposes a new feature that allows user to write their own action which supports an array result.
+So actions would be able to return a JSON object or an array.
 
 # Proposed changes
 ## Openwhisk main repo
-Make controller and invoker support array result both.
+Make controller and invoker support both a JSON object and an array result.
 
 ## Runtime repos
-All runtime images should support array result. e.g.
+All runtime images should support an array result. e.g.
 
 * nodejs (supports by default)
 * go
@@ -66,5 +66,5 @@ All runtime images should support array result. e.g.
 * ballerina
 
 ## Openwhisk-cli repo
-* When use wsk to execute action, need to support parse array result.
-* When use wsk to get activation, need to support parse array result as well.
+* The `wsk` CLI needs to support parsing an array result when executing actions.
+* The `wsk` CLI needs to support parsing an array result when getting activations.
