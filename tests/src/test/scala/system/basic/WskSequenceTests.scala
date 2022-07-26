@@ -541,7 +541,7 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       }
   }
 
-  it should "invoke a sequence which support array result" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "invoke a sequence which supports array result" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "sequence-array"
     val actions = Seq("split-array", "sort-array")
     for (actionName <- actions) {

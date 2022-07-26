@@ -1085,11 +1085,11 @@ object ContainerProxy {
   def partitionArguments(content: Option[JsValue], initArgs: Set[String]): (Map[String, JsValue], JsValue) = {
     content match {
       case None                                       => (Map.empty, JsObject.empty)
+      case Some(JsArray(elements))                    => (Map.empty, JsArray(elements))
       case Some(JsObject(fields)) if initArgs.isEmpty => (Map.empty, JsObject(fields))
       case Some(JsObject(fields)) =>
-        val (env, args) = JsObject(fields).fields.partition(k => initArgs.contains(k._1))
+        val (env, args) = fields.partition(k => initArgs.contains(k._1))
         (env, JsObject(args))
-      case Some(JsArray(elements)) => (Map.empty, JsArray(elements))
     }
   }
 
