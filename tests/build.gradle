@@ -317,7 +317,9 @@ gradle.projectsEvaluated {
         projectsWithCoverage.forEach {
             dependentTasks << it + ':reportScoverage'
         }
+        dependentTasks << 'compileScoverageScala'
         dependsOn(dependentTasks)
+
         //Need to recreate the logic from
         //https://github.com/scoverage/gradle-scoverage/blob/924bf49a8f981f119d0604b44a782f3f8eecb359/src/main/groovy/org/scoverage/ScoveragePlugin.groovy#L137
         //default tasks retrigger the tests. As ours is a multi module integration
