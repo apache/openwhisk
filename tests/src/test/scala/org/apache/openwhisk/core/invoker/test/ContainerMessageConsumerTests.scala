@@ -17,13 +17,10 @@
 
 package org.apache.openwhisk.core.invoker.test
 
-import java.nio.charset.StandardCharsets
-
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.common.{Logging, TransactionId}
-import org.apache.openwhisk.core.{WarmUp, WhiskConfig}
 import org.apache.openwhisk.core.connector.ContainerCreationError._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.connector.test.TestConnector
@@ -34,6 +31,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.test.ExecHelpers
 import org.apache.openwhisk.core.invoker.ContainerMessageConsumer
+import org.apache.openwhisk.core.{WarmUp, WhiskConfig}
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.utils.{retry => utilRetry}
 import org.junit.runner.RunWith
@@ -41,6 +39,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
 
+import java.nio.charset.StandardCharsets
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Try
@@ -254,7 +253,7 @@ class ContainerMessageConsumerTests
     put(entityStore, whiskAction)
     val actualCreationMessage = creationMessage.copy(revision = DocRevision("1-fake"))
     val fetchErrorAckMessage =
-      createAckMsg(actualCreationMessage, Some(DBFetchError), Some(Messages.actionFetchErrorWhileInvoking))
+      createAckMsg(actualCreationMessage, Some(DBFetchError), Some(Messages.actionMismatchWhileInvoking))
     creationConsumer.send(actualCreationMessage)
 
     within(5.seconds) {
