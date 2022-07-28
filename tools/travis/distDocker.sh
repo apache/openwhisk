@@ -25,6 +25,7 @@ SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
 cd $ROOTDIR
+TERM=dumb ./gradlew clean # Run a clean step before build
 TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
 
 TERM=dumb ./gradlew :core:controller:distDockerCoverage -PdockerImagePrefix=testing

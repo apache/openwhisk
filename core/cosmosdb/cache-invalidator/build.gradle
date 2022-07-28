@@ -30,12 +30,12 @@ distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 project.archivesBaseName = "openwhisk-cache-invalidator-cosmosdb"
 
 dependencies {
-    compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile (project(':common:scala')) {
+    implementation "org.scala-lang:scala-library:${gradle.scala.version}"
+    implementation (project(':common:scala')) {
         exclude group: 'com.microsoft.azure', module:'azure-cosmosdb'
     }
-    compile "com.microsoft.azure:azure-cosmos:3.5.0"
-    compile "com.typesafe.akka:akka-stream-kafka_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
+    implementation "com.microsoft.azure:azure-cosmos:3.5.0"
+    implementation "com.typesafe.akka:akka-stream-kafka_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
 }
 
 mainClassName = "org.apache.openwhisk.core.database.cosmosdb.cache.Main"
