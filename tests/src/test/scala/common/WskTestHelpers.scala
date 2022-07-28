@@ -95,6 +95,7 @@ object ActivationResponse extends DefaultJsonProtocol {
  * @param annotations a list of JSON objects to save the annotations of the activation
  */
 case class ActivationResult(activationId: String,
+                            namespace: String,
                             logs: Option[List[String]],
                             response: ActivationResponse,
                             start: Instant,
@@ -123,14 +124,14 @@ object ActivationResult extends DefaultJsonProtocol {
   }
 
   implicit val serdes = new RootJsonFormat[ActivationResult] {
-    private val format = jsonFormat8(ActivationResult.apply)
+    private val format = jsonFormat9(ActivationResult.apply)
 
     def write(result: ActivationResult) = format.write(result)
 
     def read(value: JsValue) = {
       val obj = value.asJsObject
-      obj.getFields("activationId", "response", "start") match {
-        case Seq(JsString(activationId), response, start) =>
+      obj.getFields("activationId", "namespace", "response", "start") match {
+        case Seq(JsString(activationId), JsString(namespace), response, start) =>
           Try {
             val logs = obj.fields.get("logs").map(_.convertTo[List[String]])
             val end = obj.fields.get("end").map(_.convertTo[Instant]).getOrElse(Instant.EPOCH)
@@ -139,6 +140,7 @@ object ActivationResult extends DefaultJsonProtocol {
             val annotations = obj.fields.get("annotations").map(_.convertTo[List[JsObject]])
             new ActivationResult(
               activationId,
+              namespace,
               logs,
               response.convertTo[ActivationResponse],
               start.convertTo[Instant],

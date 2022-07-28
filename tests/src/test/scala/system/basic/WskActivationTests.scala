@@ -51,4 +51,32 @@ class WskActivationTests extends TestHelpers with WskTestHelpers with WskActorSy
       resultWithoutSize shouldBe expectedResult
     }
   }
+
+  it should "invoke a shared action under a different invocation namespace" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val packageName = "shared-package"
+      val actionName = "echo"
+      var invocationNamesapce = if (wskprops.namespace == "_") "guest" else wskprops.namespace
+      val packageActionName = s"/${invocationNamesapce}/${packageName}/${actionName}"
+
+      assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
+        pkg.create(packageName, shared = Some(true))(wp)
+      }
+
+      assetHelper.withCleaner(wsk.action, packageActionName) { (action, _) =>
+        action.create(packageActionName, Some(TestUtils.getTestActionFilename("echo.js")))(wp)
+      }
+
+      withActivation(wsk.activation, wsk.action.invoke(packageActionName)(wp)) { activation =>
+        activation.namespace shouldBe invocationNamesapce
+      }(wp)
+
+      val systemId = "whisk.system"
+      val wskprops2 = WskProps(authKey = WskAdmin.listKeys(systemId)(0)._1, namespace = systemId)
+      invocationNamesapce = if (wskprops2.namespace == "_") "guest" else wskprops2.namespace
+
+      withActivation(wsk.activation, wsk.action.invoke(packageActionName)(wskprops2)) { activation =>
+        activation.namespace shouldBe invocationNamesapce
+      }(wskprops2)
+  }
 }
