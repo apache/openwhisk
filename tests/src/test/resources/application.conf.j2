@@ -165,6 +165,7 @@ whisk {
         data-management-service {
             retry-interval = "{{ scheduler.dataManagementService.retryInterval | default('1 second') }}"
         }
+        blackbox-multiple = "{{ scheduler.blackboxMultiple }}"
     }
 }
 
