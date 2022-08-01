@@ -102,7 +102,7 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
         wsk.action.invoke(echo, Map("payload" -> testString.toJson, "action" -> invalid.toJson))
       withActivation(wsk.activation, invalidrun) { activation =>
         activation.response.status shouldBe "application error"
-        activation.response.result.get.fields.get("error") shouldBe Some(
+        activation.response.result.get.asJsObject.fields.get("error") shouldBe Some(
           JsString(compositionComponentInvalid(JsString(invalid))))
         checkConductorLogsAndAnnotations(activation, 2) // echo
       }
@@ -113,7 +113,7 @@ class WskConductorTests extends TestHelpers with WskTestHelpers with JsHelpers w
 
       withActivation(wsk.activation, undefinedrun) { activation =>
         activation.response.status shouldBe "application error"
-        activation.response.result.get.fields.get("error") shouldBe Some(
+        activation.response.result.get.asJsObject.fields.get("error") shouldBe Some(
           JsString(compositionComponentNotFound(s"$namespace/$missing")))
         checkConductorLogsAndAnnotations(activation, 2) // echo
       }

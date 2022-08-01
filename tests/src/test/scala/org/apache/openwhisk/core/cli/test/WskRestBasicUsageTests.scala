@@ -224,7 +224,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
-        response.result.get.fields("error") shouldBe Messages.abnormalInitialization.toJson
+        response.result.get.asJsObject.fields("error") shouldBe Messages.abnormalInitialization.toJson
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
   }
@@ -238,7 +238,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
-        response.result.get.fields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
+        response.result.get.asJsObject.fields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
   }
@@ -252,7 +252,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
-        response.result.get.fields("error") shouldBe Messages.abnormalRun.toJson
+        response.result.get.asJsObject.fields("error") shouldBe Messages.abnormalRun.toJson
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
   }
@@ -326,7 +326,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       val run = wsk.action.invoke(name)
       withActivation(wsk.activation, run) { activation =>
         activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
-        activation.response.result.get
+        activation.response.result.get.asJsObject
           .fields("error") shouldBe s"Failed to pull container image '$containerName'.".toJson
         activation.annotations shouldBe defined
         val limits = activation.annotations.get.filter(_.fields("key").convertTo[String] == "limits")
@@ -775,7 +775,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
         withActivation(wsk.activation, ruleActivation.activationId) { actionActivation =>
           actionActivation.response.result match {
             case Some(result) =>
-              result.fields.get("args") map { headers =>
+              result.asJsObject.fields.get("args") map { headers =>
                 headers.asJsObject.fields.get("__ow_headers") map { params =>
                   params.asJsObject.fields.get("foo") map { foo =>
                     foo shouldBe JsString("Bar")

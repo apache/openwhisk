@@ -322,10 +322,16 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
   class FakeLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionContext)
       extends DegenerateLoadBalancerService(config) {
 
-    private def respond(action: ExecutableWhiskActionMetaData, msg: ActivationMessage, result: JsObject) = {
-      val response =
-        if (result.fields.get("error") isDefined) ActivationResponse(ActivationResponse.ApplicationError, Some(result))
-        else ActivationResponse.success(Some(result))
+    private def respond(action: ExecutableWhiskActionMetaData, msg: ActivationMessage, result: JsValue) = {
+      val response = {
+        result match {
+          case JsObject(fields) =>
+            if (fields.get("error") isDefined)
+              ActivationResponse(ActivationResponse.ApplicationError, Some(result))
+            else ActivationResponse.success(Some(result))
+          case _ => ActivationResponse.success(Some(result))
+        }
+      }
       val start = Instant.now
       WhiskActivation(
         action.namespace,
@@ -345,26 +351,39 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
             case `echo` => // echo action
               Future(Right(respond(action, msg, args)))
             case `conductor` => // see tests/dat/actions/conductor.js
-              val result =
-                if (args.fields.get("error") isDefined) args
-                else {
-                  val action = args.fields.get("action") map { action =>
-                    Map("action" -> action)
-                  } getOrElse Map.empty
-                  val state = args.fields.get("state") map { state =>
-                    Map("state" -> state)
-                  } getOrElse Map.empty
-                  val wrappedParams = args.fields.getOrElse("params", JsObject.empty).asJsObject.fields
-                  val escapedParams = args.fields - "action" - "state" - "params"
-                  val params = Map("params" -> JsObject(wrappedParams ++ escapedParams))
-                  JsObject(params ++ action ++ state)
+              val result = {
+                args match {
+                  case JsObject(fields) =>
+                    if (fields.get("error") isDefined) args
+                    else {
+                      val action = fields.get("action") map { action =>
+                        Map("action" -> action)
+                      } getOrElse Map.empty
+                      val state = fields.get("state") map { state =>
+                        Map("state" -> state)
+                      } getOrElse Map.empty
+                      val wrappedParams = fields.getOrElse("params", JsObject.empty).asJsObject.fields
+                      val escapedParams = fields - "action" - "state" - "params"
+                      val params = Map("params" -> JsObject(wrappedParams ++ escapedParams))
+                      JsObject(params ++ action ++ state)
+                    }
+                  case _ => JsObject.empty
                 }
+
+              }
               Future(Right(respond(action, msg, result)))
             case `step` => // see tests/dat/actions/step.js
-              val result = args.fields.get("n") map { n =>
-                JsObject("n" -> (n.convertTo[BigDecimal] + 1).toJson)
-              } getOrElse {
-                JsObject("error" -> "missing parameter".toJson)
+              val result = {
+                args match {
+                  case JsObject(fields) =>
+                    fields.get("n") map { n =>
+                      JsObject("n" -> (n.convertTo[BigDecimal] + 1).toJson)
+                    } getOrElse {
+                      JsObject("error" -> "missing parameter".toJson)
+                    }
+                  case _ => JsObject.empty
+                }
+
               }
               Future(Right(respond(action, msg, result)))
             case _ =>

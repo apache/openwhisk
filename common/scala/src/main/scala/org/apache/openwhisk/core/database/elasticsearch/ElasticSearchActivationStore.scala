@@ -388,8 +388,8 @@ class ElasticSearchActivationStore(
     restoreAnnotations(restoreResponse(hit.sourceAsString.parseJson.asJsObject)).convertTo[WhiskActivation]
   }
 
-  private def restoreAnnotations(js: JsObject): JsObject = {
-    val annotations = js.fields
+  private def restoreAnnotations(js: JsValue): JsObject = {
+    val annotations = js.asJsObject.fields
       .get("annotations")
       .map { anno =>
         Try {
@@ -399,10 +399,10 @@ class ElasticSearchActivationStore(
         }.getOrElse(JsArray.empty)
       }
       .getOrElse(JsArray.empty)
-    JsObject(js.fields.updated("annotations", annotations))
+    JsObject(js.asJsObject.fields.updated("annotations", annotations))
   }
 
-  private def restoreResponse(js: JsObject): JsObject = {
+  private def restoreResponse(js: JsObject): JsValue = {
     val response = js.fields
       .get("response")
       .map { res =>
@@ -412,7 +412,10 @@ class ElasticSearchActivationStore(
             .get("result")
             .map { r =>
               val JsString(data) = r
-              data.parseJson.asJsObject
+              data.parseJson match {
+                case JsArray(elements) => JsArray(elements)
+                case _                 => data.parseJson.asJsObject
+              }
             }
             .getOrElse(JsObject.empty)
           JsObject(temp.updated("result", result))

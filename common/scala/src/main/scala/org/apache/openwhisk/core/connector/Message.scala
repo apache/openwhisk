@@ -57,7 +57,7 @@ case class ActivationMessage(override val transid: TransactionId,
                              activationId: ActivationId,
                              rootControllerIndex: ControllerInstanceId,
                              blocking: Boolean,
-                             content: Option[JsObject],
+                             content: Option[JsValue],
                              initArgs: Set[String] = Set.empty,
                              lockedArgs: Map[String, String] = Map.empty,
                              cause: Option[ActivationId] = None,
@@ -380,9 +380,13 @@ object Activation extends DefaultJsonProtocol {
 
   /** Get "StatusCode" from result response set by action developer * */
   def userDefinedStatusCode(result: Option[JsValue]): Option[Int] = {
-    val statusCode = JsHelpers
-      .getFieldPath(result.get.asJsObject, ERROR_FIELD, "statusCode")
-      .orElse(JsHelpers.getFieldPath(result.get.asJsObject, "statusCode"))
+    val statusCode: Option[JsValue] = result match {
+      case Some(JsObject(fields)) =>
+        JsHelpers
+          .getFieldPath(JsObject(fields), ERROR_FIELD, "statusCode")
+          .orElse(JsHelpers.getFieldPath(JsObject(fields), "statusCode"))
+      case _ => None
+    }
     statusCode.map {
       case value => Try(value.convertTo[BigInt].intValue).toOption.getOrElse(BadRequest.intValue)
     }

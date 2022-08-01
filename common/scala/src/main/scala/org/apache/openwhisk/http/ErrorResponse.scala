@@ -204,7 +204,7 @@ object Messages {
   }
 
   def invalidRunResponse(actualResponse: String) = {
-    "The action did not produce a valid JSON response" + {
+    "The action did not produce a valid JSON or JSON Array response" + {
       Option(actualResponse) filter { _.nonEmpty } map { s =>
         s": $s"
       } getOrElse "."

@@ -73,9 +73,9 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
         checkSequenceLogsAndAnnotations(activation, 4) // 4 activations in this sequence
         activation.cause shouldBe None // topmost sequence
         val result = activation.response.result.get
-        result.fields.get("payload") shouldBe defined
-        result.fields.get("length") should not be defined
-        result.fields.get("lines") shouldBe Some(JsArray(Vector(now.toJson)))
+        result.asJsObject.fields.get("payload") shouldBe defined
+        result.asJsObject.fields.get("length") should not be defined
+        result.asJsObject.fields.get("lines") shouldBe Some(JsArray(Vector(now.toJson)))
       }
 
       // update action sequence and run it with normal payload
@@ -90,8 +90,8 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       withActivation(wsk.activation, secondrun, totalWait = 2 * allowedActionDuration) { activation =>
         checkSequenceLogsAndAnnotations(activation, 2) // 2 activations in this sequence
         val result = activation.response.result.get
-        result.fields.get("length") shouldBe Some(2.toJson)
-        result.fields.get("lines") shouldBe Some(args.sortWith(_.compareTo(_) < 0).toArray.toJson)
+        result.asJsObject.fields.get("length") shouldBe Some(2.toJson)
+        result.asJsObject.fields.get("lines") shouldBe Some(args.sortWith(_.compareTo(_) < 0).toArray.toJson)
       }
 
       // run sequence with error in the payload
@@ -102,8 +102,8 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       withActivation(wsk.activation, thirdrun, totalWait = 2 * allowedActionDuration) { activation =>
         checkSequenceLogsAndAnnotations(activation, 2) // 2 activations in this sequence
         val result = activation.response.result.get
-        result.fields.get("length") shouldBe Some(2.toJson)
-        result.fields.get("lines") shouldBe Some(args.sortWith(_.compareTo(_) < 0).toArray.toJson)
+        result.asJsObject.fields.get("length") shouldBe Some(2.toJson)
+        result.asJsObject.fields.get("lines") shouldBe Some(args.sortWith(_.compareTo(_) < 0).toArray.toJson)
       }
   }
 
@@ -141,9 +141,9 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       checkSequenceLogsAndAnnotations(activation, 3) // 3 activations in this sequence
       activation.cause shouldBe None // topmost sequence
       val result = activation.response.result.get
-      result.fields.get("payload") shouldBe defined
-      result.fields.get("length") should not be defined
-      result.fields.get("lines") shouldBe Some(JsArray(Vector(now.toJson)))
+      result.asJsObject.fields.get("payload") shouldBe defined
+      result.asJsObject.fields.get("length") should not be defined
+      result.asJsObject.fields.get("lines") shouldBe Some(JsArray(Vector(now.toJson)))
     }
   }
 
@@ -186,7 +186,7 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
     withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
       checkSequenceLogsAndAnnotations(activation, 3) // 3 activations in this sequence
       val result = activation.response.result.get
-      result.fields.get("payload") shouldBe Some(argsJson)
+      result.asJsObject.fields.get("payload") shouldBe Some(argsJson)
     }
     // update x with limit echo
     val limit: Int = {
@@ -203,7 +203,7 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       activation.response.status shouldBe ("application error")
       checkSequenceLogsAndAnnotations(activation, 2)
       val result = activation.response.result.get
-      result.fields.get("error") shouldBe Some(JsString(sequenceIsTooLong))
+      result.asJsObject.fields.get("error") shouldBe Some(JsString(sequenceIsTooLong))
       // check that inner sequence had only (limit - 1) activations
       val innerSeq = activation.logs.get(1) // the id of the inner sequence activation
       val getInnerSeq = wsk.activation.get(Some(innerSeq))
@@ -541,6 +541,31 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       }
   }
 
+  it should "invoke a sequence which supports array result" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "sequence-array"
+    val actions = Seq("split-array", "sort-array")
+    for (actionName <- actions) {
+      val file = TestUtils.getTestActionFilename(s"$actionName.js")
+      assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+        action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+      }
+    }
+
+    assetHelper.withCleaner(wsk.action, name) {
+      val sequence = actions.mkString(",")
+      (action, _) =>
+        action.create(name, Some(sequence), kind = Some("sequence"), timeout = Some(allowedActionDuration))
+    }
+
+    val args = Array("bbb", "aaa", "ccc")
+    val run = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
+    withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
+      checkSequenceLogsAndAnnotations(activation, 2) // 2 activations in this sequence
+      activation.cause shouldBe None // topmost sequence
+      activation.response.result shouldBe Some(JsArray(JsString("aaa"), JsString("bbb"), JsString("ccc")))
+    }
+  }
+
   /**
    * checks the result of an echo sequence connected to a trigger through a rule
    * @param triggerFireRun the run result of firing the trigger
@@ -553,7 +578,7 @@ class WskSequenceTests extends TestHelpers with WskTestHelpers with StreamLoggin
       withActivation(wsk.activation, ruleActivation.activationId) { actionActivation =>
         actionActivation.response.result match {
           case Some(result) =>
-            val (_, part2) = result.fields partition (p => p._1 == "__ow_headers") // excluding headers
+            val (_, part2) = result.asJsObject.fields partition (p => p._1 == "__ow_headers") // excluding headers
             JsObject(part2) shouldBe triggerPayload
           case others =>
             fail(s"no result found: $others")
