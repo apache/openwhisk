@@ -226,7 +226,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
       // if no container could be created, it is same with Flushing state.
       if (dropMsg) {
-        completeAllActivations(tooManyConcurrentRequests, isWhiskError = false)
+        completeAllActivations(tooManyConcurrentRequests, isWhiskError = queueConfig.failThrottleAsWhiskError)
         goto(Flushing) using FlushingData(
           data.schedulerActor,
           data.droppingActor,
@@ -276,7 +276,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   when(NamespaceThrottled) {
     case Event(msg: ActivationMessage, _: ThrottledData) =>
       if (containers.size + creationIds.size == 0) {
-        completeErrorActivation(msg, tooManyConcurrentRequests, isWhiskError = false)
+        completeErrorActivation(msg, tooManyConcurrentRequests, isWhiskError = queueConfig.failThrottleAsWhiskError)
       } else {
         handleActivationMessage(msg)
       }
@@ -292,7 +292,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   when(ActionThrottled) {
     // since there are already too many activation messages, it drops the new messages
     case Event(msg: ActivationMessage, ThrottledData(_, _)) =>
-      completeErrorActivation(msg, tooManyConcurrentRequests, isWhiskError = false)
+      completeErrorActivation(msg, tooManyConcurrentRequests, isWhiskError = queueConfig.failThrottleAsWhiskError)
       stay
   }
 
@@ -824,7 +824,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       CompletionMessage(activation.transid, activationResponse, instance)
     }
 
-    if (!isWhiskError && message == tooManyConcurrentRequests) {
+    if (message == tooManyConcurrentRequests) {
       val metric = Metric("ConcurrentRateLimit", 1)
       UserEvents.send(
         messagingProducer,
@@ -1199,7 +1199,8 @@ case class QueueConfig(idleGrace: FiniteDuration,
                        maxRetentionMs: Long,
                        maxBlackboxRetentionMs: Long,
                        throttlingFraction: Double,
-                       durationBufferSize: Int)
+                       durationBufferSize: Int,
+                       failThrottleAsWhiskError: Boolean)
 
 case class BufferedRequest(containerId: String, promise: Promise[Either[MemoryQueueError, ActivationMessage]])
 case object DropOld
