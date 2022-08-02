@@ -280,7 +280,7 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  it should "go to the Flushing state dropping messages when it can't create an initial container" in {
+  it should "go to the NamespaceThrottled state dropping messages when it can't create an initial container" in {
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -340,7 +340,7 @@ class MemoryQueueFlowTests
     fsm ! message
 
     dataMgmtService.expectMsg(RegisterData(namespaceThrottlingKey, true.toString, failoverEnabled = false))
-    probe.expectMsg(Transition(fsm, Running, Flushing))
+    probe.expectMsg(Transition(fsm, Running, NamespaceThrottled))
 
     awaitAssert({
       ackedMessageCount shouldBe 1
@@ -352,12 +352,16 @@ class MemoryQueueFlowTests
       fsm.underlyingActor.queue.size shouldBe 0
     }, 5.seconds)
 
-    parent.expectMsg(flushGrace * 2 + 5.seconds, queueRemovedMsg)
-    probe.expectMsg(Transition(fsm, Flushing, Removed))
+    fsm ! GracefulShutdown
+
+    parent.expectMsg(queueRemovedMsg)
+    probe.expectMsg(Transition(fsm, NamespaceThrottled, Removing))
 
     fsm ! QueueRemovedCompleted
 
     expectDataCleanUp(watcher, dataMgmtService)
+
+    probe.expectMsg(Transition(fsm, Removing, Removed))
 
     probe.expectTerminated(fsm, 10.seconds)
   }

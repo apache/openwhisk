@@ -224,18 +224,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       logging.info(this, s"[$invocationNamespace:$action:$stateName] Enable namespace throttling.")
       enableNamespaceThrottling()
 
-      // if no container could be created, it is same with Flushing state.
-      if (dropMsg) {
+      if (dropMsg)
         completeAllActivations(tooManyConcurrentRequests, isWhiskError = false)
-        goto(Flushing) using FlushingData(
-          data.schedulerActor,
-          data.droppingActor,
-          TooManyConcurrentRequests,
-          tooManyConcurrentRequests)
-      } else {
-        // if there are already some containers running, activations can still be processed so goto the NamespaceThrottled state.
-        goto(NamespaceThrottled) using ThrottledData(data.schedulerActor, data.droppingActor)
-      }
+      goto(NamespaceThrottled) using ThrottledData(data.schedulerActor, data.droppingActor)
 
     case Event(StateTimeout, data: RunningData) =>
       if (queue.isEmpty && (containers.size + creationIds.size) <= 0) {

@@ -1357,7 +1357,7 @@ class MemoryQueueTests
     parent.expectMsg(10 seconds, Transition(fsm, Uninitialized, Running))
 
     fsm ! EnableNamespaceThrottling(dropMsg = true)
-    parent.expectMsg(10 seconds, Transition(fsm, Running, Flushing))
+    parent.expectMsg(10 seconds, Transition(fsm, Running, NamespaceThrottled))
     dataManagementService.expectMsg(RegisterData(namespaceThrottlingKey, true.toString, false))
 
     fsm.stop()
