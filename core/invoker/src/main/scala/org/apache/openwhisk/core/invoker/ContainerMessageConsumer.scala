@@ -90,8 +90,8 @@ class ContainerMessageConsumer(
                 Messages.actionMismatchWhileInvoking
               case e: Throwable =>
                 logging.error(
-                    this,
-                    s"An unknown DB error occurred while fetching action ${creation.invocationNamespace}/${creation.action} for creation ${creation.creationId}, error: $e.")
+                  this,
+                  s"An unknown DB error occurred while fetching action ${creation.invocationNamespace}/${creation.action} for creation ${creation.creationId}, error: $e.")
                 Messages.actionFetchErrorWhileInvoking
             }
             logging.error(

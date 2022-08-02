@@ -213,7 +213,7 @@ object AkkaContainerClient {
     as: ActorSystem,
     ec: ExecutionContext,
     tid: TransactionId): (Int, Option[JsArray]) = {
-    val connection = new AkkaContainerClient(host, port, timeout, 1.MB, 1.MB, 1)
+    val connection = new AkkaContainerClient(host, port, timeout, 1)
     val response = executeRequestForJsArray(connection, endPoint, content)
     val result = Await.result(response, timeout + 10.seconds) //additional timeout to complete futures
     connection.close()
@@ -265,7 +265,12 @@ object AkkaContainerClient {
     tid: TransactionId): Future[(Int, Option[JsArray])] = {
 
     val res = connection
-      .post(endpoint, content, true)
+      .post(
+        endpoint,
+        content,
+        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+        ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
+        retry = true)
       .map({
         case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.convertTo[JsArray]).toOption)
         case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
