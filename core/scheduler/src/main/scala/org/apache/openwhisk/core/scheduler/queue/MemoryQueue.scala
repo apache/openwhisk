@@ -17,15 +17,13 @@
 
 package org.apache.openwhisk.core.scheduler.queue
 
-import java.time.{Duration, Instant}
-import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{ActorRef, ActorSystem, Cancellable, FSM, Props, Stash}
 import akka.util.Timeout
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
-import org.apache.openwhisk.core.connector.ContainerCreationError.{TooManyConcurrentRequests, ZeroNamespaceLimit}
+import org.apache.openwhisk.core.connector.ContainerCreationError.ZeroNamespaceLimit
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.Interval
 import org.apache.openwhisk.core.database.{NoDocumentException, UserContext}
@@ -44,10 +42,12 @@ import org.apache.openwhisk.core.scheduler.message.{
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulingConfig}
 import org.apache.openwhisk.core.service._
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
-import pureconfig.generic.auto._
 import pureconfig.loadConfigOrThrow
 import spray.json._
+import pureconfig.generic.auto._
 
+import java.time.{Duration, Instant}
+import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
@@ -224,18 +224,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       logging.info(this, s"[$invocationNamespace:$action:$stateName] Enable namespace throttling.")
       enableNamespaceThrottling()
 
-      // if no container could be created, it is same with Flushing state.
-      if (dropMsg) {
+      if (dropMsg)
         completeAllActivations(tooManyConcurrentRequests, isWhiskError = false)
-        goto(Flushing) using FlushingData(
-          data.schedulerActor,
-          data.droppingActor,
-          TooManyConcurrentRequests,
-          tooManyConcurrentRequests)
-      } else {
-        // if there are already some containers running, activations can still be processed so goto the NamespaceThrottled state.
-        goto(NamespaceThrottled) using ThrottledData(data.schedulerActor, data.droppingActor)
-      }
+      goto(NamespaceThrottled) using ThrottledData(data.schedulerActor, data.droppingActor)
 
     case Event(StateTimeout, data: RunningData) =>
       if (queue.isEmpty && (containers.size + creationIds.size) <= 0) {
