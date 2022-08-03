@@ -468,7 +468,7 @@ etcd:
   loglevel: "{{ etcd_log_level | default('info') }}"
   quota_backend_bytes: "{{ etcd_quota_backend_bytes | default(2147483648) }}" # 2GB
   snapshot_count: "{{ etcd_snapshot_count | default(10000) }}"
-  auto_compaction_retention: "{{ etcd_auto_compaction_retention | default(10m) }}"
+  auto_compaction_retention: "{{ etcd_auto_compaction_retention | default('10m') }}"
   auto_compaction_mode: "{{ etcd_auto_compaction_mode | default('periodic') }}"
   pool_threads: "{{ etcd_pool_threads | default(10) }}"
 
