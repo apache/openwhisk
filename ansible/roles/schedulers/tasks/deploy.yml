@@ -187,6 +187,10 @@
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
 
+      "CONFIG_whisk_concurrencyLimit_min": "{{ limit_action_concurrency_min | default() }}"
+      "CONFIG_whisk_concurrencyLimit_max": "{{ limit_action_concurrency_max | default() }}"
+      "CONFIG_whisk_concurrencyLimit_std": "{{ limit_action_concurrency_std | default() }}"
+
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
       "CONFIG_whisk_runtimes_defaultImagePrefix":
         "{{ runtimes_default_image_prefix | default() }}"

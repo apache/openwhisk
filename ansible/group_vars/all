@@ -464,11 +464,11 @@ etcd:
   dir:
     data: "{{ etcd_data_dir | default('') }}"
   lease:
-    timeout: "{{ etcd_lease_timeout | default(1) }}"
+    timeout: "{{ etcd_lease_timeout | default(10) }}"
   loglevel: "{{ etcd_log_level | default('info') }}"
-  quota_backend_bytes: "{{ etcd_quota_backend_bytes | default(0) }}"
-  snapshot_count: "{{ etcd_snapshot_count | default(100000) }}"
-  auto_compaction_retention: "{{ etcd_auto_compaction_retention | default(1) }}"
+  quota_backend_bytes: "{{ etcd_quota_backend_bytes | default(2147483648) }}" # 2GB
+  snapshot_count: "{{ etcd_snapshot_count | default(10000) }}"
+  auto_compaction_retention: "{{ etcd_auto_compaction_retention | default('10m') }}"
   auto_compaction_mode: "{{ etcd_auto_compaction_mode | default('periodic') }}"
   pool_threads: "{{ etcd_pool_threads | default(10) }}"
 
@@ -530,9 +530,9 @@ scheduler:
     maxRetriesToGetQueue: "{{ scheduler_maxRetriesToGetQueue | default(13) }}"
   queue:
     # the queue's state Running timeout, e.g. if have no activation comes into queue when Running, the queue state will be changed from Running to Idle and delete the decision algorithm actor
-    idleGrace: "{{ scheduler_queue_idleGrace | default('20 seconds') }}"
+    idleGrace: "{{ scheduler_queue_idleGrace | default('10 minutes') }}"
     # the queue's state Idle timeout, e.g. if have no activation comes into queue when Idle, the queue state will be changed from Idle to Removed
-    stopGrace: "{{ scheduler_queue_stopGrace | default('20 seconds') }}"
+    stopGrace: "{{ scheduler_queue_stopGrace | default('10 minutes') }}"
     # the queue's state Paused timeout, e.g. if have no activation comes into queue when Paused, the queue state will be changed from Paused to Removed
     flushGrace: "{{ scheduler_queue_flushGrace | default('60 seconds') }}"
     gracefulShutdownTimeout: "{{ scheduler_queue_gracefulShutdownTimeout | default('5 seconds') }}"
