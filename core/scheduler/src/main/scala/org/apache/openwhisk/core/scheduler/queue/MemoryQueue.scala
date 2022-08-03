@@ -17,15 +17,13 @@
 
 package org.apache.openwhisk.core.scheduler.queue
 
-import java.time.{Duration, Instant}
-import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.actor.{ActorRef, ActorSystem, Cancellable, FSM, Props, Stash}
 import akka.util.Timeout
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
-import org.apache.openwhisk.core.connector.ContainerCreationError.{TooManyConcurrentRequests, ZeroNamespaceLimit}
+import org.apache.openwhisk.core.connector.ContainerCreationError.ZeroNamespaceLimit
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.Interval
 import org.apache.openwhisk.core.database.{NoDocumentException, UserContext}
@@ -44,10 +42,12 @@ import org.apache.openwhisk.core.scheduler.message.{
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulingConfig}
 import org.apache.openwhisk.core.service._
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
-import pureconfig.generic.auto._
 import pureconfig.loadConfigOrThrow
 import spray.json._
+import pureconfig.generic.auto._
 
+import java.time.{Duration, Instant}
+import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
