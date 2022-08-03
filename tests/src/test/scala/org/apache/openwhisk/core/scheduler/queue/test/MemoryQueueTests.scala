@@ -136,6 +136,63 @@ class MemoryQueueTests
 
   behavior of "MemoryQueue"
 
+  it should "send StateTimeout message when state timeout" in {
+    implicit val clock = SystemClock
+    val mockEtcdClient = mock[EtcdClient]
+    val prove = TestProbe()
+    val watcher = TestProbe()
+    val parent = TestProbe()
+
+    expectDurationChecking(mockEsClient, testInvocationNamespace)
+
+    val queueConfigWithShortTimeout = queueConfig.copy(
+      idleGrace = 10.milliseconds,
+      stopGrace = 10.milliseconds,
+      gracefulShutdownTimeout = 10.milliseconds)
+
+    val fsm =
+      TestFSMRef(
+        new MemoryQueue(
+          mockEtcdClient,
+          durationChecker,
+          fqn,
+          mockMessaging(),
+          schedulingConfig,
+          testInvocationNamespace,
+          revision,
+          endpoints,
+          actionMetadata,
+          prove.ref,
+          watcher.ref,
+          TestProbe().ref,
+          TestProbe().ref,
+          schedulerId,
+          ack,
+          store,
+          getUserLimit,
+          checkToDropStaleActivation,
+          queueConfigWithShortTimeout),
+        parent.ref,
+        "MemoryQueue")
+
+    registerCallback(fsm)
+    fsm ! Start
+    expectMsg(Transition(fsm, Uninitialized, Running))
+
+    // Wait for the actual timeout
+    // Test when(Running, stateTimeout = queueConfig.idleGrace)
+    Thread.sleep(queueConfigWithShortTimeout.idleGrace.toMillis)
+    expectMsg(Transition(fsm, Running, Idle))
+
+    // Test for when(Idle, stateTimeout = queueConfig.stopGrace)
+    Thread.sleep(queueConfigWithShortTimeout.stopGrace.toMillis)
+    expectMsg(Transition(fsm, Idle, Removed))
+
+    // Test for when(Removed, stateTimeout = queueConfig.gracefulShutdownTimeout)
+    Thread.sleep(queueConfigWithShortTimeout.gracefulShutdownTimeout.toMillis)
+    parent.expectMsg(queueRemovedMsg)
+  }
+
   it should "register the endpoint when initializing" in {
     implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
