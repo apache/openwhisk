@@ -24,12 +24,7 @@ import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.time.{Clock, SystemClock}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
-import org.apache.openwhisk.core.connector.ContainerCreationError.{
-  InvalidActionLimitError,
-  TooManyConcurrentRequests,
-  ZeroNamespaceLimit
-}
-import org.apache.openwhisk.core.connector.ContainerCreationError.ZeroNamespaceLimit
+import org.apache.openwhisk.core.connector.ContainerCreationError.{InvalidActionLimitError, ZeroNamespaceLimit}
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.Interval
 import org.apache.openwhisk.core.database.{NoDocumentException, UserContext}
