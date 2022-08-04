@@ -206,7 +206,11 @@ class MemoryQueueTests
     expectDurationChecking(mockEsClient, testInvocationNamespace)
 
     val queueConfigWithShortTimeout =
-      queueConfig.copy(idleGrace = 10.seconds, stopGrace = 10.milliseconds, gracefulShutdownTimeout = 10.milliseconds)
+      queueConfig.copy(
+        idleGrace = 10.seconds,
+        stopGrace = 10.milliseconds,
+        gracefulShutdownTimeout = 10.milliseconds,
+        flushGrace = 10.milliseconds)
 
     val fsm =
       TestFSMRef(
@@ -249,6 +253,10 @@ class MemoryQueueTests
     // state Running -> Flushing
     expectMsg(Transition(fsm, Running, Flushing))
     fsm.isTimerActive("StopQueue") shouldBe true
+
+    // wait for flushGrace time, StopQueue timer should send StateTimeout
+    Thread.sleep(queueConfigWithShortTimeout.flushGrace.toMillis)
+    expectMsg(Transition(fsm, Flushing, Removed))
   }
 
   it should "register the endpoint when initializing" in {
