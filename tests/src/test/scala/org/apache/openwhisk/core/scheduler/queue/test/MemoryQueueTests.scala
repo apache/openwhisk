@@ -179,18 +179,76 @@ class MemoryQueueTests
     fsm ! Start
     expectMsg(Transition(fsm, Uninitialized, Running))
 
-    // Wait for the actual timeout
-    // Test when(Running, stateTimeout = queueConfig.idleGrace)
+    // Test stateTimeout for when(Running, stateTimeout = queueConfig.idleGrace)
+    fsm.isStateTimerActive shouldBe true
     Thread.sleep(queueConfigWithShortTimeout.idleGrace.toMillis)
+
     expectMsg(Transition(fsm, Running, Idle))
 
-    // Test for when(Idle, stateTimeout = queueConfig.stopGrace)
+    // Test stateTimeout for when(Idle, stateTimeout = queueConfig.stopGrace)
+    fsm.isStateTimerActive shouldBe true
     Thread.sleep(queueConfigWithShortTimeout.stopGrace.toMillis)
     expectMsg(Transition(fsm, Idle, Removed))
 
-    // Test for when(Removed, stateTimeout = queueConfig.gracefulShutdownTimeout)
+    // Test stateTimeout for when(Removed, stateTimeout = queueConfig.gracefulShutdownTimeout)
+    fsm.isStateTimerActive shouldBe true
     Thread.sleep(queueConfigWithShortTimeout.gracefulShutdownTimeout.toMillis)
     parent.expectMsg(queueRemovedMsg)
+  }
+
+  it should "start startTimerWithFixedDelay(name=StopQueue) on Transition _ => Flushing" in {
+    implicit val clock = SystemClock
+    val mockEtcdClient = mock[EtcdClient]
+    val prove = TestProbe()
+    val watcher = TestProbe()
+    val parent = TestProbe()
+
+    expectDurationChecking(mockEsClient, testInvocationNamespace)
+
+    val queueConfigWithShortTimeout =
+      queueConfig.copy(idleGrace = 10.seconds, stopGrace = 10.milliseconds, gracefulShutdownTimeout = 10.milliseconds)
+
+    val fsm =
+      TestFSMRef(
+        new MemoryQueue(
+          mockEtcdClient,
+          durationChecker,
+          fqn,
+          mockMessaging(),
+          schedulingConfig,
+          testInvocationNamespace,
+          revision,
+          endpoints,
+          actionMetadata,
+          prove.ref,
+          watcher.ref,
+          TestProbe().ref,
+          TestProbe().ref,
+          schedulerId,
+          ack,
+          store,
+          getUserLimit,
+          checkToDropStaleActivation,
+          queueConfigWithShortTimeout),
+        parent.ref,
+        "MemoryQueue")
+
+    registerCallback(fsm)
+    fsm ! Start
+    expectMsg(Transition(fsm, Uninitialized, Running))
+
+    fsm ! FailedCreationJob(
+      testCreationId,
+      message.user.namespace.name.asString,
+      message.action,
+      message.revision,
+      ContainerCreationError.NoAvailableInvokersError,
+      "no available invokers")
+
+    // Test case _ -> Flushing => startTimerWithFixedDelay("StopQueue", StateTimeout, queueConfig.flushGrace)
+    // state Running -> Flushing
+    expectMsg(Transition(fsm, Running, Flushing))
+    fsm.isTimerActive("StopQueue") shouldBe true
   }
 
   it should "register the endpoint when initializing" in {
