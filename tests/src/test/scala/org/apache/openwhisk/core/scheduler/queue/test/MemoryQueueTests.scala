@@ -33,6 +33,7 @@ import com.ibm.etcd.client.kv.WatchUpdate
 import com.ibm.etcd.client.{EtcdClient => Client}
 import com.sksamuel.elastic4s.http.ElasticClient
 import common.StreamLogging
+import org.apache.openwhisk.common.time.SystemClock
 import org.apache.openwhisk.common.{GracefulShutdown, TransactionId}
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector._
@@ -135,7 +136,131 @@ class MemoryQueueTests
 
   behavior of "MemoryQueue"
 
+  it should "send StateTimeout message when state timeout" in {
+    implicit val clock = SystemClock
+    val mockEtcdClient = mock[EtcdClient]
+    val prove = TestProbe()
+    val watcher = TestProbe()
+    val parent = TestProbe()
+
+    expectDurationChecking(mockEsClient, testInvocationNamespace)
+
+    val queueConfigWithShortTimeout = queueConfig.copy(
+      idleGrace = 10.milliseconds,
+      stopGrace = 10.milliseconds,
+      gracefulShutdownTimeout = 10.milliseconds)
+
+    val fsm =
+      TestFSMRef(
+        new MemoryQueue(
+          mockEtcdClient,
+          durationChecker,
+          fqn,
+          mockMessaging(),
+          schedulingConfig,
+          testInvocationNamespace,
+          revision,
+          endpoints,
+          actionMetadata,
+          prove.ref,
+          watcher.ref,
+          TestProbe().ref,
+          TestProbe().ref,
+          schedulerId,
+          ack,
+          store,
+          getUserLimit,
+          checkToDropStaleActivation,
+          queueConfigWithShortTimeout),
+        parent.ref,
+        "MemoryQueue")
+
+    registerCallback(fsm)
+    fsm ! Start
+    expectMsg(Transition(fsm, Uninitialized, Running))
+
+    // Test stateTimeout for when(Running, stateTimeout = queueConfig.idleGrace)
+    fsm.isStateTimerActive shouldBe true
+    Thread.sleep(queueConfigWithShortTimeout.idleGrace.toMillis)
+
+    expectMsg(Transition(fsm, Running, Idle))
+
+    // Test stateTimeout for when(Idle, stateTimeout = queueConfig.stopGrace)
+    fsm.isStateTimerActive shouldBe true
+    Thread.sleep(queueConfigWithShortTimeout.stopGrace.toMillis)
+    expectMsg(Transition(fsm, Idle, Removed))
+
+    // Test stateTimeout for when(Removed, stateTimeout = queueConfig.gracefulShutdownTimeout)
+    fsm.isStateTimerActive shouldBe true
+    Thread.sleep(queueConfigWithShortTimeout.gracefulShutdownTimeout.toMillis)
+    parent.expectMsg(queueRemovedMsg)
+  }
+
+  it should "start startTimerWithFixedDelay(name=StopQueue) on Transition _ => Flushing" in {
+    implicit val clock = SystemClock
+    val mockEtcdClient = mock[EtcdClient]
+    val prove = TestProbe()
+    val watcher = TestProbe()
+    val parent = TestProbe()
+
+    expectDurationChecking(mockEsClient, testInvocationNamespace)
+
+    val queueConfigWithShortTimeout =
+      queueConfig.copy(
+        idleGrace = 10.seconds,
+        stopGrace = 10.milliseconds,
+        gracefulShutdownTimeout = 10.milliseconds,
+        flushGrace = 10.milliseconds)
+
+    val fsm =
+      TestFSMRef(
+        new MemoryQueue(
+          mockEtcdClient,
+          durationChecker,
+          fqn,
+          mockMessaging(),
+          schedulingConfig,
+          testInvocationNamespace,
+          revision,
+          endpoints,
+          actionMetadata,
+          prove.ref,
+          watcher.ref,
+          TestProbe().ref,
+          TestProbe().ref,
+          schedulerId,
+          ack,
+          store,
+          getUserLimit,
+          checkToDropStaleActivation,
+          queueConfigWithShortTimeout),
+        parent.ref,
+        "MemoryQueue")
+
+    registerCallback(fsm)
+    fsm ! Start
+    expectMsg(Transition(fsm, Uninitialized, Running))
+
+    fsm ! FailedCreationJob(
+      testCreationId,
+      message.user.namespace.name.asString,
+      message.action,
+      message.revision,
+      ContainerCreationError.NoAvailableInvokersError,
+      "no available invokers")
+
+    // Test case _ -> Flushing => startTimerWithFixedDelay("StopQueue", StateTimeout, queueConfig.flushGrace)
+    // state Running -> Flushing
+    expectMsg(Transition(fsm, Running, Flushing))
+    fsm.isTimerActive("StopQueue") shouldBe true
+
+    // wait for flushGrace time, StopQueue timer should send StateTimeout
+    Thread.sleep(queueConfigWithShortTimeout.flushGrace.toMillis)
+    expectMsg(Transition(fsm, Flushing, Removed))
+  }
+
   it should "register the endpoint when initializing" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val prove = TestProbe()
     val watcher = TestProbe()
@@ -192,6 +317,7 @@ class MemoryQueueTests
   }
 
   it should "go to Flushing state if any error happens when the queue is depreacted" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val prove = TestProbe()
     val watcher = TestProbe()
@@ -252,6 +378,7 @@ class MemoryQueueTests
   }
 
   it should "go to the Running state without storing any data if it receives VersionUpdated" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val prove = TestProbe()
     val watcher = TestProbe()
@@ -308,6 +435,7 @@ class MemoryQueueTests
   }
 
   it should "remove the queue when timeout occurs" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val dataManagementService = TestProbe()
@@ -380,6 +508,7 @@ class MemoryQueueTests
   }
 
   it should "back to Running state when got new ActivationMessage when in Idle State" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val prove = TestProbe()
     val watcher = TestProbe()
@@ -459,6 +588,7 @@ class MemoryQueueTests
   }
 
   it should "back to Running state when got new ActivationMessage when in Removed State" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val prove = TestProbe()
     val watcher = TestProbe()
@@ -530,6 +660,7 @@ class MemoryQueueTests
   }
 
   it should "store the received ActivationMessage in the queue" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = new MockEtcdClient(client, isLeader = true)
     val prove = TestProbe()
 
@@ -571,6 +702,7 @@ class MemoryQueueTests
   }
 
   it should "send a ActivationMessage in response to GetActivation" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
     val tid = TransactionId(TransactionId.generateTid())
@@ -611,6 +743,7 @@ class MemoryQueueTests
   }
 
   it should "send NoActivationMessage in case there is no message in the queue" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
     val tid = TransactionId(TransactionId.generateTid())
@@ -650,6 +783,7 @@ class MemoryQueueTests
   }
 
   it should "poll for the ActivationMessage in case there is no message in the queue" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
     val tid = TransactionId(TransactionId.generateTid())
@@ -698,6 +832,7 @@ class MemoryQueueTests
   }
 
   it should "not send msg to a deleted container" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
     val tid = TransactionId(TransactionId.generateTid())
@@ -752,6 +887,7 @@ class MemoryQueueTests
   }
 
   it should "send response to request according to the order of container id and warmed flag" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
     val tid = TransactionId(TransactionId.generateTid())
@@ -819,6 +955,7 @@ class MemoryQueueTests
   }
 
   it should "send a container creation request to ContainerManager at initialization time" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val containerManger = TestProbe()
     val probe = TestProbe()
@@ -888,6 +1025,7 @@ class MemoryQueueTests
   }
 
   it should "complete error activation while received FailedCreationJob and the error is not a whisk error(unrecoverable)" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val testProbe = TestProbe()
     val parent = TestProbe()
@@ -968,6 +1106,7 @@ class MemoryQueueTests
   }
 
   it should "complete error activation after timeout while received FailedCreationJob and the error is a whisk error(recoverable)" in {
+    implicit val clock = new FakeClock
     val mockEtcdClient = mock[EtcdClient]
     val testProbe = TestProbe()
     val decisionMaker = TestProbe()
@@ -1024,11 +1163,15 @@ class MemoryQueueTests
     parent.expectNoMessage(5.seconds)
 
     // Add 3 more messages.
+    clock.plusSeconds(5)
     (1 to expectedCount).foreach(_ => fsm ! message)
     parent.expectNoMessage(5.seconds)
 
     // After 10 seconds(action retention timeout), the first 3 messages are timed out.
     // It does not get removed as there are still 3 messages in the queue.
+    clock.plusSeconds(5)
+    fsm ! DropOld
+
     awaitAssert({
       ackedMessageCount shouldBe 3
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("no available invokers")))
@@ -1052,7 +1195,8 @@ class MemoryQueueTests
     parent.expectMsg(Transition(fsm, Running, Flushing))
 
     // wait for the flush grace, and then all existing activations will be flushed
-    Thread.sleep(queueConfig.maxBlackboxRetentionMs + queueConfig.flushGrace.toMillis)
+    clock.plusSeconds((queueConfig.maxBlackboxRetentionMs + queueConfig.flushGrace.toMillis) / 1000)
+    fsm ! DropOld
 
     // The error message is updated from the recent error message of the FailedCreationJob.
     awaitAssert({
@@ -1072,6 +1216,7 @@ class MemoryQueueTests
   }
 
   it should "send old version activation to queueManager when update action if doesn't exist old version container" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
     val queueManager = TestProbe()
@@ -1114,6 +1259,7 @@ class MemoryQueueTests
   }
 
   it should "fetch old version activation by old container when update action" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val probe = TestProbe()
     val queueManager = TestProbe()
@@ -1159,6 +1305,7 @@ class MemoryQueueTests
   }
 
   it should "complete error activation after blackbox timeout when the action is a blackbox action and received FailedCreationJob with a whisk error(recoverable)" in {
+    implicit val clock = new FakeClock
     val mockEtcdClient = mock[EtcdClient]
     val testProbe = TestProbe()
     val decisionMaker = TestProbe()
@@ -1246,7 +1393,8 @@ class MemoryQueueTests
     fsm ! message
 
     // wait for the flush grace, and then some existing activations will be flushed
-    Thread.sleep(queueConfig.maxBlackboxRetentionMs + queueConfig.flushGrace.toMillis)
+    clock.plusSeconds((queueConfig.maxBlackboxRetentionMs + queueConfig.flushGrace.toMillis) / 1000)
+    fsm ! DropOld
     (1 to expectedCount).foreach(_ => probe.expectMsg(ActivationResponse.whiskError("no available invokers")))
 
     val duration = FiniteDuration(queueConfig.maxBlackboxRetentionMs, MILLISECONDS) + queueConfig.flushGrace
@@ -1262,6 +1410,7 @@ class MemoryQueueTests
   }
 
   it should "stop scheduling if the namespace does not exist" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val getZeroLimit = (_: String) => { Future.failed(NoDocumentException("namespace does not exist")) }
     val testProbe = TestProbe()
@@ -1302,10 +1451,11 @@ class MemoryQueueTests
     parent.expectMsg(10 seconds, CurrentState(fsm, Uninitialized))
     parent.expectMsg(10 seconds, Transition(fsm, Uninitialized, Running))
 
-    Thread.sleep(idleGrace.toMillis)
-
-    parent expectMsg QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(revision), None)
-    parent.expectMsg(10 seconds, Transition(fsm, Running, Removing))
+    fsm ! StopSchedulingAsOutdated
+    parent expectMsgAllOf (10 seconds, Transition(fsm, Running, Removing), QueueRemoved(
+      testInvocationNamespace,
+      fqn.toDocId.asDocInfo(revision),
+      None))
 
     fsm ! QueueRemovedCompleted
     parent.expectMsg(10 seconds, Transition(fsm, Removing, Removed))
@@ -1314,6 +1464,7 @@ class MemoryQueueTests
   }
 
   it should "throttle the namespace when the limit is already reached" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val dataManagementService = TestProbe()
     val probe = TestProbe()
@@ -1364,6 +1515,7 @@ class MemoryQueueTests
   }
 
   it should "disable namespace throttling when the capacity become available" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val dataManagementService = TestProbe()
     val probe = TestProbe()
@@ -1425,6 +1577,7 @@ class MemoryQueueTests
   }
 
   it should "throttle the action when the number of messages reaches the limit" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val dataManagementService = TestProbe()
     val probe = TestProbe()
@@ -1473,6 +1626,7 @@ class MemoryQueueTests
   }
 
   it should "disable action throttling when the number of messages is under throttling fraction" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val dataManagementService = TestProbe()
     val probe = TestProbe()
@@ -1531,6 +1685,7 @@ class MemoryQueueTests
   }
 
   it should "update the number of containers based on Watch event" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = new MockEtcdClient(client, true)
     val probe = TestProbe()
     val watcher = system.actorOf(WatcherService.props(mockEtcdClient))
@@ -1574,7 +1729,7 @@ class MemoryQueueTests
     val newRevision = DocRevision("2-testRev")
 
     memoryQueue.containers.size shouldBe 0
-    memoryQueue.creationIds.size shouldBe 0
+    memoryQueue.creationIds.count(_.startsWith("testId")) shouldBe 0
     memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 0
     memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 0
 
@@ -1611,13 +1766,12 @@ class MemoryQueueTests
         Some(ContainerId("test-containerId2"))),
       "test-value")
 
-    Thread.sleep(1000)
-    memoryQueue.containers.size shouldBe 1
-    // the monit actor in memoryQueue may decide to create a container
-    memoryQueue.creationIds.size should be >= 1
-    memoryQueue.creationIds.size should be <= 2
-    memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 2
-    memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 2
+    awaitAssert({
+      memoryQueue.containers.size shouldBe 1 // ['test-containerId1']
+      memoryQueue.creationIds.count(_.startsWith("testId")) shouldBe 1 // ['testId1']
+      memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 2
+      memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 2
+    }, 5.seconds)
 
     mockEtcdClient.publishEvents(
       EventType.PUT,
@@ -1650,12 +1804,12 @@ class MemoryQueueTests
         Some(ContainerId("test-containerId4"))),
       "test-value")
 
-    Thread.sleep(1000)
-    memoryQueue.containers.size shouldBe 2
-    memoryQueue.creationIds.size should be >= 2
-    memoryQueue.creationIds.size should be <= 3
-    memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 4
-    memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 4
+    awaitAssert({
+      memoryQueue.containers.size shouldBe 2 // ['test-containerId1', 'test-containerId3']
+      memoryQueue.creationIds.count(_.startsWith("testId")) shouldBe 2 // ['testId1', 'testId3']
+      memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 4
+      memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 4
+    }, 5.seconds)
 
     mockEtcdClient.publishEvents(
       EventType.DELETE,
@@ -1678,12 +1832,12 @@ class MemoryQueueTests
       inProgressContainer(testInvocationNamespace, newFqn, newRevision, schedulerId, CreationId("testId4")),
       "test-value")
 
-    Thread.sleep(1000)
-    memoryQueue.containers.size shouldBe 2
-    memoryQueue.creationIds.size should be >= 0
-    memoryQueue.creationIds.size should be <= 1
-    memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 0
-    memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 4
+    awaitAssert({
+      memoryQueue.containers.size shouldBe 2 // ['test-containerId1', 'test-containerId3']
+      memoryQueue.creationIds.count(_.startsWith("testId")) shouldBe 0
+      memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 0
+      memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 4
+    }, 5.seconds)
 
     mockEtcdClient.publishEvents(
       EventType.DELETE,
@@ -1726,15 +1880,12 @@ class MemoryQueueTests
         Some(ContainerId("test-containerId4"))),
       "test-value")
 
-    memoryQueue.creationIds.size should be >= 0
-    memoryQueue.creationIds.size should be <= 1
-
-    Thread.sleep(1000)
-    memoryQueue.containers.size shouldBe 0
-    memoryQueue.creationIds.size should be >= 1 // if there is no container, the queue tries to create one container
-    memoryQueue.creationIds.size should be <= 2
-    memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 0
-    memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 0
+    awaitAssert({
+      memoryQueue.containers.size shouldBe 0
+      memoryQueue.creationIds.count(_.startsWith("testId")) shouldBe 0
+      memoryQueue.namespaceContainerCount.inProgressContainerNumByNamespace shouldBe 0
+      memoryQueue.namespaceContainerCount.existingContainerNumByNamespace shouldBe 0
+    }, 5.seconds)
   }
 
   private def getData(states: List[MemoryQueueState]) = {
@@ -1749,6 +1900,7 @@ class MemoryQueueTests
     (schedulingActors, droppingActors, data)
   }
   it should "clean up throttling data when it stops gracefully" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
 
     val dataManagementService = TestProbe()
@@ -1815,7 +1967,8 @@ class MemoryQueueTests
   it should "drop the old activation from the queue" in {
     var queue = Queue.empty[TimeSeriesActivationEntry]
 
-    val now = Instant.now
+    val clock = new FakeClock
+    val now = clock.now()
     val records = List(
       TimeSeriesActivationEntry(Instant.ofEpochMilli(now.toEpochMilli + 1000), message),
       TimeSeriesActivationEntry(Instant.ofEpochMilli(now.toEpochMilli + 2000), message),
@@ -1826,10 +1979,10 @@ class MemoryQueueTests
     )
 
     records.foreach(record => queue = queue.enqueue(record))
-
-    Thread.sleep(5000)
+    clock.plusSeconds(5)
 
     queue = MemoryQueue.dropOld(
+      clock,
       queue,
       java.time.Duration.ofMillis(1000),
       "activation processing is not initiated for 1000 ms",
@@ -1843,6 +1996,7 @@ class MemoryQueueTests
 
     noException should be thrownBy {
       queue = MemoryQueue.dropOld(
+        SystemClock,
         queue,
         java.time.Duration.ofMillis(1000),
         "activation processing is not initiated for 1000 ms",
@@ -1853,6 +2007,7 @@ class MemoryQueueTests
   behavior of "duration checker"
 
   it should "check the duration once" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
 
     val dataManagementService = TestProbe()
