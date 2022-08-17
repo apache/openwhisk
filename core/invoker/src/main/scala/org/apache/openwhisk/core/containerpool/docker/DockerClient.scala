@@ -68,7 +68,7 @@ case class DockerClientTimeoutConfig(run: Duration,
 /**
  * Configuration for docker client
  */
-case class DockerClientConfig(parallelRuns: Int, timeouts: DockerClientTimeoutConfig)
+case class DockerClientConfig(parallelRuns: Int, timeouts: DockerClientTimeoutConfig, maskDockerRunArgs: Boolean)
 
 /**
  * Serves as interface to the docker CLI tool.
@@ -135,7 +135,10 @@ class DockerClient(dockerHost: Option[String] = None,
       }
     }.flatMap { _ =>
       // Iff the semaphore was acquired successfully
-      runCmd(Seq("run", "-d") ++ args ++ Seq(image), config.timeouts.run)
+      runCmd(
+        Seq("run", "-d") ++ args ++ Seq(image),
+        config.timeouts.run,
+        if (config.maskDockerRunArgs) Some(Seq("run", "-d", "**ARGUMENTS HIDDEN**", image)) else None)
         .andThen {
           // Release the semaphore as quick as possible regardless of the runCmd() result
           case _ => runSemaphore.release()
@@ -200,12 +203,13 @@ class DockerClient(dockerHost: Option[String] = None,
   def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] =
     runCmd(Seq("inspect", id.asString, "--format", "{{.State.OOMKilled}}"), config.timeouts.inspect).map(_.toBoolean)
 
-  protected def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
+  protected def runCmd(args: Seq[String], timeout: Duration, maskedArgs: Option[Seq[String]] = None)(
+    implicit transid: TransactionId): Future[String] = {
     val cmd = dockerCmd ++ args
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_DOCKER_CMD(args.head),
-      s"running ${cmd.mkString(" ")} (timeout: $timeout)",
+      s"running ${maskedArgs.map(maskedArgs => (dockerCmd ++ maskedArgs).mkString(" ")).getOrElse(cmd.mkString(" "))} (timeout: $timeout)",
       logLevel = InfoLevel)
     executeProcess(cmd, timeout).andThen {
       case Success(_) => transid.finished(this, start)

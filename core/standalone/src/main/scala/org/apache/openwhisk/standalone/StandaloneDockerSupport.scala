@@ -211,8 +211,9 @@ class StandaloneDockerClient(pullDisabled: Boolean)(implicit log: Logging, as: A
     if (pullDisabled) Future.successful(()) else super.pull(image)
   }
 
-  override def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] =
-    super.runCmd(args, timeout)
+  override def runCmd(args: Seq[String], timeout: Duration, maskedArgs: Option[Seq[String]] = None)(
+    implicit transid: TransactionId): Future[String] =
+    super.runCmd(args, timeout, maskedArgs)
 
   val clientConfig: DockerClientConfig = loadConfigOrThrow[DockerClientConfig](ConfigKeys.dockerClient)
 
