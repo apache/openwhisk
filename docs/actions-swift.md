@@ -35,8 +35,9 @@ An action is simply a top-level Swift function. For example, create a file calle
 `hello.swift` with the following content:
 
 ```swift
-func main(args: [String:Any]) -> [String:Any] {
-    if let name = args["name"] as? String {
+func main(args: Any) -> Any {
+    let dict = args as! [String:Any]
+    if let name = dict["name"] as? String {
         return [ "greeting" : "Hello \(name)!" ]
     } else {
         return [ "greeting" : "Hello stranger!" ]
@@ -44,6 +45,27 @@ func main(args: [String:Any]) -> [String:Any] {
 }
 ```
 In this example the Swift action consumes a dictionary and produces a dictionary.
+
+For the return result, not only support `dictionary`, but also support `array`
+
+So a very simple `hello array` function woule be:
+
+```swift
+func main(args: Any) -> Any {
+    var arr = ["a", "b"]
+    return arr
+}
+```
+
+And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+
+So the function can be:
+
+```swift
+ func main(args: Any) -> Any {
+     return args
+ }
+```
 
 You can create an OpenWhisk action called `helloSwift` from this function as
 follows:

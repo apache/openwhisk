@@ -39,6 +39,27 @@ def main(args)
 end
 ```
 
+For the return result, not only support `dictionary` but also support `array`
+
+So a very simple `hello array` function would be:
+
+```ruby
+def main(args)
+  nums = Array["a","b"]
+  nums
+end
+```
+
+And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+
+So the function can be
+
+```ruby
+def main(args)
+  args
+end
+```
+
 Ruby actions always consume a Hash and return a Hash.
 The entry method for the action is `main` by default but may be specified explicitly
 when creating the action with the `wsk` CLI using `--main`, as with any other action type.

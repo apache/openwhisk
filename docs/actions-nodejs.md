@@ -31,6 +31,32 @@ and demonstrate how to bundle multiple JavaScript files and third party dependen
   }
   ```
 
+  For the return result, not only support `dictionary` but also support `array`
+
+  So a very simple `hello array` function would be:
+
+  ```javascript
+  function main(params) {
+    return ["a", "b"];
+  }
+  ```
+
+  And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+
+  So the function can be:
+
+  ```javascript
+  /**
+   * Sort a set of lines.
+   * @param lines An array of strings to sort.
+   */
+  function main(msg) {
+      var lines = msg || [];
+      lines.sort();
+      return lines;
+  }
+  ```
+
   The JavaScript file might contain additional functions.
   However, by convention, a function called `main` must exist to provide the entry point for the action.
 

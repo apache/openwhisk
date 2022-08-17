@@ -79,6 +79,47 @@ cd out
 zip -r -0 helloDotNet.zip *
 ```
 
+For the return result, not only support `dictionary` but also support `array`
+
+So a very simple `hello array` function would be:
+
+```csharp
+using System;
+using Newtonsoft.Json.Linq;
+namespace Apache.OpenWhisk.Tests.Dotnet
+{
+    public class HelloArray
+    {
+        public JArray Main(JObject args)
+        {
+            JArray jarray = new JArray();
+            jarray.Add("a");
+            jarray.Add("b");
+            return (jarray);
+        }
+    }
+}
+```
+
+And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+
+So the function can be:
+
+```csharp
+using System;
+using Newtonsoft.Json.Linq;
+namespace Apache.OpenWhisk.Tests.Dotnet
+{
+    public class HelloPassArrayParam
+    {
+        public JArray Main(JArray args)
+        {
+            return (args);
+        }
+    }
+}
+```
+
 ### Create the .NET Core Action
 
 You need to specify the name of the function handler using `--main` argument.

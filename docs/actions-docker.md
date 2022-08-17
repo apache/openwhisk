@@ -236,6 +236,18 @@ DATE=`date`
 echo "{ \"message\": \"Hello $NAME! It is $DATE.\" }"
 ```
 
+For the return result, not only support `dictionary` but also support `array`
+```
+#!/bin/bash
+echo '["a", "b"]''
+```
+
+And support array result for sequence action as well, the first action's array result can be used as next action's input parameter
+```
+#!/bin/bash
+echo $1
+```
+
 - Create an action from this shell script.
 
 ```

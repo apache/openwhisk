@@ -47,6 +47,32 @@ function main(array $args) : array
 }
 ```
 
+For the return result, not only support `dictionary` but also support `array`
+
+So a very simple `hello array` function would be:
+
+```php
+<?php
+function main(array $args) : array
+{
+    $arr=array("a","b","c");
+    return $arr;
+}
+```
+
+And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+
+So the function can be:
+
+```php
+<?php
+function main(array $args) : array
+{
+    $result = array_reverse($args);
+    return $result;
+}
+```
+
 PHP actions always consume an associative array and return an associative array.
 The entry method for the action is `main` by default but may be specified explicitly when creating
 the action with the `wsk` CLI using `--main`, as with any other action type.

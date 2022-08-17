@@ -48,6 +48,34 @@ public class Hello {
 }
 ```
 
+Not only support return JsonObject but also support return JsonArray, the main function would be:
+
+```java
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+public class HelloArray {
+    public static JsonArray main(JsonObject args) {
+        JsonArray jsonArray = new JsonArray();
+        jsonArray.add("a");
+        jsonArray.add("b");
+        return jsonArray;
+    }
+}
+```
+
+And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+
+So the function would be:
+
+```java
+import com.google.gson.JsonArray;
+public class Sort {
+    public static JsonArray main(JsonArray args) {
+        return args;
+    }
+}
+```
+
 Then, compile `Hello.java` into a JAR file `hello.jar` as follows:
 ```
 javac Hello.java

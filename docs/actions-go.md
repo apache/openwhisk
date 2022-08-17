@@ -58,6 +58,31 @@ func Main(obj map[string]interface{}) map[string]interface{} {
 }
 ```
 
+For the return result, not only support `map[string]interface{}` but also support `[]interface{}`
+
+So a very simple `hello array` function would be:
+
+```go
+package main
+// Main is the function implementing the action
+func Main(event map[string]interface{}) []interface{} {
+        result := []interface{}{"a", "b"}
+        return result
+}
+```
+
+And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+
+So the function can be:
+
+```go
+package main
+// Main is the function implementing the action
+func Main(obj []interface{}) []interface{} {
+        return obj
+}
+```
+
 You can deploy it with just:
 
 ```

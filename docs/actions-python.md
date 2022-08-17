@@ -33,7 +33,23 @@ def main(args):
     print(greeting)
     return {"greeting": greeting}
 ```
+For the return result, not only support `dictionary` but also support `array`
 
+So a very simple `hello array` function would be:
+
+```python
+def main(args):
+    return ["a", "b"]
+```
+
+And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+
+So the function can be:
+
+```python
+def main(args):
+    return args
+```
 Python actions always consume a dictionary and produce a dictionary.
 The entry method for the action is `main` by default but may be specified explicitly when creating
 the action with the `wsk` CLI using `--main`, as with any other action type.
