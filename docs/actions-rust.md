@@ -58,9 +58,9 @@ pub fn main(args: Value) -> Result<Value, Error> {
 
 Rust actions are mainly composed by a `main` function that accepts a JSON `serdes Value` as input and returns a `Result` including a JSON `serde Value`.
 
-For the return result, not only support `A JSON serde Value` but also support `Array serde Value`
+An action supports not only a JSON object but also a JSON array as a return value.
 
-So a simple `hello array` funtion would be:
+It would be a simple example that uses an array as a return value:
 
 ```rust
 extern crate serde_json;
@@ -71,10 +71,9 @@ pub fn main(args: Value) -> Result<Value, Error> {
     serde_json::to_value(output)
 }
 ```
+You can also create a sequence action with actions accepting an array param and returning an array result.
 
-And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
-
-So the function can be:
+You can easily figure out the parameters with the following example:
 
 ```rust
 extern crate serde_json;

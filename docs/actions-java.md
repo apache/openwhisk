@@ -48,7 +48,9 @@ public class Hello {
 }
 ```
 
-Not only support return JsonObject but also support return JsonArray, the main function would be:
+An action supports not only a JSON object but also a JSON array as a return value.
+
+It would be a simple example that uses an array as a return value:
 
 ```java
 import com.google.gson.JsonArray;
@@ -63,9 +65,9 @@ public class HelloArray {
 }
 ```
 
-And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+You can also create a sequence action with actions accepting an array param and returning an array result.
 
-So the function would be:
+You can easily figure out the parameters with the following example:
 
 ```java
 import com.google.gson.JsonArray;

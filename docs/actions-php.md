@@ -47,9 +47,9 @@ function main(array $args) : array
 }
 ```
 
-For the return result, not only support `dictionary` but also support `array`
+An action supports not only a JSON object but also a JSON arary as a return value.
 
-So a very simple `hello array` function would be:
+It would be a simple example that uses an array as a return value:
 
 ```php
 <?php
@@ -60,9 +60,9 @@ function main(array $args) : array
 }
 ```
 
-And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+You can also create a sequence action with actions accepting an array param and returning an array result.
 
-So the function can be:
+You can easily figure out the parameters with the following example:
 
 ```php
 <?php

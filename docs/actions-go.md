@@ -58,9 +58,9 @@ func Main(obj map[string]interface{}) map[string]interface{} {
 }
 ```
 
-For the return result, not only support `map[string]interface{}` but also support `[]interface{}`
+An action supports not only a JSON object but also a JSON array as a return value.
 
-So a very simple `hello array` function would be:
+It would be a simple example that uses an array as a return value:
 
 ```go
 package main
@@ -71,9 +71,9 @@ func Main(event map[string]interface{}) []interface{} {
 }
 ```
 
-And support array result for sequence action as well, the first action's array result can be used as next action's input parameter.
+you can also create a sequence action with actions accepting an array param and returning an array result.
 
-So the function can be:
+You can easily figure out the parameters with the following example:
 
 ```go
 package main
