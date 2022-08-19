@@ -167,6 +167,7 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
               }
           }
 
+          // update the resource usage of invokers to apply changes from warmed creations.
           val updatedInvokers = chosenInvokers.foldLeft(invokers) { (invokers, chosenInvoker) =>
             chosenInvoker match {
               case Some((chosenInvoker, msg)) =>
@@ -176,6 +177,7 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
             }
           }
 
+          // handle cold creations
           ContainerManager
             .schedule(updatedInvokers, coldCreations.map(_._1), memory)
             .map { pair =>
@@ -185,7 +187,7 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
                   creationJobManager ! RegisterCreationJob(pair.msg)
                   sendCreationContainerToInvoker(messagingProducer, instanceId.instance, pair.msg)
 
-                // no matching invoker is found for the reason.
+                // if a chosen invoker does not exist, it means it failed to find a matching invoker for the msg.
                 case _ =>
                   for {
                     error <- pair.err
