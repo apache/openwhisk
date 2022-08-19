@@ -353,15 +353,15 @@ object ContainerManager {
         containerPrefix(ContainerKeys.warmedPrefix, msg.invocationNamespace, msg.action, Some(msg.revision))
       val container = warmedContainers
         .filter(!inProgressWarmedContainers.values.toSeq.contains(_))
-        .flatMap { container =>
+        .find { container =>
           if (container.startsWith(warmedPrefix)) {
             logging.info(this, s"Choose a warmed container $container")
 
             // this is required to exclude already chosen invokers
             inProgressWarmedContainers.update(msg.creationId.asString, container)
-            Some(container)
+            true
           } else
-            None
+            false
         }
 
       // chosenInvoker is supposed to have only one item
@@ -376,8 +376,8 @@ object ContainerManager {
               .map(_.id.instance)
               .contains(invoker.toInt))
 
-      if (chosenInvoker.nonEmpty) {
-        (msg, Some(chosenInvoker.head.toInt), Some(container.head))
+      if (chosenInvoker.nonEmpty && container.nonEmpty) {
+        (msg, Some(chosenInvoker.get.toInt), Some(container.get))
       } else
         (msg, None, None)
     }
