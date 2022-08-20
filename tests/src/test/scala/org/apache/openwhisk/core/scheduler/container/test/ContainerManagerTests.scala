@@ -727,15 +727,11 @@ class ContainerManagerTests
       List(msg1, msg2, msg3, msg4, msg5),
       msg1.whiskActionMetaData.limits.memory.megabytes.MB) // the memory is same for all msgs
     pairs should contain theSameElementsAs List(
-      ScheduledPair(msg1, Some(healthyInvokers(0).id), None, None),
-      ScheduledPair(msg2, Some(healthyInvokers(1).id), None, None),
-      ScheduledPair(msg3, Some(healthyInvokers(2).id), None, None),
-      ScheduledPair(msg4, Some(healthyInvokers(3).id), None, None),
-      ScheduledPair(
-        msg5,
-        None,
-        Some(NoAvailableResourceInvokersError),
-        Some("No available invokers with resources List(fake).")))
+      ScheduledPair(msg1, Some(healthyInvokers(0).id), None),
+      ScheduledPair(msg2, Some(healthyInvokers(1).id), None),
+      ScheduledPair(msg3, Some(healthyInvokers(2).id), None),
+      ScheduledPair(msg4, Some(healthyInvokers(3).id), None),
+      ScheduledPair(msg5, None, Some(NoAvailableResourceInvokersError)))
   }
 
   it should "choose tagged invokers when no untagged invoker is available" in {
@@ -773,8 +769,8 @@ class ContainerManagerTests
     val pairs =
       ContainerManager.schedule(healthyInvokers, List(msg, msg2), msg.whiskActionMetaData.limits.memory.megabytes.MB)
     pairs should contain theSameElementsAs List(
-      ScheduledPair(msg, Some(healthyInvokers(0).id), None, None),
-      ScheduledPair(msg2, None, Some(NoAvailableInvokersError), Some("No available invokers.")))
+      ScheduledPair(msg, Some(healthyInvokers(0).id), None),
+      ScheduledPair(msg2, None, Some(NoAvailableInvokersError)))
   }
 
   it should "respect the resource policy while use resource filter" in {
@@ -849,18 +845,13 @@ class ContainerManagerTests
     // while resourcesStrictPolicy is true, and there is no suitable invokers, return an error
     val pairs =
       ContainerManager.schedule(healthyInvokers, List(msg1), msg1.whiskActionMetaData.limits.memory.megabytes.MB)
-    pairs should contain theSameElementsAs List(
-      ScheduledPair(
-        msg1,
-        None,
-        Some(NoAvailableResourceInvokersError),
-        Some("No available invokers with resources List(non-exist).")))
+    pairs should contain theSameElementsAs List(ScheduledPair(msg1, None, Some(NoAvailableResourceInvokersError)))
 
     // while resourcesStrictPolicy is false, and there is no suitable invokers, should choose no tagged invokers first,
     // here is the invoker0
     val pairs2 =
       ContainerManager.schedule(healthyInvokers, List(msg2), msg2.whiskActionMetaData.limits.memory.megabytes.MB)
-    pairs2 should contain theSameElementsAs List(ScheduledPair(msg2, Some(healthyInvokers(0).id), None, None))
+    pairs2 should contain theSameElementsAs List(ScheduledPair(msg2, Some(healthyInvokers(0).id), None))
 
     // while resourcesStrictPolicy is false, and there is no suitable invokers, should choose no tagged invokers first,
     // if there is none, then choose invokers with other tags, if there is still none, return no available invokers
@@ -870,7 +861,7 @@ class ContainerManagerTests
       msg3.whiskActionMetaData.limits.memory.megabytes.MB)
     pairs3 should contain theSameElementsAs List(
       ScheduledPair(msg3, Some(healthyInvokers(1).id)),
-      ScheduledPair(msg4, None, Some(NoAvailableInvokersError), Some("No available invokers.")))
+      ScheduledPair(msg4, None, Some(NoAvailableInvokersError)))
   }
 
   it should "send FailedCreationJob to queue manager when no invokers are available" in {
@@ -916,7 +907,7 @@ class ContainerManagerTests
         msg.action,
         testRevision,
         NoAvailableInvokersError,
-        "No available invokers."))
+        NoAvailableInvokersError))
   }
 
   it should "schedule to the blackbox invoker when isBlackboxInvocation is true" in {

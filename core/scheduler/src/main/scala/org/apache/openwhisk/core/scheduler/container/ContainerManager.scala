@@ -21,6 +21,7 @@ import akka.event.Logging.InfoLevel
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector.ContainerCreationError.{
+  containerCreationErrorToString,
   NoAvailableInvokersError,
   NoAvailableResourceInvokersError
 }
@@ -52,8 +53,7 @@ import scala.util.{Failure, Success}
 
 case class ScheduledPair(msg: ContainerCreationMessage,
                          invokerId: Option[InvokerInstanceId],
-                         err: Option[ContainerCreationError] = None,
-                         reason: Option[String] = None)
+                         err: Option[ContainerCreationError] = None)
 
 case class BlackboxFractionConfig(managedFraction: Double, blackboxFraction: Double)
 
@@ -146,7 +146,8 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
       .getAvailableInvokers(etcdClient, memory, invocationNamespace)
       .foreach { invokers =>
         if (invokers.isEmpty) {
-          msgs.foreach(ContainerManager.sendState(_, NoAvailableInvokersError, s"No available invokers."))
+          logging.error(this, "there is no available invoker to schedule.")
+          msgs.foreach(ContainerManager.sendState(_, NoAvailableInvokersError, NoAvailableInvokersError))
         } else {
           val (coldCreations, warmedCreations) =
             ContainerManager.filterWarmedCreations(warmedContainers, inProgressWarmedContainers, invokers, msgs)
@@ -154,11 +155,11 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
           // handle warmed creation
           val chosenInvokers: immutable.Seq[Option[(Int, ContainerCreationMessage)]] = warmedCreations.map {
             warmedCreation =>
-              // update the in-progress map for warmed containers
-              // even if it is done in the filterWarmedCreations method, it is still necessary to apply the change to the original map
+              // update the in-progress map for warmed containers.
+              // even if it is done in the filterWarmedCreations method, it is still necessary to apply the change to the original map.
               warmedCreation._3.foreach(inProgressWarmedContainers.update(warmedCreation._1.creationId.asString, _))
 
-              // send creation message to the target invoker
+              // send creation message to the target invoker.
               warmedCreation._2 map { chosenInvoker =>
                 val msg = warmedCreation._1
                 creationJobManager ! RegisterCreationJob(msg)
@@ -172,7 +173,9 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
             chosenInvoker match {
               case Some((chosenInvoker, msg)) =>
                 updateInvokerMemory(chosenInvoker, msg.whiskActionMetaData.limits.memory.megabytes, invokers)
-              case _ =>
+              case err =>
+                // this is not supposed to happen.
+                logging.error(this, s"warmed creation is scheduled but no invoker is chosen: $err")
                 invokers
             }
           }
@@ -189,12 +192,7 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
 
                 // if a chosen invoker does not exist, it means it failed to find a matching invoker for the msg.
                 case _ =>
-                  for {
-                    error <- pair.err
-                    reason <- pair.reason
-                  } yield {
-                    sendState(pair.msg, error, reason)
-                  }
+                  pair.err.foreach(error => sendState(pair.msg, error, error))
               }
             }
         }
@@ -460,6 +458,7 @@ object ContainerManager {
         if (requiredResources.isEmpty) {
           // only choose managed invokers or blackbox invokers
           val wantedInvokers = if (isBlackboxInvocation) {
+            logging.info(this, s"[${msg.invocationNamespace}/${msg.action}] looking for blackbox invokers to schedule.")
             candidates
               .filter(
                 c =>
@@ -468,6 +467,7 @@ object ContainerManager {
                     .contains(c.id.instance) && c.id.userMemory.toMB >= msg.whiskActionMetaData.limits.memory.megabytes)
               .toSet
           } else {
+            logging.info(this, s"[${msg.invocationNamespace}/${msg.action}] looking for managed invokers to schedule.")
             candidates
               .filter(
                 c =>
@@ -484,16 +484,23 @@ object ContainerManager {
               updateInvokerMemory(scheduledPair.invokerId, msg.whiskActionMetaData.limits.memory.megabytes, invokers)
             (scheduledPair :: pairs, updatedInvokers)
           } else if (taggedInvokers.nonEmpty) { // if not found from the wanted invokers, choose tagged invokers then
+            logging.info(
+              this,
+              s"[${msg.invocationNamespace}/${msg.action}] since there is no available non-tagged invoker, choose one among tagged invokers.")
             val scheduledPair = chooseInvokerFromCandidates(taggedInvokers, msg)
             val updatedInvokers =
               updateInvokerMemory(scheduledPair.invokerId, msg.whiskActionMetaData.limits.memory.megabytes, invokers)
             (scheduledPair :: pairs, updatedInvokers)
           } else {
+            logging.error(
+              this,
+              s"[${msg.invocationNamespace}/${msg.action}] there is no invoker available to schedule to schedule.")
             val scheduledPair =
-              ScheduledPair(msg, invokerId = None, Some(NoAvailableInvokersError), Some(s"No available invokers."))
+              ScheduledPair(msg, invokerId = None, Some(NoAvailableInvokersError))
             (scheduledPair :: pairs, invokers)
           }
         } else {
+          logging.info(this, s"[${msg.invocationNamespace}/${msg.action}] looking for tagged invokers to schedule.")
           val wantedInvokers = candidates.filter(health => requiredResources.toSet.subsetOf(health.id.tags.toSet))
           if (wantedInvokers.nonEmpty) {
             val scheduledPair = chooseInvokerFromCandidates(wantedInvokers, msg)
@@ -501,14 +508,16 @@ object ContainerManager {
               updateInvokerMemory(scheduledPair.invokerId, msg.whiskActionMetaData.limits.memory.megabytes, invokers)
             (scheduledPair :: pairs, updatedInvokers)
           } else if (resourcesStrictPolicy) {
+            logging.error(
+              this,
+              s"[${msg.invocationNamespace}/${msg.action}] there is no available invoker with the resource: ${requiredResources}")
             val scheduledPair =
-              ScheduledPair(
-                msg,
-                invokerId = None,
-                Some(NoAvailableResourceInvokersError),
-                Some(s"No available invokers with resources $requiredResources."))
+              ScheduledPair(msg, invokerId = None, Some(NoAvailableResourceInvokersError))
             (scheduledPair :: pairs, invokers)
           } else {
+            logging.info(
+              this,
+              s"[${msg.invocationNamespace}/${msg.action}] since there is no available invoker with the resource, choose any invokers without the resource.")
             val (noTaggedInvokers, taggedInvokers) = candidates.partition(_.id.tags.isEmpty)
             if (noTaggedInvokers.nonEmpty) { // choose no tagged invokers first
               val scheduledPair = chooseInvokerFromCandidates(noTaggedInvokers, msg)
@@ -527,8 +536,9 @@ object ContainerManager {
                     invokers)
                 (scheduledPair :: pairs, updatedInvokers)
               } else {
+                logging.error(this, s"[${msg.invocationNamespace}/${msg.action}] no available invoker is found")
                 val scheduledPair =
-                  ScheduledPair(msg, invokerId = None, Some(NoAvailableInvokersError), Some(s"No available invokers."))
+                  ScheduledPair(msg, invokerId = None, Some(NoAvailableInvokersError))
                 (scheduledPair :: pairs, invokers)
               }
             }
@@ -544,9 +554,9 @@ object ContainerManager {
     implicit logging: Logging): ScheduledPair = {
     val requiredMemory = msg.whiskActionMetaData.limits.memory
     if (candidates.isEmpty) {
-      ScheduledPair(msg, invokerId = None, Some(NoAvailableInvokersError), Some(s"No available invokers."))
+      ScheduledPair(msg, invokerId = None, Some(NoAvailableInvokersError))
     } else if (candidates.forall(p => p.id.userMemory.toMB < requiredMemory.megabytes)) {
-      ScheduledPair(msg, invokerId = None, Some(NoAvailableInvokersError), Some(s"No available invokers."))
+      ScheduledPair(msg, invokerId = None, Some(NoAvailableResourceInvokersError))
     } else {
       val idx = rng(mod = candidates.size)
       val instance = candidates(idx)
