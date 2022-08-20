@@ -385,7 +385,6 @@ class FPCInvokerReactive(config: WhiskConfig,
     pool ! GracefulShutdown
     warmUpWatcher.foreach(_.close())
     warmUpWatcher = None
-    consumer.foreach(_.close())
     complete("Successfully disabled invoker")
   }
 
