@@ -39,15 +39,16 @@ import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, InvokerKeys}
 import org.apache.openwhisk.core.etcd.EtcdType._
 import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
-import org.apache.openwhisk.core.scheduler.container._
+import org.apache.openwhisk.core.scheduler.container.{ScheduledPair, _}
 import org.apache.openwhisk.core.scheduler.message.{
   ContainerCreation,
   ContainerDeletion,
   FailedCreationJob,
   RegisterCreationJob,
-  ReschedulingCreationJob,
-  SuccessfulCreationJob
+  ReschedulingCreationJob
 }
+
+import scala.language.postfixOps
 import org.apache.openwhisk.core.scheduler.queue.{MemoryQueueKey, MemoryQueueValue, QueuePool}
 import org.apache.openwhisk.core.service.{WatchEndpointInserted, WatchEndpointRemoved}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
@@ -60,6 +61,7 @@ import pureconfig.loadConfigOrThrow
 import spray.json.{JsArray, JsBoolean, JsString}
 import pureconfig.generic.auto._
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, _}
@@ -182,8 +184,8 @@ class ContainerManagerTests
             val msg = InvokerResourceMessage(
               invoker.status.asString,
               invoker.id.userMemory.toMB,
-              invoker.id.userMemory.toMB,
-              invoker.id.userMemory.toMB,
+              invoker.id.busyMemory.getOrElse(0.MB).toMB,
+              0,
               invoker.id.tags,
               invoker.id.dedicatedNamespaces)
 
@@ -271,16 +273,22 @@ class ContainerManagerTests
   it should "try warmed containers first" in {
     val mockEtcd = mock[EtcdClient]
 
-    // for test, only invoker2 is healthy, so that no-warmed creations can be only sent to invoker2
+    // at first, invoker states look like this.
     val invokers: List[InvokerHealth] = List(
-      InvokerHealth(InvokerInstanceId(0, userMemory = testMemory, tags = Seq.empty[String]), Unhealthy),
-      InvokerHealth(InvokerInstanceId(1, userMemory = testMemory, tags = Seq.empty[String]), Unhealthy),
-      InvokerHealth(InvokerInstanceId(2, userMemory = testMemory, tags = Seq.empty[String]), Healthy),
+      InvokerHealth(InvokerInstanceId(0, userMemory = 256.MB, tags = Seq.empty[String]), Healthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = 256.MB, tags = Seq.empty[String]), Healthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 512.MB, tags = Seq.empty[String]), Healthy),
     )
-    expectGetInvokers(mockEtcd, invokers)
-    expectGetInvokers(mockEtcd, invokers)
-    expectGetInvokers(mockEtcd, invokers)
-    expectGetInvokers(mockEtcd, invokers) // this test case will run `getPrefix` for 3 times, and another one for warmup
+
+    // after then, invoker states changes like this.
+    val updatedInvokers: List[InvokerHealth] = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = 512.MB, tags = Seq.empty[String]), Healthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = 256.MB, tags = Seq.empty[String]), Healthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 256.MB, tags = Seq.empty[String]), Healthy),
+    )
+    expectGetInvokers(mockEtcd, invokers) // for warm up
+    expectGetInvokers(mockEtcd, invokers) // for first creation
+    expectGetInvokers(mockEtcd, updatedInvokers) // for second creation
 
     val mockJobManager = TestProbe()
     val mockWatcher = TestProbe()
@@ -294,7 +302,7 @@ class ContainerManagerTests
       system.actorOf(ContainerManager
         .props(factory(mockJobManager), mockMessaging(Some(receiver.ref)), testsid, mockEtcd, config, mockWatcher.ref))
 
-    // there are 1 warmed container for `test-namespace/test-action` and 1 for `test-namespace/test-action-2`
+    // Add warmed containers for action1 and action2 in invoker0 and invoker1 respectively
     manager ! WatchEndpointInserted(
       ContainerKeys.warmedPrefix,
       ContainerKeys.warmedContainers(
@@ -349,9 +357,9 @@ class ContainerManagerTests
     val msgs = List(msg1, msg2, msg3)
 
     // it should reuse 2 warmed containers
-    manager ! ContainerCreation(msgs, 128.MB, testInvocationNamespace)
+    manager ! ContainerCreation(msgs, 256.MB, testInvocationNamespace)
 
-    // msg1 will use warmed container on invoker0, msg2 use warmed container on invoker1, msg3 use the healthy invoker
+    // msg1 will use warmed container on invoker0, msg2 use warmed container on invoker1, msg3 use the remainder
     receiver.expectMsg(s"invoker0-$msg1")
     receiver.expectMsg(s"invoker1-$msg2")
     receiver.expectMsg(s"invoker2-$msg3")
@@ -362,28 +370,7 @@ class ContainerManagerTests
       case RegisterCreationJob(`msg3`) => true
     }
 
-    // now warmed container for action2 become warmed again
-    manager ! SuccessfulCreationJob(msg2.creationId, msg2.invocationNamespace, msg2.action, msg2.revision)
-    manager ! SuccessfulCreationJob(msg3.creationId, msg3.invocationNamespace, msg3.action, msg3.revision)
-    // it still need to use invoker2
-    manager ! ContainerCreation(List(msg1), 128.MB, testInvocationNamespace)
-    receiver.expectMsg(s"invoker2-$msg1")
-    // it will use warmed container on invoker1
-    manager ! ContainerCreation(List(msg2), 128.MB, testInvocationNamespace)
-    receiver.expectMsg(s"invoker1-$msg2")
-
-    // warmed container for action1 become warmed when received FailedCreationJob
-    manager ! FailedCreationJob(
-      msg1.creationId,
-      msg1.invocationNamespace,
-      msg1.action,
-      msg1.revision,
-      NoAvailableResourceInvokersError,
-      "")
-    manager ! ContainerCreation(List(msg1), 128.MB, testInvocationNamespace)
-    receiver.expectMsg(s"invoker0-$msg1")
-
-    // warmed container for action1 become unwarmed
+    // remove a warmed container from invoker0
     manager ! WatchEndpointRemoved(
       ContainerKeys.warmedPrefix,
       ContainerKeys.warmedContainers(
@@ -394,8 +381,56 @@ class ContainerManagerTests
         ContainerId("fake")),
       "",
       true)
-    manager ! ContainerCreation(List(msg1), 128.MB, testInvocationNamespace)
-    receiver.expectMsg(s"invoker2-$msg1")
+
+    // remove a warmed container from invoker1
+    manager ! WatchEndpointRemoved(
+      ContainerKeys.warmedPrefix,
+      ContainerKeys.warmedContainers(
+        testInvocationNamespace,
+        testfqn.copy(name = EntityName("test-action-2")),
+        testRevision,
+        InvokerInstanceId(1, userMemory = 0.bytes),
+        ContainerId("fake")),
+      "",
+      true)
+
+    // create a warmed container for action1 in from invoker1
+    manager ! WatchEndpointInserted(
+      ContainerKeys.warmedPrefix,
+      ContainerKeys.warmedContainers(
+        testInvocationNamespace,
+        testfqn,
+        testRevision,
+        InvokerInstanceId(1, userMemory = 0.bytes),
+        ContainerId("fake")),
+      "",
+      true)
+
+    // create a warmed container for action2 in from invoker2
+    manager ! WatchEndpointInserted(
+      ContainerKeys.warmedPrefix,
+      ContainerKeys.warmedContainers(
+        testInvocationNamespace,
+        testfqn.copy(name = EntityName("test-action-2")),
+        testRevision,
+        InvokerInstanceId(2, userMemory = 0.bytes),
+        ContainerId("fake")),
+      "",
+      true)
+
+    // it should reuse 2 warmed containers
+    manager ! ContainerCreation(msgs, 256.MB, testInvocationNamespace)
+
+    // msg1 will use warmed container on invoker1, msg2 use warmed container on invoker2, msg3 use the remainder
+    receiver.expectMsg(s"invoker1-$msg1")
+    receiver.expectMsg(s"invoker2-$msg2")
+    receiver.expectMsg(s"invoker0-$msg3")
+
+    mockJobManager.expectMsgPF() {
+      case RegisterCreationJob(`msg1`) => true
+      case RegisterCreationJob(`msg2`) => true
+      case RegisterCreationJob(`msg3`) => true
+    }
   }
 
   it should "not try warmed containers if revision is unmatched" in {
@@ -521,7 +556,7 @@ class ContainerManagerTests
     })
   }
 
-  it should "choice invokers" in {
+  it should "choose invokers" in {
     val healthyInvokers: List[InvokerHealth] = List(
       InvokerHealth(InvokerInstanceId(0, userMemory = 512.MB), Healthy),
       InvokerHealth(InvokerInstanceId(1, userMemory = 512.MB), Healthy),
@@ -563,8 +598,8 @@ class ContainerManagerTests
     val pairs = ContainerManager.schedule(healthyInvokers, msgs, minMemory)
 
     pairs.map(_.msg) should contain theSameElementsAs msgs
-    pairs.map(_.invokerId).foreach {
-      healthyInvokers.map(_.id) should contain(_)
+    pairs.flatMap(_.invokerId).foreach { invokerId =>
+      healthyInvokers.map(_.id) should contain(invokerId)
     }
   }
 
@@ -607,7 +642,7 @@ class ContainerManagerTests
     val pairs = ContainerManager.schedule(healthyInvokers, msgs, minMemory)
 
     pairs.map(_.msg) should contain theSameElementsAs msgs
-    pairs.map(_.invokerId.instance).foreach {
+    pairs.map(_.invokerId.get.instance).foreach {
       healthyInvokers.map(_.id.instance) should contain(_)
     }
   }
@@ -692,21 +727,14 @@ class ContainerManagerTests
       List(msg1, msg2, msg3, msg4, msg5),
       msg1.whiskActionMetaData.limits.memory.megabytes.MB) // the memory is same for all msgs
     pairs should contain theSameElementsAs List(
-      ScheduledPair(msg1, healthyInvokers(0).id),
-      ScheduledPair(msg2, healthyInvokers(1).id),
-      ScheduledPair(msg3, healthyInvokers(2).id),
-      ScheduledPair(msg4, healthyInvokers(3).id))
-    probe.expectMsg(
-      FailedCreationJob(
-        msg5.creationId,
-        testInvocationNamespace,
-        msg5.action,
-        testRevision,
-        NoAvailableResourceInvokersError,
-        "No available invokers with resources List(fake)."))
+      ScheduledPair(msg1, Some(healthyInvokers(0).id), None),
+      ScheduledPair(msg2, Some(healthyInvokers(1).id), None),
+      ScheduledPair(msg3, Some(healthyInvokers(2).id), None),
+      ScheduledPair(msg4, Some(healthyInvokers(3).id), None),
+      ScheduledPair(msg5, None, Some(NoAvailableResourceInvokersError)))
   }
 
-  it should "choose tagged invokers when no invokers available which has no tags first" in {
+  it should "choose tagged invokers when no untagged invoker is available" in {
     val msg =
       ContainerCreationMessage(
         TransactionId.testing,
@@ -740,16 +768,9 @@ class ContainerManagerTests
     // and for msg2, it should return no available invokers
     val pairs =
       ContainerManager.schedule(healthyInvokers, List(msg, msg2), msg.whiskActionMetaData.limits.memory.megabytes.MB)
-    pairs should contain theSameElementsAs List(ScheduledPair(msg, healthyInvokers(0).id))
-
-    probe.expectMsg(
-      FailedCreationJob(
-        msg2.creationId,
-        testInvocationNamespace,
-        msg2.action,
-        testRevision,
-        NoAvailableInvokersError,
-        "No available invokers."))
+    pairs should contain theSameElementsAs List(
+      ScheduledPair(msg, Some(healthyInvokers(0).id), None),
+      ScheduledPair(msg2, None, Some(NoAvailableInvokersError)))
   }
 
   it should "respect the resource policy while use resource filter" in {
@@ -788,7 +809,7 @@ class ContainerManagerTests
         testfqn.resolve(EntityName("ns3")),
         testRevision,
         actionMetadata.copy(
-          limits = action.limits.copy(memory = MemoryLimit(512.MB)),
+          limits = action.limits.copy(memory = MemoryLimit(256.MB)),
           annotations =
             Parameters(Annotations.InvokerResourcesAnnotationName, JsArray(JsString("non-exist"))) ++ Parameters(
               Annotations.InvokerResourcesStrictPolicyAnnotationName,
@@ -803,7 +824,7 @@ class ContainerManagerTests
         testfqn.resolve(EntityName("ns3")),
         testRevision,
         actionMetadata.copy(
-          limits = action.limits.copy(memory = MemoryLimit(512.MB)),
+          limits = action.limits.copy(memory = MemoryLimit(256.MB)),
           annotations =
             Parameters(Annotations.InvokerResourcesAnnotationName, JsArray(JsString("non-exist"))) ++ Parameters(
               Annotations.InvokerResourcesStrictPolicyAnnotationName,
@@ -824,21 +845,13 @@ class ContainerManagerTests
     // while resourcesStrictPolicy is true, and there is no suitable invokers, return an error
     val pairs =
       ContainerManager.schedule(healthyInvokers, List(msg1), msg1.whiskActionMetaData.limits.memory.megabytes.MB)
-    pairs.size shouldBe 0
-    probe.expectMsg(
-      FailedCreationJob(
-        msg1.creationId,
-        testInvocationNamespace,
-        msg1.action,
-        testRevision,
-        NoAvailableResourceInvokersError,
-        "No available invokers with resources List(non-exist)."))
+    pairs should contain theSameElementsAs List(ScheduledPair(msg1, None, Some(NoAvailableResourceInvokersError)))
 
     // while resourcesStrictPolicy is false, and there is no suitable invokers, should choose no tagged invokers first,
     // here is the invoker0
     val pairs2 =
       ContainerManager.schedule(healthyInvokers, List(msg2), msg2.whiskActionMetaData.limits.memory.megabytes.MB)
-    pairs2 should contain theSameElementsAs List(ScheduledPair(msg2, healthyInvokers(0).id))
+    pairs2 should contain theSameElementsAs List(ScheduledPair(msg2, Some(healthyInvokers(0).id), None))
 
     // while resourcesStrictPolicy is false, and there is no suitable invokers, should choose no tagged invokers first,
     // if there is none, then choose invokers with other tags, if there is still none, return no available invokers
@@ -846,15 +859,9 @@ class ContainerManagerTests
       healthyInvokers.takeRight(1),
       List(msg3, msg4),
       msg3.whiskActionMetaData.limits.memory.megabytes.MB)
-    pairs3 should contain theSameElementsAs List(ScheduledPair(msg3, healthyInvokers(1).id))
-    probe.expectMsg(
-      FailedCreationJob(
-        msg4.creationId,
-        testInvocationNamespace,
-        msg4.action,
-        testRevision,
-        NoAvailableInvokersError,
-        "No available invokers."))
+    pairs3 should contain theSameElementsAs List(
+      ScheduledPair(msg3, Some(healthyInvokers(1).id)),
+      ScheduledPair(msg4, None, Some(NoAvailableInvokersError)))
   }
 
   it should "send FailedCreationJob to queue manager when no invokers are available" in {
@@ -900,7 +907,7 @@ class ContainerManagerTests
         msg.action,
         testRevision,
         NoAvailableInvokersError,
-        "No available invokers."))
+        NoAvailableInvokersError))
   }
 
   it should "schedule to the blackbox invoker when isBlackboxInvocation is true" in {
@@ -1154,6 +1161,285 @@ class ContainerManagerTests
       case msg: String if msg.contains("warmUp") && msg.contains(s"invoker0") => true
       case _                                                                  => false
     }
+  }
+
+  it should "choose an invoker from candidates" in {
+    val candidates = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = 128 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = 128 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 256 MB), Healthy),
+    )
+    val msg = ContainerCreationMessage(
+      TransactionId.testing,
+      testInvocationNamespace,
+      FullyQualifiedEntityName(EntityPath("ns1"), EntityName(testAction)),
+      testRevision,
+      actionMetadata,
+      testsid,
+      schedulerHost,
+      rpcPort)
+
+    // no matter how many time we schedule the msg, it should always choose invoker2.
+    (1 to 10).foreach { _ =>
+      val newPairs = ContainerManager.chooseInvokerFromCandidates(candidates, msg)
+      newPairs.invokerId shouldBe Some(InvokerInstanceId(2, userMemory = 256 MB))
+    }
+  }
+
+  it should "not choose an invoker when there is no candidate with enough memory" in {
+    val candidates = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = 128 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = 128 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 128 MB), Healthy),
+    )
+    val msg = ContainerCreationMessage(
+      TransactionId.testing,
+      testInvocationNamespace,
+      FullyQualifiedEntityName(EntityPath("ns1"), EntityName(testAction)),
+      testRevision,
+      actionMetadata,
+      testsid,
+      schedulerHost,
+      rpcPort)
+
+    // no matter how many time we schedule the msg, no invoker should be assigned.
+    (1 to 10).foreach { _ =>
+      val newPairs = ContainerManager.chooseInvokerFromCandidates(candidates, msg)
+      newPairs.invokerId shouldBe None
+    }
+  }
+
+  it should "not choose an invoker when there is no candidate" in {
+    val candidates = List()
+    val msg = ContainerCreationMessage(
+      TransactionId.testing,
+      testInvocationNamespace,
+      FullyQualifiedEntityName(EntityPath("ns1"), EntityName(testAction)),
+      testRevision,
+      actionMetadata,
+      testsid,
+      schedulerHost,
+      rpcPort)
+
+    val newPairs = ContainerManager.chooseInvokerFromCandidates(candidates, msg)
+    newPairs.invokerId shouldBe None
+  }
+
+  it should "update invoker memory" in {
+    val invokers = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = 1024 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = 1024 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 1024 MB), Healthy),
+    )
+    val expected = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = 1024 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = 768 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 1024 MB), Healthy),
+    )
+    val requiredMemory = 256.MB.toMB
+    val invokerId = Some(InvokerInstanceId(1, userMemory = 1024 MB))
+
+    val updatedInvokers = ContainerManager.updateInvokerMemory(invokerId, requiredMemory, invokers)
+
+    updatedInvokers shouldBe expected
+  }
+
+  it should "not update invoker memory when no invoker is assigned" in {
+    val invokers = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = 1024 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = 1024 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 1024 MB), Healthy),
+    )
+    val requiredMemory = 256.MB.toMB
+
+    val updatedInvokers = ContainerManager.updateInvokerMemory(None, requiredMemory, invokers)
+
+    updatedInvokers shouldBe invokers
+  }
+
+  it should "drop an invoker with less memory than MIN_MEMORY" in {
+    val invokers = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = 1024 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = 320 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 1024 MB), Healthy),
+    )
+    val expected = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = 1024 MB), Healthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 1024 MB), Healthy),
+    )
+    val requiredMemory = 256.MB.toMB
+    val invokerId = Some(InvokerInstanceId(1, userMemory = 320 MB))
+
+    val updatedInvokers = ContainerManager.updateInvokerMemory(invokerId, requiredMemory, invokers)
+
+    updatedInvokers shouldBe expected
+  }
+
+  it should "filter warmed creations when there is no warmed container" in {
+
+    val warmedContainers = Set.empty[String]
+    val inProgressWarmedContainers = TrieMap.empty[String, String]
+
+    val msg1 =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        FullyQualifiedEntityName(EntityPath("ns1"), EntityName(testAction)),
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+    val msg2 =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        FullyQualifiedEntityName(EntityPath("ns3"), EntityName(testAction)),
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+    val msg3 =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        FullyQualifiedEntityName(EntityPath("ns3"), EntityName(testAction)),
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+
+    val msgs = List(msg1, msg2, msg3)
+
+    val (coldCreations, warmedCreations) =
+      ContainerManager.filterWarmedCreations(warmedContainers, inProgressWarmedContainers, invokers, msgs)
+
+    warmedCreations.isEmpty shouldBe true
+    coldCreations.size shouldBe 3
+  }
+
+  it should "filter warmed creations when there are warmed containers" in {
+    val warmedContainers = Set(
+      ContainerKeys.warmedContainers(
+        testInvocationNamespace,
+        testfqn,
+        testRevision,
+        InvokerInstanceId(0, userMemory = 0.bytes),
+        ContainerId("fake")),
+      ContainerKeys.warmedContainers(
+        testInvocationNamespace,
+        testfqn.copy(name = EntityName("test-action-2")),
+        testRevision,
+        InvokerInstanceId(1, userMemory = 0.bytes),
+        ContainerId("fake")))
+    val inProgressWarmedContainers = TrieMap.empty[String, String]
+
+    val msg1 =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        testfqn,
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+    val msg2 =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        testfqn.copy(name = EntityName("test-action-2")),
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+    val msg3 =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        testfqn,
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+
+    val msgs = List(msg1, msg2, msg3)
+
+    val (coldCreations, warmedCreations) =
+      ContainerManager.filterWarmedCreations(warmedContainers, inProgressWarmedContainers, invokers, msgs)
+
+    warmedCreations.size shouldBe 2
+    coldCreations.size shouldBe 1
+
+    warmedCreations.map(_._1).contains(msg1) shouldBe true
+    warmedCreations.map(_._1).contains(msg2) shouldBe true
+    coldCreations.map(_._1).contains(msg3) shouldBe true
+  }
+
+  it should "choose cold creation when warmed containers are in disabled invokers" in {
+    val warmedContainers = Set(
+      ContainerKeys.warmedContainers(
+        testInvocationNamespace,
+        testfqn,
+        testRevision,
+        InvokerInstanceId(0, userMemory = 0.bytes),
+        ContainerId("fake")),
+      ContainerKeys.warmedContainers(
+        testInvocationNamespace,
+        testfqn.copy(name = EntityName("test-action-2")),
+        testRevision,
+        InvokerInstanceId(1, userMemory = 0.bytes),
+        ContainerId("fake")))
+    val inProgressWarmedContainers = TrieMap.empty[String, String]
+
+    val msg1 =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        testfqn,
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+    val msg2 =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        testfqn.copy(name = EntityName("test-action-2")),
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+    val msg3 =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        testfqn,
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+
+    val msgs = List(msg1, msg2, msg3)
+
+    // unhealthy invokers should not be chosen even if they have warmed containers
+    val invokers: List[InvokerHealth] = List(
+      InvokerHealth(InvokerInstanceId(0, userMemory = testMemory, tags = Seq.empty[String]), Unhealthy),
+      InvokerHealth(InvokerInstanceId(1, userMemory = testMemory, tags = Seq.empty[String]), Unhealthy),
+      InvokerHealth(InvokerInstanceId(2, userMemory = 1024.MB, tags = Seq.empty[String]), Healthy))
+
+    val (coldCreations, _) =
+      ContainerManager.filterWarmedCreations(warmedContainers, inProgressWarmedContainers, invokers, msgs)
+
+    coldCreations.size shouldBe 3
+    coldCreations.map(_._1).containsSlice(List(msg1, msg2, msg3)) shouldBe true
   }
 }
 

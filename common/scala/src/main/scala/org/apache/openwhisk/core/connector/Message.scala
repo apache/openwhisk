@@ -636,6 +636,23 @@ object ContainerMessage extends DefaultJsonProtocol {
 sealed trait ContainerCreationError
 
 object ContainerCreationError extends Enumeration {
+  import scala.language.implicitConversions
+  implicit def containerCreationErrorToString(x: ContainerCreationError): String = {
+    x match {
+      case NoAvailableInvokersError         => "no available invoker is found"
+      case NoAvailableResourceInvokersError => "no available invoker with the resources is found: "
+      case ResourceNotEnoughError           => "invoker(s) have not enough resources"
+      case WhiskError                       => "whisk error(recoverable) happens"
+      case UnknownError                     => "a unknown error happens"
+      case TimeoutError                     => "a timeout error happens"
+      case ShuttingDownError                => "shutting down error happens"
+      case NonExecutableActionError         => "no executable found for the action"
+      case DBFetchError                     => "an error happens while fetching data from DB"
+      case BlackBoxError                    => "a blackbox error happens"
+      case ZeroNamespaceLimit               => "the namespace has 0 limit configured"
+      case TooManyConcurrentRequests        => "too many concurrent requests are in flight."
+    }
+  }
 
   case object NoAvailableInvokersError extends ContainerCreationError
 
