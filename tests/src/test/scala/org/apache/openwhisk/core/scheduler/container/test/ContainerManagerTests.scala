@@ -136,7 +136,7 @@ class ContainerManagerTests
 
   def mockMessaging(receiver: Option[ActorRef] = None): MessagingProvider = {
     val messaging = stub[MessagingProvider]
-    val producer = receiver.map(fakeProducer(_)).getOrElse(stub[MessageProducer])
+    val producer = receiver.map(fakeProducer).getOrElse(stub[MessageProducer])
     val consumer = stub[MessageConsumer]
     (messaging
       .getProducer(_: WhiskConfig, _: Option[ByteSize])(_: Logging, _: ActorSystem))

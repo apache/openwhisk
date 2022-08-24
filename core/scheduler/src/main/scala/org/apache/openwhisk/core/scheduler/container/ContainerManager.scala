@@ -181,20 +181,22 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
           }
 
           // handle cold creations
-          ContainerManager
-            .schedule(updatedInvokers, coldCreations.map(_._1), memory)
-            .map { pair =>
-              pair.invokerId match {
-                // an invoker is assigned for the msg
-                case Some(instanceId) =>
-                  creationJobManager ! RegisterCreationJob(pair.msg)
-                  sendCreationContainerToInvoker(messagingProducer, instanceId.instance, pair.msg)
+          if (coldCreations.nonEmpty) {
+            ContainerManager
+              .schedule(updatedInvokers, coldCreations.map(_._1), memory)
+              .map { pair =>
+                pair.invokerId match {
+                  // an invoker is assigned for the msg
+                  case Some(instanceId) =>
+                    creationJobManager ! RegisterCreationJob(pair.msg)
+                    sendCreationContainerToInvoker(messagingProducer, instanceId.instance, pair.msg)
 
-                // if a chosen invoker does not exist, it means it failed to find a matching invoker for the msg.
-                case _ =>
-                  pair.err.foreach(error => sendState(pair.msg, error, error))
+                  // if a chosen invoker does not exist, it means it failed to find a matching invoker for the msg.
+                  case _ =>
+                    pair.err.foreach(error => sendState(pair.msg, error, error))
+                }
               }
-            }
+          }
         }
       }
   }
