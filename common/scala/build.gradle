@@ -75,7 +75,7 @@ dependencies {
     api "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
 
     // for etcd
-    api "com.ibm.etcd:etcd-java:0.0.21"
+    api "com.ibm.etcd:etcd-java:0.0.13"
 
     //tracing support
     api "io.opentracing:opentracing-api:0.31.0"
