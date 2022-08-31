@@ -144,6 +144,11 @@ class ContainerManager(jobManagerFactory: ActorRefFactory => ActorRef,
     logging.info(this, s"received ${msgs.size} creation message [${msgs.head.invocationNamespace}:${msgs.head.action}]")
     ContainerManager
       .getAvailableInvokers(etcdClient, memory, invocationNamespace)
+      .recover({
+        case t: Throwable =>
+          logging.error(this, s"Unable to get available invokers: ${t.getMessage}.")
+          List.empty[InvokerHealth]
+      })
       .foreach { invokers =>
         if (invokers.isEmpty) {
           logging.error(this, "there is no available invoker to schedule.")

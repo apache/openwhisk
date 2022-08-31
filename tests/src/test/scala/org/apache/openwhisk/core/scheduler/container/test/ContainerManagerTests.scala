@@ -864,7 +864,7 @@ class ContainerManagerTests
       ScheduledPair(msg4, None, Some(NoAvailableInvokersError)))
   }
 
-  it should "send FailedCreationJob to queue manager when no invokers are available" in {
+  it should "send FailedCreationJob to memory queue when no invokers are available" in {
     val mockEtcd = mock[EtcdClient]
     val probe = TestProbe()
     (mockEtcd
@@ -873,6 +873,50 @@ class ContainerManagerTests
       .returning(Future.successful {
         RangeResponse.newBuilder().build()
       })
+      .twice()
+
+    val fqn = FullyQualifiedEntityName(EntityPath("ns1"), EntityName(testAction))
+
+    QueuePool.put(
+      MemoryQueueKey(testInvocationNamespace, fqn.toDocId.asDocInfo(testRevision)),
+      MemoryQueueValue(probe.ref, true))
+
+    val mockJobManager = TestProbe()
+    val mockWatcher = TestProbe()
+
+    val manager =
+      system.actorOf(
+        ContainerManager.props(factory(mockJobManager), mockMessaging(), testsid, mockEtcd, config, mockWatcher.ref))
+
+    val msg =
+      ContainerCreationMessage(
+        TransactionId.testing,
+        testInvocationNamespace,
+        fqn,
+        testRevision,
+        actionMetadata,
+        testsid,
+        schedulerHost,
+        rpcPort)
+
+    manager ! ContainerCreation(List(msg), testMemory, testInvocationNamespace)
+    probe.expectMsg(
+      FailedCreationJob(
+        msg.creationId,
+        testInvocationNamespace,
+        msg.action,
+        testRevision,
+        NoAvailableInvokersError,
+        NoAvailableInvokersError))
+  }
+
+  it should "send FailedCreationJob to memory queue when available invoker query fails" in {
+    val mockEtcd = mock[EtcdClient]
+    val probe = TestProbe()
+    (mockEtcd
+      .getPrefix(_: String))
+      .expects(InvokerKeys.prefix)
+      .returning(Future.failed(new Exception("etcd request failed.")))
       .twice()
 
     val fqn = FullyQualifiedEntityName(EntityPath("ns1"), EntityName(testAction))
