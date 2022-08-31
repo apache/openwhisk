@@ -17,8 +17,6 @@
 
 package org.apache.openwhisk.core.invoker
 
-import java.nio.charset.StandardCharsets
-
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
 import org.apache.openwhisk.core.WarmUp.isWarmUpAction
@@ -26,15 +24,11 @@ import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.ContainerCreationError.DBFetchError
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.v2.{CreationContainer, DeletionContainer}
-import org.apache.openwhisk.core.database.{
-  ArtifactStore,
-  DocumentTypeMismatchException,
-  DocumentUnreadable,
-  NoDocumentException
-}
+import org.apache.openwhisk.core.database.{ArtifactStore, DocumentRevisionMismatchException, NoDocumentException}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages
 
+import java.nio.charset.StandardCharsets
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -80,10 +74,12 @@ class ContainerMessageConsumer(
               val message = t match {
                 case _: NoDocumentException =>
                   Messages.actionRemovedWhileInvoking
-                case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
+                case _: DocumentRevisionMismatchException =>
                   Messages.actionMismatchWhileInvoking
                 case e: Throwable =>
-                  logging.error(this, s"An unknown DB connection error occurred while fetching an action: $e.")
+                  logging.error(
+                    this,
+                    s"An unknown DB error occurred while fetching action ${creation.invocationNamespace}/${creation.action} for creation ${creation.creationId}, error: $e.")
                   Messages.actionFetchErrorWhileInvoking
               }
               logging.error(

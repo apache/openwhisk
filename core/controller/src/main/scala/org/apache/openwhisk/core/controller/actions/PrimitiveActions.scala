@@ -80,7 +80,7 @@ protected[actions] trait PrimitiveActions {
     user: Identity,
     action: WhiskActionMetaData,
     components: Vector[FullyQualifiedEntityName],
-    payload: Option[JsObject],
+    payload: Option[JsValue],
     waitForOutermostResponse: Option[FiniteDuration],
     cause: Option[ActivationId],
     topmost: Boolean,
@@ -109,7 +109,7 @@ protected[actions] trait PrimitiveActions {
   protected[actions] def invokeSingleAction(
     user: Identity,
     action: ExecutableWhiskActionMetaData,
-    payload: Option[JsObject],
+    payload: Option[JsValue],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
@@ -152,12 +152,16 @@ protected[actions] trait PrimitiveActions {
   private def invokeSimpleAction(
     user: Identity,
     action: ExecutableWhiskActionMetaData,
-    payload: Option[JsObject],
+    payload: Option[JsValue],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     // merge package parameters with action (action parameters supersede), then merge in payload
-    val args = action.parameters merge payload
+    val args: Option[JsValue] = payload match {
+      case Some(JsObject(fields))  => action.parameters merge Some(JsObject(fields))
+      case Some(JsArray(elements)) => Some(JsArray(elements))
+      case _                       => Some(action.parameters.toJsObject)
+    }
     val activationId = activationIdFactory.make()
 
     val startActivation = transid.started(
@@ -169,6 +173,10 @@ protected[actions] trait PrimitiveActions {
     val startLoadbalancer =
       transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${activationId}")
 
+    val keySet = payload match {
+      case Some(JsObject(fields)) => Some(fields.keySet)
+      case _                      => None
+    }
     val message = ActivationMessage(
       transid,
       FullyQualifiedEntityName(action.namespace, action.name, Some(action.version), action.binding),
@@ -179,7 +187,7 @@ protected[actions] trait PrimitiveActions {
       waitForResponse.isDefined,
       args,
       action.parameters.initParameters,
-      action.parameters.lockedParameters(payload.map(_.fields.keySet).getOrElse(Set.empty)),
+      action.parameters.lockedParameters(keySet.getOrElse(Set.empty)),
       cause = cause,
       WhiskTracerProvider.tracer.getTraceContext(transid))
 
@@ -271,7 +279,7 @@ protected[actions] trait PrimitiveActions {
    */
   private def invokeComposition(user: Identity,
                                 action: ExecutableWhiskActionMetaData,
-                                payload: Option[JsObject],
+                                payload: Option[JsValue],
                                 waitForResponse: Option[FiniteDuration],
                                 cause: Option[ActivationId],
                                 accounting: Option[CompositionAccounting] = None)(
@@ -319,7 +327,7 @@ protected[actions] trait PrimitiveActions {
    * @param parentTid a parent transaction id
    */
   private def invokeConductor(user: Identity,
-                              payload: Option[JsObject],
+                              payload: Option[JsValue],
                               session: Session,
                               parentTid: TransactionId): Future[ActivationResponse] = {
 
@@ -330,9 +338,13 @@ protected[actions] trait PrimitiveActions {
       Future.successful(ActivationResponse.applicationError(compositionIsTooLong))
     } else {
       // inject state into payload if any
-      val params = session.state
-        .map(state => Some(JsObject(payload.getOrElse(JsObject.empty).fields ++ state.fields)))
-        .getOrElse(payload)
+      val params: Option[JsValue] = payload match {
+        case Some(JsObject(fields)) =>
+          session.state
+            .map(state => Some(JsObject(JsObject(fields).fields ++ state.fields)))
+            .getOrElse(payload)
+        case _ => None
+      }
 
       // invoke conductor action
       session.accounting.conductors += 1

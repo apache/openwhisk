@@ -289,8 +289,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           complete(Accepted, activationId.toJsObject)
         }
       case Success(Right(activation)) =>
-        val response = if (result) activation.resultAsJson else activation.toExtendedJson()
-
+        val response = activation.response.result match {
+          case Some(JsArray(elements)) =>
+            JsArray(elements)
+          case _ =>
+            if (result) activation.resultAsJson else activation.toExtendedJson()
+        }
         respondWithActivationIdHeader(activation.activationId) {
           if (activation.response.isSuccess) {
             complete(OK, response)

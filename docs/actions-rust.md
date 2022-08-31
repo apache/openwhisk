@@ -58,6 +58,37 @@ pub fn main(args: Value) -> Result<Value, Error> {
 
 Rust actions are mainly composed by a `main` function that accepts a JSON `serdes Value` as input and returns a `Result` including a JSON `serde Value`.
 
+An action supports not only a JSON object but also a JSON array as a return value.
+
+It would be a simple example that uses an array as a return value:
+
+```rust
+extern crate serde_json;
+use serde_derive::{Deserialize, Serialize};
+use serde_json::{Error, Value};
+pub fn main(args: Value) -> Result<Value, Error> {
+    let output = ["a", "b"];
+    serde_json::to_value(output)
+}
+```
+You can also create a sequence action with actions accepting an array param and returning an array result.
+
+You can easily figure out the parameters with the following example:
+
+```rust
+extern crate serde_json;
+use serde_derive::{Deserialize, Serialize};
+use serde_json::{Error, Value};
+pub fn main(args: Value) -> Result<Value, Error> {
+    let inputParam = args.as_array();
+    let defaultOutput = ["c", "d"];
+    match inputParam {
+        None => serde_json::to_value(defaultOutput),
+        Some(x) => serde_json::to_value(x),
+    }
+}
+```
+
 The entry method for the action is `main` by default but may be specified explicitly when creating
 the action with the `wsk` CLI using `--main`, as with any other action type.
 

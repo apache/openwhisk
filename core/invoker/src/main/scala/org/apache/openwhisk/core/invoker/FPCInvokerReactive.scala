@@ -376,18 +376,6 @@ class FPCInvokerReactive(config: WhiskConfig,
   override def enable(): Route = {
     invokerHealthManager ! Enable
     pool ! Enable
-    // re-enable consumer
-    if (consumer.isEmpty)
-      consumer = Some(
-        new ContainerMessageConsumer(
-          instance,
-          pool,
-          entityStore,
-          cfg,
-          msgProvider,
-          longPollDuration = 1.second,
-          maxPeek,
-          sendAckToScheduler))
     warmUp()
     complete("Success enable invoker")
   }
@@ -395,15 +383,13 @@ class FPCInvokerReactive(config: WhiskConfig,
   override def disable(): Route = {
     invokerHealthManager ! GracefulShutdown
     pool ! GracefulShutdown
-    consumer.foreach(_.close())
-    consumer = None
     warmUpWatcher.foreach(_.close())
     warmUpWatcher = None
     complete("Successfully disabled invoker")
   }
 
   override def isEnabled(): Route = {
-    complete(InvokerEnabled(consumer.nonEmpty && warmUpWatcher.nonEmpty).serialize())
+    complete(InvokerEnabled(warmUpWatcher.nonEmpty).serialize())
   }
 
   override def backfillPrewarm(): Route = {

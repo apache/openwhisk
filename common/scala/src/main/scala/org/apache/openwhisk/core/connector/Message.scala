@@ -57,7 +57,7 @@ case class ActivationMessage(override val transid: TransactionId,
                              activationId: ActivationId,
                              rootControllerIndex: ControllerInstanceId,
                              blocking: Boolean,
-                             content: Option[JsObject],
+                             content: Option[JsValue],
                              initArgs: Set[String] = Set.empty,
                              lockedArgs: Map[String, String] = Map.empty,
                              cause: Option[ActivationId] = None,
@@ -380,9 +380,13 @@ object Activation extends DefaultJsonProtocol {
 
   /** Get "StatusCode" from result response set by action developer * */
   def userDefinedStatusCode(result: Option[JsValue]): Option[Int] = {
-    val statusCode = JsHelpers
-      .getFieldPath(result.get.asJsObject, ERROR_FIELD, "statusCode")
-      .orElse(JsHelpers.getFieldPath(result.get.asJsObject, "statusCode"))
+    val statusCode: Option[JsValue] = result match {
+      case Some(JsObject(fields)) =>
+        JsHelpers
+          .getFieldPath(JsObject(fields), ERROR_FIELD, "statusCode")
+          .orElse(JsHelpers.getFieldPath(JsObject(fields), "statusCode"))
+      case _ => None
+    }
     statusCode.map {
       case value => Try(value.convertTo[BigInt].intValue).toOption.getOrElse(BadRequest.intValue)
     }
@@ -470,6 +474,31 @@ case class InvokerResourceMessage(status: String,
    * Serializes message to string. Must be idempotent.
    */
   override def serialize: String = InvokerResourceMessage.serdes.write(this).compactPrint
+
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: InvokerResourceMessage =>
+        this.status == that.status &&
+          this.freeMemory == that.freeMemory &&
+          this.busyMemory == that.busyMemory &&
+          this.inProgressMemory == that.inProgressMemory &&
+          this.tags.toSet == that.tags.toSet &&
+          this.dedicatedNamespaces.toSet == that.dedicatedNamespaces.toSet
+
+      case _ => false
+    }
+
+  override def hashCode: Int = {
+    var result = 1
+    val prime = 31
+    result = prime * result + status.hashCode()
+    result = prime * result + freeMemory.hashCode()
+    result = prime * result + busyMemory.hashCode()
+    result = prime * result + inProgressMemory.hashCode()
+    result = prime * result + tags.hashCode()
+    result = prime * result + dedicatedNamespaces.hashCode()
+    result
+  }
 }
 
 object InvokerResourceMessage extends DefaultJsonProtocol {
@@ -607,6 +636,23 @@ object ContainerMessage extends DefaultJsonProtocol {
 sealed trait ContainerCreationError
 
 object ContainerCreationError extends Enumeration {
+  import scala.language.implicitConversions
+  implicit def containerCreationErrorToString(x: ContainerCreationError): String = {
+    x match {
+      case NoAvailableInvokersError         => "no available invoker is found"
+      case NoAvailableResourceInvokersError => "no available invoker with the resources is found: "
+      case ResourceNotEnoughError           => "invoker(s) have not enough resources"
+      case WhiskError                       => "whisk error(recoverable) happens"
+      case UnknownError                     => "a unknown error happens"
+      case TimeoutError                     => "a timeout error happens"
+      case ShuttingDownError                => "shutting down error happens"
+      case NonExecutableActionError         => "no executable found for the action"
+      case DBFetchError                     => "an error happens while fetching data from DB"
+      case BlackBoxError                    => "a blackbox error happens"
+      case ZeroNamespaceLimit               => "the namespace has 0 limit configured"
+      case TooManyConcurrentRequests        => "too many concurrent requests are in flight."
+    }
+  }
 
   case object NoAvailableInvokersError extends ContainerCreationError
 

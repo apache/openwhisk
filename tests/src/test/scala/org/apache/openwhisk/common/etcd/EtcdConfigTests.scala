@@ -7,13 +7,8 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
 
 import scala.concurrent.ExecutionContextExecutor
-
-
 @RunWith(classOf[JUnitRunner])
-class EtcdConfigTests
-  extends FlatSpec
-    with Matchers
-    with WskActorSystem {
+class EtcdConfigTests extends FlatSpec with Matchers with WskActorSystem {
   behavior of "EtcdConfig"
 
   implicit val ece: ExecutionContextExecutor = actorSystem.dispatcher

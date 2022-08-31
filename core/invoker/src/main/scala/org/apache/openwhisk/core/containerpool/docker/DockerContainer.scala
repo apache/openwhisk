@@ -127,11 +127,14 @@ object DockerContainer {
     for {
       pullSuccessful <- pulled
       id <- docker.run(imageToUse, args).recoverWith {
-        case BrokenDockerContainer(brokenId, _) =>
+        case BrokenDockerContainer(brokenId, _, exitStatus) if exitStatus.isEmpty || exitStatus.contains(125) =>
           // Remove the broken container - but don't wait or check for the result.
           // If the removal fails, there is nothing we could do to recover from the recovery.
           docker.rm(brokenId)
           Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
+        case BrokenDockerContainer(brokenId, _, exitStatus) if exitStatus.contains(127) =>
+          docker.rm(brokenId)
+          Future.failed(BlackboxStartupError(s"${Messages.commandNotFoundError} in image ${imageToUse}"))
         case _ =>
           // Iff the pull was successful, we assume that the error is not due to an image pull error, otherwise
           // the docker run was a backup measure to try and start the container anyway. If it fails again, we assume

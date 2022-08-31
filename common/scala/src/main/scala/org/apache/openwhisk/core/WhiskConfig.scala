@@ -317,4 +317,7 @@ object ConfigKeys {
 
   val whiskInvokerUsername = "whisk.invoker.username"
   val whiskInvokerPassword = "whisk.invoker.password"
+
+  val invokerResourceTags = "whisk.invoker.resource.tags"
+  val invokerDedicatedNamespaces = "whisk.invoker.dedicated.namespaces"
 }

@@ -261,7 +261,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   override protected[controller] def invokeAction(
     user: Identity,
     action: WhiskActionMetaData,
-    payload: Option[JsObject],
+    payload: Option[JsValue],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
     invocationCount = invocationCount + 1
@@ -271,10 +271,14 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       // 1. the package name for the action (to confirm that this resolved to systemId)
       // 2. the action name (to confirm that this resolved to the expected action)
       // 3. the payload received by the action which consists of the action.params + payload
+      val content = payload match {
+        case Some(JsObject(fields)) => action.parameters.merge(Some(JsObject(fields)))
+        case _                      => Some(action.parameters.toJsObject)
+      }
       val result = actionResult getOrElse JsObject(
         "pkg" -> action.namespace.toJson,
         "action" -> action.name.toJson,
-        "content" -> action.parameters.merge(payload).get)
+        "content" -> content.get)
 
       val activation = WhiskActivation(
         action.namespace,

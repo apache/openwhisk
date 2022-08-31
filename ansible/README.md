@@ -177,6 +177,23 @@ whisk.spi {
 .
 .
 ```
+#### Configure pause grace for the scheduler
+Set the value of pause-grace to 10s by default
+
+**core/invoker/src/main/resources/application.conf**
+```
+  container-proxy {
+    timeouts {
+      # The "unusedTimeout" in the ContainerProxy,
+      #aka 'How long should a container sit idle until we kill it?'
+      idle-container = 10 minutes
+      pause-grace = 10 seconds
+      keeping-duration = 10 minutes
+    }
+  .
+  .
+  .
+```
 
 #### Enable the scheduler
 - Make sure you enable the scheduler by configuring `scheduler_enable`.

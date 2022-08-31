@@ -31,6 +31,32 @@ and demonstrate how to bundle multiple JavaScript files and third party dependen
   }
   ```
 
+  An action supports not only a JSON object but also a JSON array as a return value.
+
+  It would be a simple example that uses an array as a return value:
+
+  ```javascript
+  function main(params) {
+    return ["a", "b"];
+  }
+  ```
+
+  You can also create a sequence action with actions accepting an array param and returning an array result.
+
+  You can easily figure out the parameters with the following example:
+
+  ```javascript
+  /**
+   * Sort a set of lines.
+   * @param lines An array of strings to sort.
+   */
+  function main(msg) {
+      var lines = msg || [];
+      lines.sort();
+      return lines;
+  }
+  ```
+
   The JavaScript file might contain additional functions.
   However, by convention, a function called `main` must exist to provide the entry point for the action.
 
