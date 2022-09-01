@@ -1116,7 +1116,7 @@ class MemoryQueueTests
 
     expectDurationChecking(mockEsClient, testInvocationNamespace)
 
-    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10)
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10, false)
 
     val fsm =
       TestFSMRef(
@@ -1342,7 +1342,7 @@ class MemoryQueueTests
 
     expectDurationChecking(mockEsClient, testInvocationNamespace)
 
-    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10)
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10, false)
 
     val fsm =
       TestFSMRef(
@@ -1585,7 +1585,7 @@ class MemoryQueueTests
     // it always induces the throttling
     val getZeroLimit = (_: String) => { Future.successful(2) }
 
-    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 1, 5000, 10000, 0.9, 10)
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 1, 5000, 10000, 0.9, 10, false)
 
     expectDurationChecking(mockEsClient, testInvocationNamespace)
 
@@ -1632,7 +1632,7 @@ class MemoryQueueTests
     val probe = TestProbe()
     val parent = TestProbe()
 
-    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 5000, 10000, 0.9, 10)
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 5000, 10000, 0.9, 10, false)
     val msgRetentionSize = queueConfig.maxRetentionSize
 
     val tid = TransactionId(TransactionId.generateTid())

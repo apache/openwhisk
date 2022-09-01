@@ -517,7 +517,7 @@ class MemoryQueueFlowTests
 
     // max retention size is 10 and throttling fraction is 0.8
     // queue will be action throttled at 10 messages and disabled action throttling at 8 messages
-    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 5000, 10000, 0.8, 10)
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 5000, 10000, 0.8, 10, false)
 
     // limit is 1
     val getUserLimit = (_: String) => Future.successful(1)
