@@ -1,4 +1,3 @@
-#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,21 +15,16 @@
 # limitations under the License.
 #
 
-set -e
+FROM scheduler
 
-# Build script for Travis-CI.
+ARG OW_ROOT_DIR
 
-SECONDS=0
-SCRIPTDIR=$(cd $(dirname "$0") && pwd)
-ROOTDIR="$SCRIPTDIR/../.."
+USER root
+RUN mkdir -p /coverage/common && \
+    mkdir -p /coverage/scheduler && \
+    mkdir -p "${OW_ROOT_DIR}/common/scala/build" && \
+    mkdir -p "${OW_ROOT_DIR}/core/scheduler/build" && \
+    ln -s /coverage/common "${OW_ROOT_DIR}/common/scala/build/scoverage" && \
+    ln -s /coverage/scheduler "${OW_ROOT_DIR}/core/scheduler/build/scoverage"
 
-cd $ROOTDIR
-TERM=dumb ./gradlew clean # Run a clean step before build
-TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
-
-TERM=dumb ./gradlew :core:controller:distDockerCoverage -PdockerImagePrefix=testing
-TERM=dumb ./gradlew :core:scheduler:distDockerCoverage -PdockerImagePrefix=testing
-TERM=dumb ./gradlew :core:invoker:distDockerCoverage -PdockerImagePrefix=testing
-TERM=dumb ./gradlew :core:standalone:build
-
-echo "Time taken for ${0##*/} is $SECONDS secs"
+COPY build/tmp/docker-coverage /scheduler/

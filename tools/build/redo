@@ -272,6 +272,11 @@ Components = [
                   modes = 'clean',
                   gradle = 'core:controller'),
 
+    makeComponent('scheduler',
+                  'build/deploy scheduler',
+                  modes = 'clean',
+                  gradle = 'core:scheduler'),
+
     makeComponent('invoker',
                   'build/deploy invoker',
                   modes = 'clean',

@@ -169,7 +169,7 @@ def parseArgs():
     subparser.required = True
 
     subcmd = subparser.add_parser('get', help='get logs')
-    subcmd.add_argument('components', help='components, one or more of [controllerN, invokerN] where N is the instance', nargs='*', default=['controller0', 'invoker0'])
+    subcmd.add_argument('components', help='components, one or more of [controllerN, schedulerN, invokerN] where N is the instance', nargs='*', default=['controller0', 'scheduler0', 'invoker0'])
     subcmd.add_argument('-t', '--tid', help='retrieve logs for the transaction id')
     subcmd.add_argument('-g', '--grep', help='retrieve logs that match grep expression')
 
