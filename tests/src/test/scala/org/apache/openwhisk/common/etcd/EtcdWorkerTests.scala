@@ -159,7 +159,7 @@ class EtcdWorkerTests
     (mockEtcd
       .del(_: String))
       .expects(key)
-      .onCall(_ => {
+      .onCall((_: String) => {
         if (firstAttempt) {
           firstAttempt = false
           Future.failed(new StatusRuntimeException(Status.RESOURCE_EXHAUSTED))
