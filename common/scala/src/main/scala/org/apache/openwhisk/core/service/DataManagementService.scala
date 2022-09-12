@@ -19,18 +19,14 @@ package org.apache.openwhisk.core.service
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.util.Timeout
-import io.grpc.StatusRuntimeException
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdFollower, EtcdLeader}
-import org.apache.openwhisk.core.service.DataManagementService.retryInterval
+import org.apache.openwhisk.core.etcd.{EtcdFollower, EtcdLeader}
 import pureconfig.loadConfigOrThrow
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.{Map, Queue}
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.Success
 
 // messages received by the actor
 // it is required to specify a recipient directly for the retryable message processing
@@ -179,150 +175,5 @@ object DataManagementService {
   def props(watcherService: ActorRef, workerFactory: ActorRefFactory => ActorRef)(implicit logging: Logging,
                                                                                   actorSystem: ActorSystem): Props = {
     Props(new DataManagementService(watcherService, workerFactory))
-  }
-}
-
-private[service] class EtcdWorker(etcdClient: EtcdClient, leaseService: ActorRef)(implicit val ec: ExecutionContext,
-                                                                                  actorSystem: ActorSystem,
-                                                                                  logging: Logging)
-    extends Actor {
-
-  private val dataManagementService = context.parent
-  private var lease: Option[Lease] = None
-  leaseService ! GetLease
-
-  override def receive: Receive = {
-    case msg: Lease =>
-      lease = Some(msg)
-
-    // leader election + endpoint management
-    case request: ElectLeader =>
-      lease match {
-        case Some(l) =>
-          etcdClient
-            .electLeader(request.key, request.value, l)
-            .andThen {
-              case Success(msg) =>
-                request.recipient ! ElectionResult(msg)
-                dataManagementService ! FinishWork(request.key)
-            }
-            .recover {
-              // if there is no lease, reissue it and retry immediately
-              case t: StatusRuntimeException =>
-                logging.warn(this, s"a lease is expired while leader election, reissue it: $t")
-                lease = None
-                leaseService ! GetLease
-                sendMessageToSelfAfter(request, retryInterval)
-
-              // it should retry forever until the data is stored
-              case t: Throwable =>
-                logging.warn(this, s"unexpected error happened: $t, retry storing data")
-                sendMessageToSelfAfter(request, retryInterval)
-            }
-        case None =>
-          logging.warn(this, s"lease not found, retry storing data")
-          leaseService ! GetLease
-          sendMessageToSelfAfter(request, retryInterval)
-      }
-
-    // only endpoint management
-    case request: RegisterData =>
-      lease match {
-        case Some(l) =>
-          etcdClient
-            .put(request.key, request.value, l.id)
-            .andThen {
-              case Success(_) =>
-                dataManagementService ! FinishWork(request.key)
-            }
-            .recover {
-              // if there is no lease, reissue it and retry immediately
-              case t: StatusRuntimeException =>
-                logging.warn(this, s"a lease is expired while registering data ${request.key}, reissue it: $t")
-                lease = None
-                leaseService ! GetLease
-                sendMessageToSelfAfter(request, retryInterval)
-
-              // it should retry forever until the data is stored
-              case t: Throwable =>
-                logging.warn(this, s"unexpected error happened: $t, retry storing data ${request.key}")
-                sendMessageToSelfAfter(request, retryInterval)
-            }
-        case None =>
-          logging.warn(this, s"lease not found, retry storing data ${request.key}")
-          leaseService ! GetLease
-          sendMessageToSelfAfter(request, retryInterval)
-      }
-
-    // it stores the data iif there is no such one
-    case request: RegisterInitialData =>
-      lease match {
-        case Some(l) =>
-          etcdClient
-            .putTxn(request.key, request.value, 0, l.id)
-            .map { res =>
-              dataManagementService ! FinishWork(request.key)
-              if (res.getSucceeded) {
-                logging.info(this, s"initial data storing succeeds for ${request.key}")
-                request.recipient.map(_ ! InitialDataStorageResults(request.key, Right(Done())))
-              } else {
-                logging.info(this, s"data is already stored for: $request, cancel the initial data storing")
-                request.recipient.map(_ ! InitialDataStorageResults(request.key, Left(AlreadyExist())))
-              }
-            }
-            .recover {
-              // if there is no lease, reissue it and retry immediately
-              case t: StatusRuntimeException =>
-                logging.warn(
-                  this,
-                  s"a lease is expired while registering an initial data ${request.key}, reissue it: $t")
-                lease = None
-                leaseService ! GetLease
-                sendMessageToSelfAfter(request, retryInterval)
-
-              // it should retry forever until the data is stored
-              case t: Throwable =>
-                logging.warn(this, s"unexpected error happened: $t, retry storing data for ${request.key}")
-                sendMessageToSelfAfter(request, retryInterval)
-            }
-        case None =>
-          logging.warn(this, s"lease not found, retry storing data for ${request.key}")
-          leaseService ! GetLease
-          sendMessageToSelfAfter(request, retryInterval)
-      }
-
-    case msg: WatcherClosed =>
-      etcdClient
-        .del(msg.key)
-        .andThen {
-          case Success(_) =>
-            dataManagementService ! FinishWork(msg.key)
-        }
-        .recover {
-          // if there is no lease, reissue it and retry immediately
-          case t: StatusRuntimeException =>
-            logging.warn(this, s"a lease is expired while deleting data ${msg.key}, reissue it: $t")
-            lease = None
-            leaseService ! GetLease
-            sendMessageToSelfAfter(msg, retryInterval)
-
-          // it should retry forever until the data is stored
-          case t: Throwable =>
-            logging.warn(this, s"unexpected error happened: $t, retry storing data for ${msg.key}")
-            sendMessageToSelfAfter(msg, retryInterval)
-        }
-
-  }
-
-  private def sendMessageToSelfAfter(msg: Any, retryInterval: FiniteDuration) = {
-    actorSystem.scheduler.scheduleOnce(retryInterval, self, msg)
-  }
-}
-
-object EtcdWorker {
-  def props(etcdClient: EtcdClient, leaseService: ActorRef)(implicit ec: ExecutionContext,
-                                                            actorSystem: ActorSystem,
-                                                            logging: Logging): Props = {
-    Props(new EtcdWorker(etcdClient, leaseService))
   }
 }

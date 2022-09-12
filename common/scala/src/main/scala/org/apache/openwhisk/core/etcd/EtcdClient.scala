@@ -25,10 +25,10 @@ import com.ibm.etcd.client.{EtcdClient => Client}
 import io.grpc.stub.StreamObserver
 import java.util.concurrent.Executors
 
-import org.apache.openwhisk.core.ConfigKeys
+//import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.etcd.EtcdType._
 import org.apache.openwhisk.core.service.Lease
-import pureconfig.loadConfigOrThrow
+//import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol
 
 import scala.language.implicitConversions
@@ -49,10 +49,10 @@ object RichListenableFuture {
 object EtcdClient {
   // hostAndPorts format: {HOST}:{PORT}[,{HOST}:{PORT},{HOST}:{PORT}, ...]
   def apply(config: EtcdConfig)(implicit ece: ExecutionContextExecutor): EtcdClient = {
-    require(config.hosts != null)
+    //require(config.hosts != null)
     require(
       (config.username.nonEmpty && config.password.nonEmpty) || (config.username.isEmpty && config.password.isEmpty))
-    val clientBuilder = Client.forEndpoints(config.hosts).withPlainText()
+    val clientBuilder = Client.forEndpoints("testHosts").withPlainText()
     if (config.username.nonEmpty && config.password.nonEmpty) {
       new EtcdClient(clientBuilder.withCredentials(config.username.get, config.password.get).build())
     } else {
@@ -183,7 +183,7 @@ trait EtcdLeaseApi {
 }
 
 trait EtcdWatchApi {
-  val nThreads = loadConfigOrThrow[Int](ConfigKeys.etcdPoolThreads)
+  val nThreads = 10
   val threadpool = Executors.newFixedThreadPool(nThreads);
   protected[etcd] val client: Client
 
