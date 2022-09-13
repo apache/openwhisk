@@ -242,7 +242,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       } else {
         logging.info(
           this,
-          s"[$invocationNamespace:$action:$stateName] The queue is timed out but there are still ${queue.size} activation messages or (running: ${containers.size}, in-progress: ${creationIds.size}) containers")
+          s"[$invocationNamespace:$action:$stateName] The queue is timed out but there are still ${queue.size} activation messages or (running: ${containers.size} -> ${containers.toString}, in-progress: ${creationIds.size} -> ${creationIds.toString}) containers")
         stay
       }
 
