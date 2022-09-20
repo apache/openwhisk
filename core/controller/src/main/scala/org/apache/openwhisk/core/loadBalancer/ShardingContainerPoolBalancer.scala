@@ -158,7 +158,7 @@ class ShardingContainerPoolBalancer(
     AkkaManagement(actorSystem).start()
     ClusterBootstrap(actorSystem).start()
     Some(Cluster(actorSystem))
-  } else if (loadConfigOrThrow[Seq[String]]("akka.cluster.seed-nodes").nonEmpty) {  
+  } else if (loadConfigOrThrow[Seq[String]]("akka.cluster.seed-nodes").nonEmpty) {
     Some(Cluster(actorSystem))
   } else {
     None
