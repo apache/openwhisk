@@ -1087,12 +1087,16 @@ class FunctionPullingContainerProxyTests
     probe watch machine
 
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
+
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
     client.send(machine, ClientCreationCompleted())
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
+    //register running container
+    dataManagementService.expectMsgType[RegisterData]
+
     client.expectMsg(RequestActivation())
     client.send(machine, message)
 
@@ -1107,9 +1111,12 @@ class FunctionPullingContainerProxyTests
     probe.expectMsg(Transition(machine, Running, Pausing))
     probe.expectMsgType[ContainerIsPaused]
     probe.expectMsg(Transition(machine, Pausing, Paused))
+    //register paused warmed container
+    dataManagementService.expectMsgType[RegisterData]
 
     machine ! StateTimeout
     client.expectMsg(StopClientProxy)
+    dataManagementService.expectMsgType[UnregisterData]
     probe.expectMsgAllOf(ContainerRemoved(true), Transition(machine, Paused, Removing))
     client.send(machine, ClientClosed)
 
