@@ -19,9 +19,8 @@ package org.apache.openwhisk.core.containerpool.v2
 
 import java.net.InetSocketAddress
 import java.time.Instant
-
 import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash, actorRef2Scala}
 import akka.event.Logging.InfoLevel
 import akka.io.{IO, Tcp}
 import akka.pattern.pipe
@@ -29,18 +28,10 @@ import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.{LoggingMarkers, TransactionId, _}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
-import org.apache.openwhisk.core.connector.{
-  ActivationMessage,
-  CombinedCompletionAndResultMessage,
-  CompletionMessage,
-  ResultMessage
-}
+import org.apache.openwhisk.core.connector.{ActivationMessage, CombinedCompletionAndResultMessage, CompletionMessage, ResultMessage}
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogCollectingException
-import org.apache.openwhisk.core.containerpool.v2.FunctionPullingContainerProxy.{
-  constructWhiskActivation,
-  containerName
-}
+import org.apache.openwhisk.core.containerpool.v2.FunctionPullingContainerProxy.{constructWhiskActivation, containerName}
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.size._
@@ -87,6 +78,7 @@ case class Initialized(data: InitializedData)
 case class Resumed(data: WarmData)
 case class ResumeFailed(data: WarmData)
 case class RecreateClient(action: ExecutableWhiskAction)
+case class PingCache(action: ExecutableWhiskAction)
 
 // States
 sealed trait ProxyState
@@ -208,7 +200,8 @@ class FunctionPullingContainerProxy(
   private val KeepingTimeoutName = "KeepingTimeout"
   private val RunningActivationTimeoutName = "RunningActivationTimeout"
   private val runningActivationTimeout = 10.seconds
-
+  private val PingCacheName = "PingCache"
+  private val pingCacheInterval = 1.minute
   private var timedOut = false
 
   var healthPingActor: Option[ActorRef] = None //setup after prewarm starts
@@ -373,6 +366,7 @@ class FunctionPullingContainerProxy(
     case Event(initializedData: InitializedData, _) =>
       context.parent ! Initialized(initializedData)
       initializedData.clientProxy ! RequestActivation()
+      startTimerWithFixedDelay(PingCacheName, PingCache(initializedData.action), pingCacheInterval)
       startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
       stay() using initializedData
 
