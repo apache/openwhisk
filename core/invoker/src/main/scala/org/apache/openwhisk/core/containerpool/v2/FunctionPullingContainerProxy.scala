@@ -87,6 +87,7 @@ case class Initialized(data: InitializedData)
 case class Resumed(data: WarmData)
 case class ResumeFailed(data: WarmData)
 case class RecreateClient(action: ExecutableWhiskAction)
+case class DetermineKeepContainer(attempt: Int)
 
 // States
 sealed trait ProxyState
@@ -661,6 +662,7 @@ class FunctionPullingContainerProxy(
       val parent = context.parent
       cancelTimer(IdleTimeoutName)
       cancelTimer(KeepingTimeoutName)
+      cancelTimer(DetermineKeepContainer.toString)
       data.container
         .resume()
         .map { _ =>
@@ -693,32 +695,43 @@ class FunctionPullingContainerProxy(
           instance,
           data.container.containerId))
       goto(Running)
-
-    case Event(StateTimeout, data: WarmData) =>
-      (for {
-        count <- getLiveContainerCount(data.invocationNamespace, data.action.fullyQualifiedName(false), data.revision)
-        (warmedContainerKeepingCount, warmedContainerKeepingTimeout) <- getWarmedContainerLimit(
-          data.invocationNamespace)
-      } yield {
-        logging.info(
-          this,
-          s"Live container count: ${count}, warmed container keeping count configuration: ${warmedContainerKeepingCount} in namespace: ${data.invocationNamespace}")
-        if (count <= warmedContainerKeepingCount) {
-          Keep(warmedContainerKeepingTimeout)
-        } else {
-          Remove
-        }
-      }).pipeTo(self)
+    case Event(StateTimeout, _: WarmData) =>
+      self ! DetermineKeepContainer(0)
       stay
-
+    case Event(DetermineKeepContainer(attempt), data: WarmData) =>
+      getLiveContainerCount(data.invocationNamespace, data.action.fullyQualifiedName(false), data.revision)
+        .flatMap(count => {
+          getWarmedContainerLimit(data.invocationNamespace).map(warmedContainerInfo => {
+            logging.info(
+              this,
+              s"Live container count: $count, warmed container keeping count configuration: ${warmedContainerInfo._1} in namespace: ${data.invocationNamespace}")
+            if (count <= warmedContainerInfo._1) {
+              self ! Keep(warmedContainerInfo._2)
+            } else {
+              self ! Remove
+            }
+          })
+        })
+        .recover({
+          case t: Throwable =>
+            logging.error(
+              this,
+              s"Failed to determine whether to keep or remove container on pause timeout for ${data.container.containerId}, retrying. Caused by: $t")
+            if (attempt < 5) {
+              startSingleTimer(DetermineKeepContainer.toString, DetermineKeepContainer(attempt + 1), 500.milli)
+            } else {
+              self ! Remove
+            }
+        })
+      stay
     case Event(Keep(warmedContainerKeepingTimeout), data: WarmData) =>
       logging.info(
         this,
         s"This is the remaining container for ${data.action}. The container will stop after $warmedContainerKeepingTimeout.")
       startSingleTimer(KeepingTimeoutName, Remove, warmedContainerKeepingTimeout)
       stay
-
     case Event(Remove | GracefulShutdown, data: WarmData) =>
+      cancelTimer(DetermineKeepContainer.toString)
       dataManagementService ! UnregisterData(
         ContainerKeys.warmedContainers(
           data.invocationNamespace,
@@ -732,7 +745,6 @@ class FunctionPullingContainerProxy(
         data.action.fullyQualifiedName(false),
         data.action.rev,
         Some(data.clientProxy))
-
     case _ => delay
   }
 

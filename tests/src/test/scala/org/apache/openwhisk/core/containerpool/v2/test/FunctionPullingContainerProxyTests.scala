@@ -291,6 +291,22 @@ class FunctionPullingContainerProxyTests
     Future.successful(count)
   }
 
+  def getLiveContainerCountFail(count: Long) = LoggedFunction { (_: String, _: FullyQualifiedEntityName, _: DocRevision) =>
+    Future.failed(new Exception("failure"))
+  }
+
+  def getLiveContainerCountFailFirstCall(count: Long) = {
+    var firstCall = true
+    LoggedFunction { (_: String, _: FullyQualifiedEntityName, _: DocRevision) =>
+      if (firstCall) {
+        firstCall = false
+        Future.failed(new Exception("failure"))
+      } else {
+        Future.successful(count)
+      }
+    }
+  }
+
   def getWarmedContainerLimit(limit: Future[(Int, FiniteDuration)]) = LoggedFunction { (_: String) =>
     limit
   }
@@ -1020,6 +1036,176 @@ class FunctionPullingContainerProxyTests
 
     machine ! StateTimeout
     client.expectMsg(StopClientProxy)
+    probe.expectMsgAllOf(ContainerRemoved(true), Transition(machine, Paused, Removing))
+    client.send(machine, ClientClosed)
+
+    probe expectTerminated machine
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 1
+      collector.calls.length shouldBe 1
+      container.destroyCount shouldBe 1
+      acker.calls.length shouldBe 1
+      store.calls.length shouldBe 1
+    }
+  }
+
+  it should "destroy container proxy when stopping due to timeout and getting live count fails once" in within(timeout) {
+    val authStore = mock[ArtifactWhiskAuthStore]
+    val namespaceBlacklist: NamespaceBlacklist = new NamespaceBlacklist(authStore)
+    val get = getWhiskAction(Future(action.toWhiskAction))
+    val dataManagementService = TestProbe()
+    val container = new TestContainer
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+    val collector = createCollector()
+    val counter = getLiveContainerCountFailFirstCall(2)
+    val limit = getWarmedContainerLimit(Future.successful((1, 10.seconds)))
+    val (client, clientFactory) = testClient
+
+    val probe = TestProbe()
+    val machine =
+      probe.childActorOf(
+        FunctionPullingContainerProxy
+          .props(
+            factory,
+            entityStore,
+            namespaceBlacklist,
+            get,
+            dataManagementService.ref,
+            clientFactory,
+            acker,
+            store,
+            collector,
+            counter,
+            limit,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            invokerHealthManager.ref,
+            poolConfig,
+            timeoutConfig))
+
+    registerCallback(machine, probe)
+    probe watch machine
+
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
+
+    probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
+    client.expectMsg(StartClient)
+    client.send(machine, ClientCreationCompleted())
+
+    probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
+    expectInitialized(probe)
+    //register running container
+    dataManagementService.expectMsgType[RegisterData]
+
+    client.expectMsg(RequestActivation())
+    client.send(machine, message)
+
+    probe.expectMsg(Transition(machine, ClientCreated, Running))
+    client.expectMsg(ContainerWarmed)
+    client.expectMsgPF() {
+      case RequestActivation(Some(_), None) => true
+    }
+
+    machine ! StateTimeout
+    client.send(machine, RetryRequestActivation)
+    probe.expectMsg(Transition(machine, Running, Pausing))
+    probe.expectMsgType[ContainerIsPaused]
+    probe.expectMsg(Transition(machine, Pausing, Paused))
+    //register paused warmed container
+    dataManagementService.expectMsgType[RegisterData]
+
+    machine ! StateTimeout
+    client.expectMsg(StopClientProxy)
+    dataManagementService.expectMsgType[UnregisterData]
+    probe.expectMsgAllOf(ContainerRemoved(true), Transition(machine, Paused, Removing))
+    client.send(machine, ClientClosed)
+
+    probe expectTerminated machine
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 1
+      collector.calls.length shouldBe 1
+      container.destroyCount shouldBe 1
+      acker.calls.length shouldBe 1
+      store.calls.length shouldBe 1
+    }
+  }
+
+  it should "destroy container proxy when stopping due to timeout and getting live count fails permanently" in within(timeout) {
+    val authStore = mock[ArtifactWhiskAuthStore]
+    val namespaceBlacklist: NamespaceBlacklist = new NamespaceBlacklist(authStore)
+    val get = getWhiskAction(Future(action.toWhiskAction))
+    val dataManagementService = TestProbe()
+    val container = new TestContainer
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+    val collector = createCollector()
+    val counter = getLiveContainerCountFail(2)
+    val limit = getWarmedContainerLimit(Future.successful((1, 10.seconds)))
+    val (client, clientFactory) = testClient
+
+    val probe = TestProbe()
+    val machine =
+      probe.childActorOf(
+        FunctionPullingContainerProxy
+          .props(
+            factory,
+            entityStore,
+            namespaceBlacklist,
+            get,
+            dataManagementService.ref,
+            clientFactory,
+            acker,
+            store,
+            collector,
+            counter,
+            limit,
+            InvokerInstanceId(0, userMemory = defaultUserMemory),
+            invokerHealthManager.ref,
+            poolConfig,
+            timeoutConfig))
+
+    registerCallback(machine, probe)
+    probe watch machine
+
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
+
+    probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
+    client.expectMsg(StartClient)
+    client.send(machine, ClientCreationCompleted())
+
+    probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
+    expectInitialized(probe)
+    //register running container
+    dataManagementService.expectMsgType[RegisterData]
+
+    client.expectMsg(RequestActivation())
+    client.send(machine, message)
+
+    probe.expectMsg(Transition(machine, ClientCreated, Running))
+    client.expectMsg(ContainerWarmed)
+    client.expectMsgPF() {
+      case RequestActivation(Some(_), None) => true
+    }
+
+    machine ! StateTimeout
+    client.send(machine, RetryRequestActivation)
+    probe.expectMsg(Transition(machine, Running, Pausing))
+    probe.expectMsgType[ContainerIsPaused]
+    probe.expectMsg(Transition(machine, Pausing, Paused))
+    //register paused warmed container
+    dataManagementService.expectMsgType[RegisterData]
+
+    machine ! StateTimeout
+    client.expectMsg(StopClientProxy)
+    dataManagementService.expectMsgType[UnregisterData]
     probe.expectMsgAllOf(ContainerRemoved(true), Transition(machine, Paused, Removing))
     client.send(machine, ClientClosed)
 
