@@ -87,7 +87,7 @@ case class Initialized(data: InitializedData)
 case class Resumed(data: WarmData)
 case class ResumeFailed(data: WarmData)
 case class RecreateClient(action: ExecutableWhiskAction)
-case object DetermineKeepContainer
+case class DetermineKeepContainer(attempt: Int)
 
 // States
 sealed trait ProxyState
@@ -696,9 +696,9 @@ class FunctionPullingContainerProxy(
           data.container.containerId))
       goto(Running)
     case Event(StateTimeout, _: WarmData) =>
-      self ! DetermineKeepContainer
+      self ! DetermineKeepContainer(0)
       stay
-    case Event(DetermineKeepContainer, data: WarmData) =>
+    case Event(DetermineKeepContainer(attempt), data: WarmData) =>
       getLiveContainerCount(data.invocationNamespace, data.action.fullyQualifiedName(false), data.revision)
         .flatMap(count => {
           getWarmedContainerLimit(data.invocationNamespace).map(warmedContainerInfo => {
@@ -706,13 +706,23 @@ class FunctionPullingContainerProxy(
               this,
               s"Live container count: $count, warmed container keeping count configuration: ${warmedContainerInfo._1} in namespace: ${data.invocationNamespace}")
             if (count <= warmedContainerInfo._1) {
-              Keep(warmedContainerInfo._2)
+              self ! Keep(warmedContainerInfo._2)
             } else {
-              Remove
+              self ! Remove
             }
           })
         })
-        .pipeTo(self)
+        .recover({
+          case t: Throwable =>
+            logging.error(
+              this,
+              s"Failed to determine whether to keep or remove container on pause timeout for ${data.container.containerId}, retrying. Caused by: $t")
+            if (attempt < 5) {
+              startSingleTimer(DetermineKeepContainer.toString, DetermineKeepContainer(attempt + 1), 500.milli)
+            } else {
+              self ! Remove
+            }
+        })
       stay
     case Event(Keep(warmedContainerKeepingTimeout), data: WarmData) =>
       logging.info(
@@ -735,12 +745,6 @@ class FunctionPullingContainerProxy(
         data.action.fullyQualifiedName(false),
         data.action.rev,
         Some(data.clientProxy))
-    case Event(t: FailureMessage, data: WarmData) =>
-      logging.error(
-        this,
-        s"Failed to determine whether to keep or remove container on pause timeout for ${data.container.containerId}, retrying. Caused by: $t")
-      startSingleTimer(DetermineKeepContainer.toString, DetermineKeepContainer, 1.second)
-      stay
     case _ => delay
   }
 
