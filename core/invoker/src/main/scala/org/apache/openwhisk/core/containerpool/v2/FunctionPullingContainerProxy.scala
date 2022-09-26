@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.containerpool.v2
 import java.net.InetSocketAddress
 import java.time.Instant
 import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash, actorRef2Scala}
+import akka.actor.{actorRef2Scala, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.io.{IO, Tcp}
 import akka.pattern.pipe
@@ -28,10 +28,18 @@ import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.{LoggingMarkers, TransactionId, _}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
-import org.apache.openwhisk.core.connector.{ActivationMessage, CombinedCompletionAndResultMessage, CompletionMessage, ResultMessage}
+import org.apache.openwhisk.core.connector.{
+  ActivationMessage,
+  CombinedCompletionAndResultMessage,
+  CompletionMessage,
+  ResultMessage
+}
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogCollectingException
-import org.apache.openwhisk.core.containerpool.v2.FunctionPullingContainerProxy.{constructWhiskActivation, containerName}
+import org.apache.openwhisk.core.containerpool.v2.FunctionPullingContainerProxy.{
+  constructWhiskActivation,
+  containerName
+}
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.size._
@@ -78,7 +86,7 @@ case class Initialized(data: InitializedData)
 case class Resumed(data: WarmData)
 case class ResumeFailed(data: WarmData)
 case class RecreateClient(action: ExecutableWhiskAction)
-case class PingCache(action: ExecutableWhiskAction)
+case object PingCache
 case class DetermineKeepContainer(attempt: Int)
 
 // States
@@ -367,7 +375,8 @@ class FunctionPullingContainerProxy(
     case Event(initializedData: InitializedData, _) =>
       context.parent ! Initialized(initializedData)
       initializedData.clientProxy ! RequestActivation()
-      startTimerWithFixedDelay(PingCacheName, PingCache(initializedData.action), pingCacheInterval)
+      logging.info(this, s"timer started to refresh funciton cache.")
+      startTimerWithFixedDelay(PingCacheName, PingCache, pingCacheInterval)
       startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
       stay() using initializedData
 
@@ -762,6 +771,21 @@ class FunctionPullingContainerProxy(
       stay()
   }
 
+  whenUnhandled {
+    case Event(PingCache, data: WarmData) =>
+      val actionId = data.action.fullyQualifiedName(false).toDocId.asDocInfo(data.revision)
+      logging.info(this, s"attempting to refresh function cache for action ${data.action} from container ${data.container.containerId}.")
+      get(entityStore, actionId.id, actionId.rev, true).map(_ => {
+        logging.info(
+          this,
+          s"Refreshed function cache for action ${data.action} from container ${data.container.containerId}.")
+      })
+      stay
+    case Event(PingCache, _) =>
+      logging.info(this, "Container is not warm, ignore function cache ping.")
+      stay
+  }
+
   onTransition {
     case _ -> Uninitialized     => unstashAll()
     case _ -> CreatingContainer => unstashAll()
@@ -817,7 +841,7 @@ class FunctionPullingContainerProxy(
                       fqn: FullyQualifiedEntityName,
                       revision: DocRevision,
                       clientProxy: Option[ActorRef]): State = {
-
+    cancelTimer(PingCacheName)
     dataManagementService ! UnregisterData(
       s"${ContainerKeys.existingContainers(invocationNamespace, fqn, revision, Some(instance), Some(container.containerId))}")
 
@@ -825,7 +849,6 @@ class FunctionPullingContainerProxy(
   }
 
   private def cleanUp(container: Container, clientProxy: Option[ActorRef], replacePrewarm: Boolean = true): State = {
-
     context.parent ! ContainerRemoved(replacePrewarm)
     val unpause = stateName match {
       case Paused => container.resume()(TransactionId.invokerNanny)
