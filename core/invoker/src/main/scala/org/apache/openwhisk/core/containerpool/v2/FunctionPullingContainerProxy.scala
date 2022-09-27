@@ -375,7 +375,6 @@ class FunctionPullingContainerProxy(
     case Event(initializedData: InitializedData, _) =>
       context.parent ! Initialized(initializedData)
       initializedData.clientProxy ! RequestActivation()
-      logging.info(this, s"timer started to refresh funciton cache.")
       startTimerWithFixedDelay(PingCacheName, PingCache, pingCacheInterval)
       startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
       stay() using initializedData
@@ -472,7 +471,7 @@ class FunctionPullingContainerProxy(
         data.action.rev,
         None)
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Rescheduling, stateTimeout = 10.seconds) {
@@ -629,7 +628,7 @@ class FunctionPullingContainerProxy(
       data.clientProxy ! CloseClientProxy
       stay
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Pausing) {
@@ -656,7 +655,7 @@ class FunctionPullingContainerProxy(
         data.action.rev,
         Some(data.clientProxy))
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Paused) {
@@ -748,7 +747,8 @@ class FunctionPullingContainerProxy(
         data.action.fullyQualifiedName(false),
         data.action.rev,
         Some(data.clientProxy))
-    case _ => delay
+
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Removing, unusedTimeout) {
@@ -774,15 +774,14 @@ class FunctionPullingContainerProxy(
   whenUnhandled {
     case Event(PingCache, data: WarmData) =>
       val actionId = data.action.fullyQualifiedName(false).toDocId.asDocInfo(data.revision)
-      logging.info(this, s"attempting to refresh function cache for action ${data.action} from container ${data.container.containerId}.")
       get(entityStore, actionId.id, actionId.rev, true).map(_ => {
-        logging.info(
+        logging.debug(
           this,
           s"Refreshed function cache for action ${data.action} from container ${data.container.containerId}.")
       })
       stay
     case Event(PingCache, _) =>
-      logging.info(this, "Container is not warm, ignore function cache ping.")
+      logging.debug(this, "Container is not warm, ignore function cache ping.")
       stay
   }
 
