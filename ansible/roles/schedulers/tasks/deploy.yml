@@ -314,7 +314,7 @@
 
 - name: wait until all queue and create queue task is finished before redeploy scheduler using sleep solution
   shell: sleep 120s
-  when: zeroDowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0" and zerodowntimeDeployment.solution == 'sleep'
+  when: zeroDowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0" and zeroDowntimeDeployment.solution == 'sleep'
 
 - name: (re)start scheduler
   docker_container:
