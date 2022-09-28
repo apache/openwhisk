@@ -151,7 +151,7 @@ class FPCInvokerReactive(config: WhiskConfig,
     Identity
       .get(authStore, EntityName(invocationNamespace))(trasnid)
       .map { identity =>
-        val warmedContainerKeepingCount = identity.limits.warmedContainerKeepingCount.getOrElse(1)
+        val warmedContainerKeepingCount = identity.limits.warmedContainerKeepingCount.getOrElse(0)
         val warmedContainerKeepingTimeout = Try {
           identity.limits.warmedContainerKeepingTimeout.map(Duration(_).toSeconds.seconds).get
         }.getOrElse(containerProxyTimeoutConfig.keepingDuration)
