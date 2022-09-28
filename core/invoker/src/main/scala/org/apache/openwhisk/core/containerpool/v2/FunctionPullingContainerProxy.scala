@@ -19,9 +19,8 @@ package org.apache.openwhisk.core.containerpool.v2
 
 import java.net.InetSocketAddress
 import java.time.Instant
-
 import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
+import akka.actor.{actorRef2Scala, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.io.{IO, Tcp}
 import akka.pattern.pipe
@@ -87,6 +86,7 @@ case class Initialized(data: InitializedData)
 case class Resumed(data: WarmData)
 case class ResumeFailed(data: WarmData)
 case class RecreateClient(action: ExecutableWhiskAction)
+case object PingCache
 case class DetermineKeepContainer(attempt: Int)
 
 // States
@@ -209,7 +209,8 @@ class FunctionPullingContainerProxy(
   private val KeepingTimeoutName = "KeepingTimeout"
   private val RunningActivationTimeoutName = "RunningActivationTimeout"
   private val runningActivationTimeout = 10.seconds
-
+  private val PingCacheName = "PingCache"
+  private val pingCacheInterval = 1.minute
   private var timedOut = false
 
   var healthPingActor: Option[ActorRef] = None //setup after prewarm starts
@@ -374,6 +375,7 @@ class FunctionPullingContainerProxy(
     case Event(initializedData: InitializedData, _) =>
       context.parent ! Initialized(initializedData)
       initializedData.clientProxy ! RequestActivation()
+      startTimerWithFixedDelay(PingCacheName, PingCache, pingCacheInterval)
       startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
       stay() using initializedData
 
@@ -469,7 +471,7 @@ class FunctionPullingContainerProxy(
         data.action.rev,
         None)
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Rescheduling, stateTimeout = 10.seconds) {
@@ -626,7 +628,7 @@ class FunctionPullingContainerProxy(
       data.clientProxy ! CloseClientProxy
       stay
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Pausing) {
@@ -653,7 +655,7 @@ class FunctionPullingContainerProxy(
         data.action.rev,
         Some(data.clientProxy))
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Paused) {
@@ -745,7 +747,8 @@ class FunctionPullingContainerProxy(
         data.action.fullyQualifiedName(false),
         data.action.rev,
         Some(data.clientProxy))
-    case _ => delay
+
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Removing, unusedTimeout) {
@@ -766,6 +769,20 @@ class FunctionPullingContainerProxy(
 
     case Event(Remove | GracefulShutdown, _) =>
       stay()
+  }
+
+  whenUnhandled {
+    case Event(PingCache, data: WarmData) =>
+      val actionId = data.action.fullyQualifiedName(false).toDocId.asDocInfo(data.revision)
+      get(entityStore, actionId.id, actionId.rev, true).map(_ => {
+        logging.debug(
+          this,
+          s"Refreshed function cache for action ${data.action} from container ${data.container.containerId}.")
+      })
+      stay
+    case Event(PingCache, _) =>
+      logging.debug(this, "Container is not warm, ignore function cache ping.")
+      stay
   }
 
   onTransition {
@@ -823,7 +840,7 @@ class FunctionPullingContainerProxy(
                       fqn: FullyQualifiedEntityName,
                       revision: DocRevision,
                       clientProxy: Option[ActorRef]): State = {
-
+    cancelTimer(PingCacheName)
     dataManagementService ! UnregisterData(
       s"${ContainerKeys.existingContainers(invocationNamespace, fqn, revision, Some(instance), Some(container.containerId))}")
 
@@ -831,7 +848,6 @@ class FunctionPullingContainerProxy(
   }
 
   private def cleanUp(container: Container, clientProxy: Option[ActorRef], replacePrewarm: Boolean = true): State = {
-
     context.parent ! ContainerRemoved(replacePrewarm)
     val unpause = stateName match {
       case Paused => container.resume()(TransactionId.invokerNanny)
