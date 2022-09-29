@@ -403,7 +403,7 @@ The playbook structure allows you to clean, deploy or re-deploy a single compone
 
 ```shell script
 cd <openwhisk_home>
-gradle :core:invoker:distDocker -PdockerImageTag=myNewInvoker
+./gradlew :core:invoker:distDocker -PdockerImageTag=myNewInvoker
 ```
 Then all you need to do is re-deploy the invoker using the new image:
 
