@@ -36,11 +36,11 @@ import org.apache.openwhisk.core.database.{ActivationStoreProvider, NoDocumentEx
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdKV.{QueueKeys, SchedulerKeys}
 import org.apache.openwhisk.core.etcd.EtcdType.ByteStringToString
-import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
+import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig, EtcdWorker}
 import org.apache.openwhisk.core.scheduler.container.{ContainerManager, CreationJobManager}
 import org.apache.openwhisk.core.scheduler.grpc.ActivationServiceImpl
 import org.apache.openwhisk.core.scheduler.queue._
-import org.apache.openwhisk.core.service.{DataManagementService, EtcdWorker, LeaseKeepAliveService, WatcherService}
+import org.apache.openwhisk.core.service.{DataManagementService, LeaseKeepAliveService, WatcherService}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.grpc.ActivationServiceHandler
 import org.apache.openwhisk.http.BasicHttpService
