@@ -549,6 +549,65 @@ class QueueManagerTests
     probe.expectMsg(activationMessage.copy(action = finalFqn, revision = finalRevision))
   }
 
+  it should "recreate the queue if it's removed by mistake while leader key is not removed from etcd" in {
+    val mockEtcdClient = mock[EtcdClient]
+    (mockEtcdClient
+      .get(_: String))
+      .expects(*)
+      .returning(Future.successful {
+        RangeResponse
+          .newBuilder()
+          .addKvs(KeyValue.newBuilder().setKey("test").setValue(schedulerEndpoint.serialize).build())
+          .build()
+      })
+      .anyNumberOfTimes()
+    val dataManagementService = getTestDataManagementService()
+    val watcher = TestProbe()
+
+    val probe = TestProbe()
+
+    val childFactory =
+      (_: ActorRefFactory, _: String, _: FullyQualifiedEntityName, _: DocRevision, _: WhiskActionMetaData) => probe.ref
+
+    val queueManager =
+      TestActorRef(
+        QueueManager
+          .props(
+            entityStore,
+            get,
+            mockEtcdClient,
+            schedulerEndpoint,
+            schedulerId,
+            dataManagementService.ref,
+            watcher.ref,
+            ack,
+            store,
+            childFactory,
+            mockConsumer))
+
+    watcher.expectMsg(watchEndpoint)
+    //current queue's revision is `1-test-revision`
+    (queueManager ? testQueueCreationMessage).mapTo[CreateQueueResponse].futureValue shouldBe CreateQueueResponse(
+      testInvocationNamespace,
+      testFQN,
+      true)
+
+    probe.expectMsg(Start)
+
+    // simulate queue superseded, the queue will be removed but leader key won't be deleted
+    queueManager ! QueueRemoved(
+      testInvocationNamespace,
+      testFQN.toDocId.asDocInfo(testDocRevision),
+      Some(testLeaderKey))
+
+    queueManager.!(activationMessage)(queueManager)
+    val msg2 = activationMessage.copy(activationId = ActivationId.generate())
+    queueManager.!(msg2)(queueManager) // even send two requests, we should only recreate one queue
+    probe.expectMsg(Start)
+    probe.expectMsg(activationMessage)
+    probe.expectMsg(msg2)
+  }
+
   it should "not skip outdated activation when the revision is older than the one in a datastore" in {
     stream.reset()
     val mockEtcdClient = mock[EtcdClient]
@@ -1082,6 +1141,9 @@ class QueueManagerTests
     val probe = TestProbe()
     val fqn2 = FullyQualifiedEntityName(EntityPath("hello1"), EntityName("action1"))
     val fqn3 = FullyQualifiedEntityName(EntityPath("hello2"), EntityName("action2"))
+    val fqn4 = FullyQualifiedEntityName(EntityPath("hello3"), EntityName("action3"))
+    val fqn5 = FullyQualifiedEntityName(EntityPath("hello4"), EntityName("action4"))
+    val fqn6 = FullyQualifiedEntityName(EntityPath("hello5"), EntityName("action5"))
 
     // probe will watch all actors which are created by these factories
     val childFactory =
@@ -1129,5 +1191,15 @@ class QueueManagerTests
     queueManager ! GracefulShutdown
 
     probe.expectMsgAllOf(10.seconds, GracefulShutdown, GracefulShutdown, GracefulShutdown)
+
+    // after shutdown, it can still create/update/recover a queue, and new queue should be shutdown immediately too
+    (queueManager ? testQueueCreationMessage.copy(fqn = fqn4))
+      .mapTo[CreateQueueResponse]
+      .futureValue shouldBe CreateQueueResponse(testInvocationNamespace, fqn = fqn4, success = true)
+    queueManager ! CreateNewQueue(activationMessage, fqn5, testActionMetaData)
+    queueManager ! RecoverQueue(activationMessage, fqn6, testActionMetaData)
+
+    probe.expectMsgAllOf(10.seconds, GracefulShutdown, GracefulShutdown, GracefulShutdown)
+
   }
 }
