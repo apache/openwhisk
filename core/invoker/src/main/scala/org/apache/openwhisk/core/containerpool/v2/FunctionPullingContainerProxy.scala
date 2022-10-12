@@ -769,9 +769,13 @@ class FunctionPullingContainerProxy(
     case Event(StateTimeout, _) =>
       logging.error(this, s"could not receive ClientClosed for ${unusedTimeout}, so just stop the container proxy.")
 
-      stop
+      stop()
 
     case Event(Remove | GracefulShutdown, _) =>
+      stay()
+
+
+    case Event(DetermineKeepContainer(_), _) =>
       stay()
   }
 
