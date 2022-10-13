@@ -291,8 +291,9 @@ class FunctionPullingContainerProxyTests
     Future.successful(count)
   }
 
-  def getLiveContainerCountFail(count: Long) = LoggedFunction { (_: String, _: FullyQualifiedEntityName, _: DocRevision) =>
-    Future.failed(new Exception("failure"))
+  def getLiveContainerCountFail(count: Long) = LoggedFunction {
+    (_: String, _: FullyQualifiedEntityName, _: DocRevision) =>
+      Future.failed(new Exception("failure"))
   }
 
   def getLiveContainerCountFailFirstCall(count: Long) = {
@@ -1137,7 +1138,8 @@ class FunctionPullingContainerProxyTests
     }
   }
 
-  it should "destroy container proxy when stopping due to timeout and getting live count fails permanently" in within(timeout) {
+  it should "destroy container proxy when stopping due to timeout and getting live count fails permanently" in within(
+    timeout) {
     val authStore = mock[ArtifactWhiskAuthStore]
     val namespaceBlacklist: NamespaceBlacklist = new NamespaceBlacklist(authStore)
     val get = getWhiskAction(Future(action.toWhiskAction))

@@ -21,8 +21,22 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector.ContainerCreationError._
-import org.apache.openwhisk.core.connector.{ContainerCreationAckMessage, ContainerCreationMessage, ContainerDeletionMessage, ResultMetadata}
-import org.apache.openwhisk.core.containerpool.{AdjustPrewarmedContainer, BlackboxStartupError, ColdStartKey, ContainerPool, ContainerPoolConfig, ContainerRemoved, PrewarmingConfig, WhiskContainerStartupError}
+import org.apache.openwhisk.core.connector.{
+  ContainerCreationAckMessage,
+  ContainerCreationMessage,
+  ContainerDeletionMessage,
+  ResultMetadata
+}
+import org.apache.openwhisk.core.containerpool.{
+  AdjustPrewarmedContainer,
+  BlackboxStartupError,
+  ColdStartKey,
+  ContainerPool,
+  ContainerPoolConfig,
+  ContainerRemoved,
+  PrewarmingConfig,
+  WhiskContainerStartupError
+}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
@@ -36,7 +50,7 @@ import scala.concurrent.duration._
 import scala.util.{Random, Try}
 import scala.collection.immutable.Queue
 
-object  TotalContainerPoolState extends DefaultJsonProtocol {
+object TotalContainerPoolState extends DefaultJsonProtocol {
   implicit val prewarmedPoolSerdes = jsonFormat2(PrewarmedContainerPoolState.apply)
   implicit val warmPoolSerdes = jsonFormat2(WarmContainerPoolState.apply)
   implicit val totalPoolSerdes = jsonFormat5(TotalContainerPoolState.apply)
@@ -44,8 +58,11 @@ object  TotalContainerPoolState extends DefaultJsonProtocol {
 
 case class PrewarmedContainerPoolState(total: Int, countsByKind: Map[String, Int])
 case class WarmContainerPoolState(total: Int, containers: List[BasicContainerInfo])
-case class TotalContainerPoolState(totalContainers: Int, inProgressCount: Int, prewarmedPool: PrewarmedContainerPoolState,
-                                   busyPool: WarmContainerPoolState, pausedPool: WarmContainerPoolState) {
+case class TotalContainerPoolState(totalContainers: Int,
+                                   inProgressCount: Int,
+                                   prewarmedPool: PrewarmedContainerPoolState,
+                                   busyPool: WarmContainerPoolState,
+                                   pausedPool: WarmContainerPoolState) {
   def serialize(): String = TotalContainerPoolState.totalPoolSerdes.write(this).compactPrint
 }
 
@@ -415,7 +432,8 @@ class FunctionPullingContainerPool(
       adjustPrewarmedContainer(false, true)
     case GetState =>
       val totalContainers = busyPool.size + inProgressPool.size + warmedPool.size + prewarmedPool.size
-      val prewarmedState = PrewarmedContainerPoolState(prewarmedPool.size, prewarmedPool.groupBy(_._2.kind).mapValues(_.size))
+      val prewarmedState =
+        PrewarmedContainerPoolState(prewarmedPool.size, prewarmedPool.groupBy(_._2.kind).mapValues(_.size))
       val busyState = WarmContainerPoolState(busyPool.size, busyPool.values.map(_.basicContainerInfo).toList)
       val pausedState = WarmContainerPoolState(warmedPool.size, warmedPool.values.map(_.basicContainerInfo).toList)
       sender() ! TotalContainerPoolState(totalContainers, inProgressPool.size, prewarmedState, busyState, pausedState)

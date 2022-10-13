@@ -127,16 +127,20 @@ case class PreWarmData(container: Container,
   def isExpired(): Boolean = expires.exists(_.isOverdue())
 }
 
-object  BasicContainerInfo extends DefaultJsonProtocol {
+object BasicContainerInfo extends DefaultJsonProtocol {
   implicit val prewarmedPoolSerdes = jsonFormat4(BasicContainerInfo.apply)
 }
 
 sealed case class BasicContainerInfo(containerId: String, namespace: String, action: String, kind: String)
 
-sealed abstract class ContainerAvailableData(container: Container, invocationNamespace: String, action: ExecutableWhiskAction) extends Data(action.limits.memory.megabytes.MB) {
+sealed abstract class ContainerAvailableData(container: Container,
+                                             invocationNamespace: String,
+                                             action: ExecutableWhiskAction)
+    extends Data(action.limits.memory.megabytes.MB) {
   override def getContainer = Some(container)
 
-  val basicContainerInfo = BasicContainerInfo(container.containerId.asString, invocationNamespace, action.name.asString, action.exec.kind)
+  val basicContainerInfo =
+    BasicContainerInfo(container.containerId.asString, invocationNamespace, action.name.asString, action.exec.kind)
 }
 
 case class ContainerCreatedData(container: Container, invocationNamespace: String, action: ExecutableWhiskAction)
