@@ -22,6 +22,8 @@ import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, 
 import akka.grpc.GrpcClientSettings
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
+import akka.util.Timeout
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.client.kv.KvClient.Watch
 import com.ibm.etcd.client.kv.WatchUpdate
@@ -390,6 +392,11 @@ class FPCInvokerReactive(config: WhiskConfig,
 
   override def isEnabled(): Route = {
     complete(InvokerEnabled(warmUpWatcher.nonEmpty).serialize())
+  }
+
+  override def getPoolState(): Route = {
+    implicit val timeout: Timeout = 5.seconds
+    complete((pool ? GetState).mapTo[TotalContainerPoolState].map(_.serialize()))
   }
 
   override def backfillPrewarm(): Route = {

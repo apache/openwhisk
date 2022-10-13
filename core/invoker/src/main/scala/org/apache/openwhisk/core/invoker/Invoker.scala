@@ -249,6 +249,7 @@ trait InvokerCore {
   def enable(): Route
   def disable(): Route
   def isEnabled(): Route
+  def getPoolState(): Route
   def backfillPrewarm(): Route
 }
 

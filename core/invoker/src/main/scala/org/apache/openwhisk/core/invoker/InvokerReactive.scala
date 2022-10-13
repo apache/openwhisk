@@ -332,4 +332,8 @@ class InvokerReactive(
     complete("not supported")
   }
 
+  override def getPoolState(): Route = {
+    complete("not supported")
+  }
+
 }

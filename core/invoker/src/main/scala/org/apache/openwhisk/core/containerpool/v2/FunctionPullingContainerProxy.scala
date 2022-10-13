@@ -127,18 +127,27 @@ case class PreWarmData(container: Container,
   def isExpired(): Boolean = expires.exists(_.isOverdue())
 }
 
-case class ContainerCreatedData(container: Container, invocationNamespace: String, action: ExecutableWhiskAction)
-    extends Data(action.limits.memory.megabytes.MB) {
-  override def getContainer = Some(container)
+object  BasicContainerInfo extends DefaultJsonProtocol {
+  implicit val prewarmedPoolSerdes = jsonFormat4(BasicContainerInfo.apply)
 }
+
+sealed case class BasicContainerInfo(containerId: String, namespace: String, action: String, kind: String)
+
+sealed abstract class ContainerAvailableData(container: Container, invocationNamespace: String, action: ExecutableWhiskAction) extends Data(action.limits.memory.megabytes.MB) {
+  override def getContainer = Some(container)
+
+  val basicContainerInfo = BasicContainerInfo(container.containerId.asString, invocationNamespace, action.name.asString, action.exec.kind)
+}
+
+case class ContainerCreatedData(container: Container, invocationNamespace: String, action: ExecutableWhiskAction)
+    extends ContainerAvailableData(container, invocationNamespace, action)
 
 case class InitializedData(container: Container,
                            invocationNamespace: String,
                            action: ExecutableWhiskAction,
                            override val clientProxy: ActorRef)
-    extends Data(action.limits.memory.megabytes.MB)
+    extends ContainerAvailableData(container, invocationNamespace, action)
     with WithClient {
-  override def getContainer = Some(container)
   def toReschedulingData(resumeRun: RunActivation) =
     ReschedulingData(container, invocationNamespace, action, clientProxy, resumeRun)
 }
@@ -149,9 +158,8 @@ case class WarmData(container: Container,
                     revision: DocRevision,
                     lastUsed: Instant,
                     override val clientProxy: ActorRef)
-    extends Data(action.limits.memory.megabytes.MB)
+    extends ContainerAvailableData(container, invocationNamespace, action)
     with WithClient {
-  override def getContainer = Some(container)
   def toReschedulingData(resumeRun: RunActivation) =
     ReschedulingData(container, invocationNamespace, action, clientProxy, resumeRun)
 }
@@ -159,12 +167,10 @@ case class WarmData(container: Container,
 case class ReschedulingData(container: Container,
                             invocationNamespace: String,
                             action: ExecutableWhiskAction,
-                            override val clientProxy: ActorRef,
+                            clientProxy: ActorRef,
                             resumeRun: RunActivation)
-    extends Data(action.limits.memory.megabytes.MB)
-    with WithClient {
-  override def getContainer = Some(container)
-}
+    extends ContainerAvailableData(container, invocationNamespace, action)
+    with WithClient
 
 class FunctionPullingContainerProxy(
   factory: (TransactionId,
