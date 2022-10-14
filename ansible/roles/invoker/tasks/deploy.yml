@@ -296,6 +296,7 @@
       "CONFIG_whisk_containerPool_batchDeletionSize": "{{ container_pool_batchDeletionSize | default(10) }}"
       "CONFIG_whisk_invoker_username": "{{ invoker.username }}"
       "CONFIG_whisk_invoker_password": "{{ invoker.password }}"
+      "CONFIG_whisk_cluster_name": "{{ whisk.cluster_name | lower }}"
 
 - name: extend invoker dns env
   set_fact:

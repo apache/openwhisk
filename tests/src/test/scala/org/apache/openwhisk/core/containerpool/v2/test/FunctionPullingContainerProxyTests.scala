@@ -17,22 +17,17 @@
 
 package org.apache.openwhisk.core.containerpool.v2.test
 
-import java.net.InetSocketAddress
-import java.time.Instant
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
 import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.http.scaladsl.model
 import akka.io.Tcp.Connect
 import akka.stream.scaladsl.{Sink, Source}
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestFSMRef, TestKit, TestProbe}
 import akka.util.ByteString
 import com.ibm.etcd.api.{DeleteRangeResponse, KeyValue, PutResponse}
 import com.ibm.etcd.client.{EtcdClient => Client}
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction}
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage}
 import org.apache.openwhisk.core.containerpool.logging.LogCollectingException
@@ -51,7 +46,7 @@ import org.apache.openwhisk.core.database.{ArtifactStore, StaleParameter, UserCo
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.types.AuthStore
-import org.apache.openwhisk.core.entity.{ExecutableWhiskAction, _}
+import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys
 import org.apache.openwhisk.core.etcd.EtcdType._
@@ -65,6 +60,10 @@ import org.scalatest.{Assertion, BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
 
+import java.net.InetSocketAddress
+import java.time.Instant
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.collection.mutable.{Map => MutableMap}
 import scala.concurrent.duration._
@@ -291,8 +290,9 @@ class FunctionPullingContainerProxyTests
     Future.successful(count)
   }
 
-  def getLiveContainerCountFail(count: Long) = LoggedFunction { (_: String, _: FullyQualifiedEntityName, _: DocRevision) =>
-    Future.failed(new Exception("failure"))
+  def getLiveContainerCountFail(count: Long) = LoggedFunction {
+    (_: String, _: FullyQualifiedEntityName, _: DocRevision) =>
+      Future.failed(new Exception("failure"))
   }
 
   def getLiveContainerCountFailFirstCall(count: Long) = {
@@ -961,7 +961,7 @@ class FunctionPullingContainerProxyTests
     }
     client.send(machine, ClientClosed)
 
-    probe.expectMsgAllOf(ContainerRemoved(true), Transition(machine, Running, Removing))
+    probe.expectMsgAllOf(ContainerRemoved(false), Transition(machine, Running, Removing))
 
     awaitAssert {
       factory.calls should have size 1
@@ -1137,7 +1137,8 @@ class FunctionPullingContainerProxyTests
     }
   }
 
-  it should "destroy container proxy when stopping due to timeout and getting live count fails permanently" in within(timeout) {
+  it should "destroy container proxy when stopping due to timeout and getting live count fails permanently" in within(
+    timeout) {
     val authStore = mock[ArtifactWhiskAuthStore]
     val namespaceBlacklist: NamespaceBlacklist = new NamespaceBlacklist(authStore)
     val get = getWhiskAction(Future(action.toWhiskAction))
@@ -1529,6 +1530,96 @@ class FunctionPullingContainerProxyTests
       container.destroyCount shouldBe 1
       acker.calls.length shouldBe 1
       store.calls.length shouldBe 1
+    }
+  }
+
+  it should "remove the ETCD data first when disabling the container proxy" in within(timeout) {
+    val authStore = mock[ArtifactWhiskAuthStore]
+    val namespaceBlacklist: NamespaceBlacklist = new NamespaceBlacklist(authStore)
+    val get = getWhiskAction(Future(action.toWhiskAction))
+    val dataManagementService = TestProbe()
+    val container = new TestContainer
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker()
+    val store = createStore
+    val collector = createCollector()
+    val counter = getLiveContainerCount(1)
+    val limit = getWarmedContainerLimit(Future.successful((1, 10.seconds)))
+    val (client, clientFactory) = testClient
+
+    val instanceId = InvokerInstanceId(0, userMemory = defaultUserMemory)
+    val probe = TestProbe()
+    val machine =
+      TestFSMRef(
+        new FunctionPullingContainerProxy(
+          factory,
+          entityStore,
+          namespaceBlacklist,
+          get,
+          dataManagementService.ref,
+          clientFactory,
+          acker,
+          store,
+          collector,
+          counter,
+          limit,
+          instanceId,
+          invokerHealthManager.ref,
+          poolConfig,
+          timeoutConfig,
+          healthchecksConfig(),
+          None),
+        probe.ref)
+
+    registerCallback(machine, probe)
+
+    machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
+    probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
+    client.expectMsg(StartClient)
+    client.send(machine, ClientCreationCompleted())
+
+    val containerId = machine.underlyingActor.stateData.getContainer match {
+      case Some(container) => container.containerId
+      case None            => ContainerId("")
+    }
+
+    dataManagementService.expectMsg(RegisterData(
+      s"${ContainerKeys.existingContainers(invocationNamespace.asString, fqn, action.rev, Some(instanceId), Some(containerId))}",
+      ""))
+
+    probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
+    expectInitialized(probe)
+    client.expectMsg(RequestActivation())
+    client.send(machine, message)
+
+    probe.expectMsg(Transition(machine, ClientCreated, Running))
+    client.expectMsg(ContainerWarmed)
+    client.expectMsgPF() {
+      case RequestActivation(Some(_), None) => true
+    }
+    client.send(machine, message)
+    client.expectMsgPF() {
+      case RequestActivation(Some(_), None) => true
+    }
+    machine ! GracefulShutdown
+
+    dataManagementService.expectMsg(
+      UnregisterData(ContainerKeys
+        .existingContainers(invocationNamespace.asString, fqn, action.rev, Some(instanceId), Some(containerId))))
+
+    client.expectMsg(CloseClientProxy)
+    client.send(machine, ClientClosed)
+
+    probe.expectMsgAllOf(ContainerRemoved(false), Transition(machine, Running, Removing))
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 2
+      collector.calls.length shouldBe 2
+      container.destroyCount shouldBe 1
+      acker.calls.length shouldBe 2
+      store.calls.length shouldBe 2
     }
   }
 

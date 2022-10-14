@@ -606,12 +606,7 @@ class FunctionPullingContainerProxy(
       if (runningActivations.isEmpty) {
         logging.info(this, s"The Client closed in state: $stateName, action: ${data.action}")
         // Stop ContainerProxy(ActivationClientProxy will stop also when send ClientClosed to ContainerProxy).
-        cleanUp(
-          data.container,
-          data.invocationNamespace,
-          data.action.fullyQualifiedName(withVersion = true),
-          data.action.rev,
-          None)
+        cleanUp(data.container, None, false)
       } else {
         logging.info(
           this,
@@ -624,6 +619,15 @@ class FunctionPullingContainerProxy(
     // ContainerProxy will be terminated by StateTimeout if there is no further activation
     case Event(GracefulShutdown, data: WarmData) =>
       logging.info(this, s"receive GracefulShutdown for action: ${data.action}")
+      // clean up the etcd data first so that the scheduler can provision more containers in advance.
+      dataManagementService ! UnregisterData(
+        ContainerKeys.existingContainers(
+          data.invocationNamespace,
+          data.action.fullyQualifiedName(true),
+          data.action.rev,
+          Some(instance),
+          Some(data.container.containerId)))
+
       // Just send CloseClientProxy to ActivationClientProxy, make ActivationClientProxy throw ClientClosedException when fetchActivation next time.
       data.clientProxy ! CloseClientProxy
       stay
@@ -765,9 +769,13 @@ class FunctionPullingContainerProxy(
     case Event(StateTimeout, _) =>
       logging.error(this, s"could not receive ClientClosed for ${unusedTimeout}, so just stop the container proxy.")
 
-      stop
+      stop()
 
     case Event(Remove | GracefulShutdown, _) =>
+      stay()
+
+
+    case Event(DetermineKeepContainer(_), _) =>
       stay()
   }
 
