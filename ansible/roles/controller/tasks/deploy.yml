@@ -363,6 +363,36 @@
   include_tasks: "lean.yml"
   when: lean
 
+# Before redeploy controller, should remove that controller instance from nginx
+- name: remove the controller from nginx's upstream configuration
+  shell:
+    docker exec -t nginx sh -c "sed -i  \"s/ server {{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/ \#server {{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/g\"  /etc/nginx/nginx.conf  && nginx -s reload"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['edge'] }}"
+  when: zeroDowntimeDeployment.enabled == true
+
+- name: wait some time for controllers fire all existing triggers
+  shell: sleep 5s
+  when: zeroDowntimeDeployment.enabled == true
+
+- name: wait until {{ controller_name }} executes all existing activations
+  uri:
+    url: "{{ controller.protocol }}://{{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/activation/count"
+    validate_certs: no
+    client_key: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/{{ controller.ssl.key }}"
+    client_cert: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/{{ controller.ssl.cert }}"
+    return_content: yes
+  register: result
+  until: result.content == '0'
+  retries: {{ controller.deployment.retries }}
+  delay: {{ controller.deployment.delay }}
+  when: zeroDowntimeDeployment.enabled == true and controllerDeployed.stdout != "0" and (zeroDowntimeDeployment.solution == 'apicall')
+  ignore_errors: "{{ controller.deployment.ignore_error }}"
+
+- name: wait some time for controller to gracefully shutdown the consumer for activation ack
+  shell: sleep 5s
+  when: zeroDowntimeDeployment.enabled == true
+
 - name: (re)start controller
   docker_container:
     name: "{{ controller_name }}"

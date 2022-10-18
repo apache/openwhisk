@@ -167,6 +167,22 @@ class Controller(val instance: ControllerInstanceId,
     }
   }
 
+  /**
+   * Handles GET /activation URI.
+   *
+   * @return running activation
+   */
+  protected[controller] val activationStatus = {
+    implicit val executionContext = actorSystem.dispatcher
+    (path("activation") & get) {
+      pathEndOrSingleSlash {
+        complete(loadBalancer.activeActivationsByController.map(_.toJson))
+      } ~ path("count") {
+        complete(loadBalancer.activeActivationsByController(controllerInstance.asString).map(_.toJson))
+      }
+    }
+  }
+
   // controller top level info
   private val info = Controller.info(
     whiskConfig,

@@ -126,6 +126,10 @@ controller:
       password: "openwhisk"
       name: "{{ __controller_ssl_keyPrefix }}openwhisk-keystore.p12"
   extraEnv: "{{ controller_extraEnv | default({}) }}"
+  deployment:
+    ignore_error: "{{ controller_deployment_ignore_error | default('False') }}"
+    retries: "{{ controller_deployment_retries | default(180) }}"
+    delay: "{{ controller_deployment_delay | default(5) }}"
 
 jmx:
   basePortController: 15000
