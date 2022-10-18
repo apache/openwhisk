@@ -246,10 +246,11 @@ trait InvokerProvider extends Spi {
 
 // this trait can be used to add common implementation
 trait InvokerCore {
-  def enable(): Route
-  def disable(): Route
-  def isEnabled(): Route
+  def enable(): String
+  def disable(): String
+  def isEnabled(): String
   def backfillPrewarm(): Route
+  def status(): Future[Map[String, List[String]]]
 }
 
 /**

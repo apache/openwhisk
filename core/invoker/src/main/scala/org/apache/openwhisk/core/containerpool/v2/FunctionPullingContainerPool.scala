@@ -19,14 +19,14 @@ package org.apache.openwhisk.core.containerpool.v2
 
 import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
-
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector.ContainerCreationError._
 import org.apache.openwhisk.core.connector.{
   ContainerCreationAckMessage,
   ContainerCreationMessage,
   ContainerDeletionMessage,
-  ResultMetadata
+  ResultMetadata,
+  StatusQuery
 }
 import org.apache.openwhisk.core.containerpool.{
   AdjustPrewarmedContainer,
@@ -413,6 +413,24 @@ class FunctionPullingContainerPool(
       // Reset the prewarmCreateCount value when do expiration check and backfill prewarm if possible
       prewarmCreateFailedCount.set(0)
       adjustPrewarmedContainer(false, true)
+
+    case StatusQuery =>
+      val result = immutable.Map.empty[String, List[String]]
+      val pools = busyPool ++ warmedPool ++ inProgressPool
+      pools.foreach { entry =>
+        entry._2 match {
+          case InitializedData(container, _, action, _) =>
+            result += (action.fullyQualifiedName(true).asString, container.containerId.asString)
+          case WarmData(container, _, action, _, _, _) =>
+            result += (action.fullyQualifiedName(true).asString, container.containerId.asString)
+          case ContainerCreatedData(container, _, action) =>
+            result += (action.fullyQualifiedName(true).asString, container.containerId.asString)
+          case ReschedulingData(container, _, action, _, _) =>
+            result += (action.fullyQualifiedName(true).asString, container.containerId.asString)
+          case _ => // do nothing
+        }
+      }
+      sender() ! result
   }
 
   /** Install prewarm containers up to the configured requirements for each kind/memory combination or specified kind/memory */

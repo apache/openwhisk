@@ -20,6 +20,7 @@ package org.apache.openwhisk.core.invoker
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
+import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
@@ -46,11 +47,17 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
     super.routes ~ extractCredentials {
       case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
         (path("enable") & post) {
-          invoker.enable()
+          complete(invoker.enable())
         } ~ (path("disable") & post) {
-          invoker.disable()
+          complete(invoker.disable())
         } ~ (path("isEnabled") & get) {
-          invoker.isEnabled()
+          complete(invoker.isEnabled())
+        } ~ (path("status") & get) {
+          pathEndOrSingleSlash {
+            complete(invoker.status().map(_.toString))
+          } ~ (path("count") & get) {
+            complete(invoker.status().map(_.size.toString))
+          }
         }
       case _ => terminate(StatusCodes.Unauthorized)
     }

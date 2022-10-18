@@ -30,6 +30,7 @@ import org.apache.openwhisk.core.ack.{MessagingActiveAck, UserEventSender}
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
+import org.apache.openwhisk.core.containerpool.v2.Data
 import org.apache.openwhisk.core.database.{UserContext, _}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -41,6 +42,7 @@ import pureconfig._
 import pureconfig.generic.auto._
 import spray.json._
 
+import scala.collection.immutable
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -304,32 +306,36 @@ class InvokerReactive(
 
   private var healthScheduler: Option[ActorRef] = Some(getHealthScheduler)
 
-  override def enable(): Route = {
+  override def enable(): String = {
     if (healthScheduler.isEmpty) {
       healthScheduler = Some(getHealthScheduler)
-      complete(s"${instance.toString} is now enabled.")
+      s"${instance.toString} is now enabled."
     } else {
-      complete(s"${instance.toString} is already enabled.")
+      s"${instance.toString} is already enabled."
     }
   }
 
-  override def disable(): Route = {
+  override def disable(): String = {
     pingController(isEnabled = false)
     if (healthScheduler.nonEmpty) {
       actorSystem.stop(healthScheduler.get)
       healthScheduler = None
-      complete(s"${instance.toString} is now disabled.")
+      s"${instance.toString} is now disabled."
     } else {
-      complete(s"${instance.toString} is already disabled.")
+      s"${instance.toString} is already disabled."
     }
   }
 
-  override def isEnabled(): Route = {
-    complete(InvokerEnabled(healthScheduler.nonEmpty).serialize())
+  override def isEnabled(): String = {
+    InvokerEnabled(healthScheduler.nonEmpty).serialize()
   }
 
   override def backfillPrewarm(): Route = {
     complete("not supported")
+  }
+
+  override def status(): Future[Map[String, List[String]]] = {
+    Future.successful(immutable.Map.empty[String, List[String]])
   }
 
 }

@@ -16,6 +16,8 @@
 #
 ---
 # This role installs invokers.
+- import_tasks: clean.yml
+  when: zeroDowntimeDeployment.enabled == true and enable_scheduler
 
 - import_tasks: docker_login.yml
 

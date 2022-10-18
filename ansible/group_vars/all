@@ -238,6 +238,10 @@ invoker:
     creationMaxPeek: "{{ container_creation_max_peek | default(500) }}"
   reactiveSpi: "{{ invokerReactive_spi | default('') }}"
   serverSpi: "{{ invokerServer_spi | default('') }}"
+  deployment:
+    ignore_error: "{{ invoker_deployment_ignore_error | default('False') }}"
+    retries: "{{ invoker_deployment_retries | default(180) }}"
+    delay: "{{ invoker_deployment_delay | default(5) }}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"

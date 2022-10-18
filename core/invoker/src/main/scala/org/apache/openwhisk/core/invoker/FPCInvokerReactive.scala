@@ -22,6 +22,8 @@ import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, 
 import akka.grpc.GrpcClientSettings
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
+import akka.util.Timeout
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.client.kv.KvClient.Watch
 import com.ibm.etcd.client.kv.WatchUpdate
@@ -39,6 +41,7 @@ import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, SchedulerKeys}
 import org.apache.openwhisk.core.etcd.EtcdType._
 import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig, EtcdWorker}
 import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
+import org.apache.openwhisk.core.scheduler.queue.QueueSize
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulerStates}
 import org.apache.openwhisk.core.service.{DataManagementService, LeaseKeepAliveService, WatcherService}
 import org.apache.openwhisk.core.{ConfigKeys, WarmUp, WhiskConfig}
@@ -373,23 +376,27 @@ class FPCInvokerReactive(config: WhiskConfig,
       maxPeek,
       sendAckToScheduler))
 
-  override def enable(): Route = {
+  override def enable(): String = {
     invokerHealthManager ! Enable
     pool ! Enable
     warmUp()
-    complete("Success enable invoker")
+    s"${instance.toString} is now enabled."
   }
 
-  override def disable(): Route = {
+  override def disable(): String = {
     invokerHealthManager ! GracefulShutdown
     pool ! GracefulShutdown
     warmUpWatcher.foreach(_.close())
     warmUpWatcher = None
-    complete("Successfully disabled invoker")
+    s"${instance.toString} is now disabled."
   }
 
-  override def isEnabled(): Route = {
-    complete(InvokerEnabled(warmUpWatcher.nonEmpty).serialize())
+  override def status(): Future[Map[String, List[String]]] = {
+    pool.ask(StatusQuery)(Timeout(5.seconds)).mapTo[Map[String, List[String]]]
+  }
+
+  override def isEnabled(): String = {
+    InvokerEnabled(warmUpWatcher.nonEmpty).serialize()
   }
 
   override def backfillPrewarm(): Route = {
