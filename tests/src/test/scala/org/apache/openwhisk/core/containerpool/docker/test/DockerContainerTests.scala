@@ -474,6 +474,23 @@ class DockerContainerTests
     end.deltaToMarkerStart shouldBe Some(interval.duration.toMillis)
   }
 
+  it should "throw ContainerHealthError if runtime container returns 503 response" in {
+    implicit val docker = stub[DockerApiWithFileAccess]
+    implicit val runc = stub[RuncApi]
+
+    val interval = intervalOf(1.millisecond)
+    val result = JsObject.empty
+    val container = dockerContainer() {
+      Future.successful(RunResult(interval, Right(ContainerResponse(503, result.compactPrint, None))))
+    }
+
+    val initResult = container.initialize(JsObject.empty, 1.second, 1)
+    an[ContainerHealthError] should be thrownBy await(initResult)
+
+    val runResult = container.run(JsObject.empty, JsObject.empty, 1.second, 1)
+    an[ContainerHealthError] should be thrownBy await(runResult)
+  }
+
   it should "properly deal with a timeout during run" in {
     implicit val docker = stub[DockerApiWithFileAccess]
     implicit val runc = stub[RuncApi]

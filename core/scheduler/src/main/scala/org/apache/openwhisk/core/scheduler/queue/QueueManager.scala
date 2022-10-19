@@ -54,6 +54,7 @@ case class UpdateMemoryQueue(oldAction: DocInfo,
 case class CreateNewQueue(activationMessage: ActivationMessage,
                           action: FullyQualifiedEntityName,
                           actionMetadata: WhiskActionMetaData)
+
 case class RecoverQueue(activationMessage: ActivationMessage,
                         action: FullyQualifiedEntityName,
                         actionMetadata: WhiskActionMetaData)
@@ -179,9 +180,8 @@ class QueueManager(
       }
 
     case RecoverQueue(msg, action, actionMetaData) =>
-      QueuePool.keys.find(k =>
-        k.invocationNamespace == msg.user.namespace.name.asString && k.docInfo.id == action.toDocId) match {
-        // queue is already recovered or a newer queue is created, send msg to new queue
+      QueuePool.keys.find(_.docInfo.id == action.toDocId) match {
+        // a newer queue is created, send msg to new queue
         case Some(key) if key.docInfo.rev >= msg.revision =>
           QueuePool.get(key) match {
             case Some(queue) if queue.isLeader =>
@@ -192,6 +192,7 @@ class QueueManager(
           }
         case _ =>
           recreateQueue(action, msg, actionMetaData)
+
       }
 
     // leaderKey is now optional, it becomes None when the stale queue is removed
@@ -307,6 +308,62 @@ class QueueManager(
     initRevisionMap.update(key, revision)
   }
 
+  private def recreateQueue(action: FullyQualifiedEntityName,
+                            msg: ActivationMessage,
+                            actionMetaData: WhiskActionMetaData): Unit = {
+    logging.warn(this, s"recreate queue for ${msg.action}")(msg.transid)
+    val queue = createAndStartQueue(msg.user.namespace.name.asString, action, msg.revision, actionMetaData)
+    queue ! msg
+    msg.transid.mark(this, LoggingMarkers.SCHEDULER_QUEUE_RECOVER)
+    if (isShuttingDown) {
+      queue ! GracefulShutdown
+    }
+  }
+
+  private def handleCycle(msg: ActivationMessage)(implicit transid: TransactionId): Unit = {
+    val action = msg.action
+    QueuePool.keys.find(_.docInfo.id == action.toDocId) match {
+      // a newer queue is created, send msg to new queue
+      case Some(key) if key.docInfo.rev >= msg.revision =>
+        QueuePool.get(key) match {
+          case Some(queue) if queue.isLeader =>
+            queue.queue ! msg.copy(revision = key.docInfo.rev)
+            logging.info(this, s"Queue for action $action is already recovered, skip")(msg.transid)
+          case _ =>
+            recoverQueue(msg)
+        }
+      case _ =>
+        recoverQueue(msg)
+    }
+  }
+
+  private def recoverQueue(msg: ActivationMessage)(implicit transid: TransactionId): Unit = {
+    val start = transid.started(this, LoggingMarkers.SCHEDULER_QUEUE_RECOVER)
+    logging.info(this, s"Recover a queue for ${msg.action},")
+    getWhiskActionMetaData(entityStore, msg.action.toDocId, msg.revision, false)
+      .map { actionMetaData: WhiskActionMetaData =>
+        actionMetaData.toExecutableWhiskAction match {
+          case Some(_) =>
+            self ! RecoverQueue(msg, msg.action.copy(version = Some(actionMetaData.version)), actionMetaData)
+            transid.finished(this, start, s"recovering queue for ${msg.action.toDocId.asDocInfo(actionMetaData.rev)}")
+
+          case None =>
+            val message =
+              s"non-executable action: ${msg.action} with rev: ${msg.revision} reached queueManager"
+            completeErrorActivation(msg, message)
+            transid.failed(this, start, message)
+        }
+      }
+      .recover {
+        case t =>
+          transid.failed(
+            this,
+            start,
+            s"failed to fetch action ${msg.action} with rev: ${msg.revision}, error ${t.getMessage}")
+          completeErrorActivation(msg, t.getMessage)
+      }
+  }
+
   private def createNewQueue(newAction: FullyQualifiedEntityName, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Any] = {
     val start = transid.started(this, LoggingMarkers.SCHEDULER_QUEUE_UPDATE("version-mismatch"))
@@ -342,49 +399,6 @@ class QueueManager(
             this,
             start,
             s"failed to fetch action $newAction with rev: ${msg.revision}, error ${t.getMessage}")
-          completeErrorActivation(msg, t.getMessage)
-      }
-  }
-
-  private def recreateQueue(action: FullyQualifiedEntityName,
-                            msg: ActivationMessage,
-                            actionMetaData: WhiskActionMetaData): Unit = {
-    logging.warn(this, s"recreate queue for ${msg.action}")(msg.transid)
-    val queue = createAndStartQueue(msg.user.namespace.name.asString, action, msg.revision, actionMetaData)
-    queue ! msg
-    msg.transid.mark(this, LoggingMarkers.SCHEDULER_QUEUE_RECOVER)
-    if (isShuttingDown) {
-      queue ! GracefulShutdown
-    }
-  }
-
-  private def handleCycle(msg: ActivationMessage)(implicit transid: TransactionId): Future[Any] = {
-    logging.warn(
-      this,
-      s"queue for ${msg.user.namespace.name.asString}/${msg.action} doesn't exist in memory but exist in etcd, recovering...")
-    val start = transid.started(this, LoggingMarkers.SCHEDULER_QUEUE_RECOVER)
-
-    logging.info(this, s"Recover a queue for ${msg.user.namespace.name.asString}/${msg.action},")
-    getWhiskActionMetaData(entityStore, msg.action.toDocId, msg.revision, false)
-      .map { actionMetaData: WhiskActionMetaData =>
-        actionMetaData.toExecutableWhiskAction match {
-          case Some(_) =>
-            self ! RecoverQueue(msg, msg.action.copy(version = Some(actionMetaData.version)), actionMetaData)
-            transid.finished(this, start, s"recovering queue for ${msg.action.toDocId.asDocInfo(actionMetaData.rev)}")
-
-          case None =>
-            val message =
-              s"non-executable action: ${msg.action} with rev: ${msg.revision} reached queueManager"
-            completeErrorActivation(msg, message)
-            transid.failed(this, start, message)
-        }
-      }
-      .recover {
-        case t =>
-          transid.failed(
-            this,
-            start,
-            s"failed to fetch action ${msg.action} with rev: ${msg.revision}, error ${t.getMessage}")
           completeErrorActivation(msg, t.getMessage)
       }
   }

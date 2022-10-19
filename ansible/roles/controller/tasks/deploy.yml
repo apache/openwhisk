@@ -154,6 +154,7 @@
 
       "CONFIG_whisk_info_date": "{{ whisk.version.date }}"
       "CONFIG_whisk_info_buildNo": "{{ docker.image.tag }}"
+      "CONFIG_whisk_cluster_name": "{{ whisk.cluster_name | lower }}"
 
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor":

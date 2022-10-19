@@ -225,7 +225,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       withActivation(wsk.activation, run) { result =>
         withClue("Activation result not as expected:") {
           result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
-          result.response.result.get.fields("error") shouldBe {
+          result.response.result.get.asJsObject.fields("error") shouldBe {
             Messages.timedoutActivation(allowedActionDuration, init = false).toJson
           }
           result.duration.toInt should be >= allowedActionDuration.toMillis.toInt
@@ -314,7 +314,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
         val response = activation.response
         response.success shouldBe false
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
-        val msg = response.result.get.fields(ActivationResponse.ERROR_FIELD).convertTo[String]
+        val msg = response.result.get.asJsObject.fields(ActivationResponse.ERROR_FIELD).convertTo[String]
         val expected = Messages.truncatedResponse((allowedSize + 10).B, allowedSize.B)
         withClue(s"is: ${msg.take(expected.length)}\nexpected: $expected") {
           msg.startsWith(expected) shouldBe true
@@ -404,7 +404,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     withActivation(wsk.activation, run) { activation =>
       activation.response.success shouldBe false
 
-      val error = activation.response.result.get.fields("error").asJsObject
+      val error = activation.response.result.get.asJsObject.fields("error").asJsObject
       error.fields("filesToOpen") shouldBe (openFileLimit + 1).toJson
 
       error.fields("message") shouldBe {
@@ -471,7 +471,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     val payload = MemoryLimit.MIN_MEMORY.toMB * 2
     val run = wsk.action.invoke(name, Map("payload" -> payload.toJson))
     withActivation(wsk.activation, run) {
-      _.response.result.get.fields("error") shouldBe Messages.memoryExhausted.toJson
+      _.response.result.get.asJsObject.fields("error") shouldBe Messages.memoryExhausted.toJson
     }
   }
 
@@ -494,7 +494,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       withActivation(wsk.activation, run) { result =>
         withClue("Activation result not as expected:") {
           result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
-          result.response.result.get
+          result.response.result.get.asJsObject
             .fields("error") shouldBe Messages.timedoutActivation(allowedActionDuration, init = false).toJson
           val logs = result.logs.get
           logs.last should include(Messages.logWarningDeveloperError)

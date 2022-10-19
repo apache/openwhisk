@@ -21,9 +21,9 @@ import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.StatusCodes.OK
 import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.model.StatusCodes.Conflict
+
 import java.time.Instant
 import java.time.Clock
-
 import scala.language.postfixOps
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
@@ -36,22 +36,29 @@ import common.WhiskProperties
 import common.WskProps
 import common.WskTestHelpers
 import common.WskActorSystem
-import common.rest.WskRestOperations
+import common.rest.{RestResult, RunRestCmd, WskRestOperations}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeInt
 import TestJsonArgs._
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpMethods.POST
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader, HttpMethod, HttpRequest, HttpResponse, Uri}
+import akka.http.scaladsl.model.Uri.{Path, Query}
+import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, RawHeader}
+import akka.util.ByteString
 import org.apache.openwhisk.http.Messages
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskActorSystem {
+class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskActorSystem with RunRestCmd {
 
   implicit val wskprops = WskProps()
-  val wsk = new WskRestOperations
+  implicit lazy override val executionContext = actorSystem.dispatcher
+  val wsk = new WskRestOperations()
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
   val usrAgentHeaderRegEx: String = """\bUser-Agent\b": \[\s+"OpenWhisk\-CLI/1.\d+.*"""
 
@@ -217,7 +224,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
-        response.result.get.fields("error") shouldBe Messages.abnormalInitialization.toJson
+        response.result.get.asJsObject.fields("error") shouldBe Messages.abnormalInitialization.toJson
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
   }
@@ -231,7 +238,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
-        response.result.get.fields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
+        response.result.get.asJsObject.fields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
   }
@@ -245,7 +252,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
-        response.result.get.fields("error") shouldBe Messages.abnormalRun.toJson
+        response.result.get.asJsObject.fields("error") shouldBe Messages.abnormalRun.toJson
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
   }
@@ -319,7 +326,7 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
       val run = wsk.action.invoke(name)
       withActivation(wsk.activation, run) { activation =>
         activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
-        activation.response.result.get
+        activation.response.result.get.asJsObject
           .fields("error") shouldBe s"Failed to pull container image '$containerName'.".toJson
         activation.annotations shouldBe defined
         val limits = activation.annotations.get.filter(_.fields("key").convertTo[String] == "limits")
@@ -736,5 +743,87 @@ class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers with WskAct
     } finally {
       wsk.trigger.delete(triggerName).statusCode shouldBe OK
     }
+  }
+
+  it should "forward headers as parameters to the associated action" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val guestNamespace = wsk.namespace.whois()
+      val name = "triggerWithHeaders"
+      val actionName = "params"
+      val ruleName = "ruleWithHeaders"
+
+      assetHelper.withCleaner(wsk.trigger, name) { (trigger, _) =>
+        trigger.create(name)
+      }
+
+      assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+        action.create(actionName, Some(TestUtils.getTestActionFilename("params.js")))
+      }
+
+      assetHelper.withCleaner(wsk.rule, ruleName) { (rule, _) =>
+        rule.create(ruleName, trigger = name, action = actionName)
+        rule.enable(ruleName)
+      }
+
+      val path = Path(s"$basePath/namespaces/$guestNamespace/triggers/$name")
+
+      val resp = requestEntityWithHeader(POST, path, List(RawHeader("Foo", "Bar")))(wp)
+      val result = new RestResult(resp.status.intValue, getTransactionId(resp), getRespData(resp))
+
+      withActivation(wsk.activation, result) { triggerActivation =>
+        val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[common.RuleActivationResult]).head
+        withActivation(wsk.activation, ruleActivation.activationId) { actionActivation =>
+          actionActivation.response.result match {
+            case Some(result) =>
+              result.asJsObject.fields.get("args") map { headers =>
+                headers.asJsObject.fields.get("__ow_headers") map { params =>
+                  params.asJsObject.fields.get("foo") map { foo =>
+                    foo shouldBe JsString("Bar")
+                  }
+                }
+              }
+
+            case others =>
+              fail(s"no result found: $others")
+
+          }
+          actionActivation.cause shouldBe None
+        }
+      }
+  }
+
+  def requestEntityWithHeader(method: HttpMethod,
+                              path: Path,
+                              headers: List[HttpHeader],
+                              params: Map[String, String] = Map.empty,
+                              body: Option[String] = None)(implicit wp: WskProps): HttpResponse = {
+    val credentials = wp.authKey.split(":")
+    val creds = new BasicHttpCredentials(credentials(0), credentials(1))
+
+    // startsWith(http) includes https
+    val hostWithScheme = if (wp.apihost.startsWith("http")) {
+      Uri(wp.apihost)
+    } else {
+      Uri().withScheme("https").withHost(wp.apihost)
+    }
+
+    val request = HttpRequest(
+      method,
+      hostWithScheme.withPath(path).withQuery(Query(params)),
+      Authorization(creds) :: headers,
+      entity =
+        body.map(b => HttpEntity.Strict(ContentTypes.`application/json`, ByteString(b))).getOrElse(HttpEntity.Empty))
+    val response = Http().singleRequest(request, connectionContext).flatMap { _.toStrict(toStrictTimeout) }.futureValue
+
+    logger.debug(this, s"Request: $request")
+    logger.debug(this, s"Response: $response")
+
+    val validationErrors = validateRequestAndResponse(request, response)
+    if (validationErrors.nonEmpty) {
+      fail(
+        s"HTTP request or response did not match the Swagger spec.\nRequest: $request\n" +
+          s"Response: $response\nValidation Error: $validationErrors")
+    }
+    response
   }
 }

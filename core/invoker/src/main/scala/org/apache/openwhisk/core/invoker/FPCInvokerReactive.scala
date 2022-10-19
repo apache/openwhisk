@@ -37,10 +37,10 @@ import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.QueueKeys.queue
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, SchedulerKeys}
 import org.apache.openwhisk.core.etcd.EtcdType._
-import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
+import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig, EtcdWorker}
 import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulerStates}
-import org.apache.openwhisk.core.service.{DataManagementService, EtcdWorker, LeaseKeepAliveService, WatcherService}
+import org.apache.openwhisk.core.service.{DataManagementService, LeaseKeepAliveService, WatcherService}
 import org.apache.openwhisk.core.{ConfigKeys, WarmUp, WhiskConfig}
 import org.apache.openwhisk.grpc.{ActivationServiceClient, FetchRequest}
 import org.apache.openwhisk.spi.SpiLoader
@@ -151,7 +151,7 @@ class FPCInvokerReactive(config: WhiskConfig,
     Identity
       .get(authStore, EntityName(invocationNamespace))(trasnid)
       .map { identity =>
-        val warmedContainerKeepingCount = identity.limits.warmedContainerKeepingCount.getOrElse(1)
+        val warmedContainerKeepingCount = identity.limits.warmedContainerKeepingCount.getOrElse(0)
         val warmedContainerKeepingTimeout = Try {
           identity.limits.warmedContainerKeepingTimeout.map(Duration(_).toSeconds.seconds).get
         }.getOrElse(containerProxyTimeoutConfig.keepingDuration)
@@ -376,18 +376,6 @@ class FPCInvokerReactive(config: WhiskConfig,
   override def enable(): Route = {
     invokerHealthManager ! Enable
     pool ! Enable
-    // re-enable consumer
-    if (consumer.isEmpty)
-      consumer = Some(
-        new ContainerMessageConsumer(
-          instance,
-          pool,
-          entityStore,
-          cfg,
-          msgProvider,
-          longPollDuration = 1.second,
-          maxPeek,
-          sendAckToScheduler))
     warmUp()
     complete("Success enable invoker")
   }
@@ -395,15 +383,13 @@ class FPCInvokerReactive(config: WhiskConfig,
   override def disable(): Route = {
     invokerHealthManager ! GracefulShutdown
     pool ! GracefulShutdown
-    consumer.foreach(_.close())
-    consumer = None
     warmUpWatcher.foreach(_.close())
     warmUpWatcher = None
     complete("Successfully disabled invoker")
   }
 
   override def isEnabled(): Route = {
-    complete(InvokerEnabled(consumer.nonEmpty && warmUpWatcher.nonEmpty).serialize())
+    complete(InvokerEnabled(warmUpWatcher.nonEmpty).serialize())
   }
 
   override def backfillPrewarm(): Route = {

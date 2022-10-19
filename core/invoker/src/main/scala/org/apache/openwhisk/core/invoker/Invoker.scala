@@ -109,7 +109,18 @@ object Invoker {
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
     val poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
     val limitConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit)
+    val tags: Seq[String] = Some(loadConfigOrThrow[String](ConfigKeys.invokerResourceTags))
+      .map(_.trim())
+      .filter(_ != "")
+      .map(_.split(",").toSeq)
+      .getOrElse(Seq.empty[String])
+    val dedicatedNamespaces: Seq[String] = Some(loadConfigOrThrow[String](ConfigKeys.invokerDedicatedNamespaces))
+      .map(_.trim())
+      .filter(_ != "")
+      .map(_.split(",").toSeq)
+      .getOrElse(Seq.empty[String])
 
+    logger.info(this, s"invoker tags: (${tags.mkString(", ")})")
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
       logger.info(this, s"Shutting down Kamon with coordinated shutdown")
@@ -190,7 +201,14 @@ object Invoker {
 
     val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     val invokerInstance =
-      InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName, poolConfig.userMemory)
+      InvokerInstanceId(
+        assignedInvokerId,
+        cmdLineArgs.uniqueName,
+        cmdLineArgs.displayedName,
+        poolConfig.userMemory,
+        None,
+        tags,
+        dedicatedNamespaces)
 
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider

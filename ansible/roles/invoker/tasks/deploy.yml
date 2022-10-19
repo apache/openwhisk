@@ -282,6 +282,8 @@
       "CONFIG_whisk_invoker_https_keystorePassword": "{{ invoker.ssl.keystore.password }}"
       "CONFIG_whisk_invoker_https_keystoreFlavor": "{{ invoker.ssl.storeFlavor }}"
       "CONFIG_whisk_invoker_https_clientAuth": "{{ invoker.ssl.clientAuth }}"
+      "CONFIG_whisk_invoker_resource_tags": "{% if tags is defined %} '{{ tags | join(',') }}' {% else %} '' {% endif %}"
+      "CONFIG_whisk_invoker_dedicated_namespaces": "{% if dedicatedNamespaces is defined %} '{{ dedicatedNamespaces | join(',') }}' {% else %} '' {% endif %}"
       "CONFIG_whisk_containerProxy_timeouts_idleContainer": "{{ whisk.containerProxy.timeouts.idleContainer }}"
       "CONFIG_whisk_containerProxy_timeouts_pauseGrace": "{{ whisk.containerProxy.timeouts.pauseGrace  }}"
       "CONFIG_whisk_containerProxy_timeouts_keepingDuration": "{{ whisk.containerProxy.timeouts.keepingDuration }}"
@@ -290,9 +292,11 @@
       "CONFIG_whisk_containerPool_prewarmExpirationCheckIntervalVariance": "{{ container_pool_prewarm_expirationCheckIntervalVariance | default('10 seconds') }}"
       "CONFIG_whisk_containerPool_prewarmPromotion": "{{ container_pool_strict | default('false') | lower }}"
       "CONFIG_whisk_containerPool_prewarmMaxRetryLimit": "{{ container_pool_prewarm_max_retry_limit | default(5) }}"
+      "CONFIG_whisk_containerPool_memorySyncInterval": "{{ container_pool_memorySyncInterval | default('1 second') }}"
       "CONFIG_whisk_containerPool_batchDeletionSize": "{{ container_pool_batchDeletionSize | default(10) }}"
       "CONFIG_whisk_invoker_username": "{{ invoker.username }}"
       "CONFIG_whisk_invoker_password": "{{ invoker.password }}"
+      "CONFIG_whisk_cluster_name": "{{ whisk.cluster_name | lower }}"
 
 - name: extend invoker dns env
   set_fact:

@@ -19,9 +19,8 @@ package org.apache.openwhisk.core.containerpool.v2
 
 import java.net.InetSocketAddress
 import java.time.Instant
-
 import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
+import akka.actor.{actorRef2Scala, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.io.{IO, Tcp}
 import akka.pattern.pipe
@@ -87,6 +86,8 @@ case class Initialized(data: InitializedData)
 case class Resumed(data: WarmData)
 case class ResumeFailed(data: WarmData)
 case class RecreateClient(action: ExecutableWhiskAction)
+case object PingCache
+case class DetermineKeepContainer(attempt: Int)
 
 // States
 sealed trait ProxyState
@@ -208,7 +209,8 @@ class FunctionPullingContainerProxy(
   private val KeepingTimeoutName = "KeepingTimeout"
   private val RunningActivationTimeoutName = "RunningActivationTimeout"
   private val runningActivationTimeout = 10.seconds
-
+  private val PingCacheName = "PingCache"
+  private val pingCacheInterval = 1.minute
   private var timedOut = false
 
   var healthPingActor: Option[ActorRef] = None //setup after prewarm starts
@@ -373,6 +375,7 @@ class FunctionPullingContainerProxy(
     case Event(initializedData: InitializedData, _) =>
       context.parent ! Initialized(initializedData)
       initializedData.clientProxy ! RequestActivation()
+      startTimerWithFixedDelay(PingCacheName, PingCache, pingCacheInterval)
       startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)
       stay() using initializedData
 
@@ -468,7 +471,7 @@ class FunctionPullingContainerProxy(
         data.action.rev,
         None)
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Rescheduling, stateTimeout = 10.seconds) {
@@ -603,12 +606,7 @@ class FunctionPullingContainerProxy(
       if (runningActivations.isEmpty) {
         logging.info(this, s"The Client closed in state: $stateName, action: ${data.action}")
         // Stop ContainerProxy(ActivationClientProxy will stop also when send ClientClosed to ContainerProxy).
-        cleanUp(
-          data.container,
-          data.invocationNamespace,
-          data.action.fullyQualifiedName(withVersion = true),
-          data.action.rev,
-          None)
+        cleanUp(data.container, None, false)
       } else {
         logging.info(
           this,
@@ -621,11 +619,20 @@ class FunctionPullingContainerProxy(
     // ContainerProxy will be terminated by StateTimeout if there is no further activation
     case Event(GracefulShutdown, data: WarmData) =>
       logging.info(this, s"receive GracefulShutdown for action: ${data.action}")
+      // clean up the etcd data first so that the scheduler can provision more containers in advance.
+      dataManagementService ! UnregisterData(
+        ContainerKeys.existingContainers(
+          data.invocationNamespace,
+          data.action.fullyQualifiedName(true),
+          data.action.rev,
+          Some(instance),
+          Some(data.container.containerId)))
+
       // Just send CloseClientProxy to ActivationClientProxy, make ActivationClientProxy throw ClientClosedException when fetchActivation next time.
       data.clientProxy ! CloseClientProxy
       stay
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Pausing) {
@@ -652,7 +659,7 @@ class FunctionPullingContainerProxy(
         data.action.rev,
         Some(data.clientProxy))
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Paused) {
@@ -661,6 +668,7 @@ class FunctionPullingContainerProxy(
       val parent = context.parent
       cancelTimer(IdleTimeoutName)
       cancelTimer(KeepingTimeoutName)
+      cancelTimer(DetermineKeepContainer.toString)
       data.container
         .resume()
         .map { _ =>
@@ -693,32 +701,43 @@ class FunctionPullingContainerProxy(
           instance,
           data.container.containerId))
       goto(Running)
-
-    case Event(StateTimeout, data: WarmData) =>
-      (for {
-        count <- getLiveContainerCount(data.invocationNamespace, data.action.fullyQualifiedName(false), data.revision)
-        (warmedContainerKeepingCount, warmedContainerKeepingTimeout) <- getWarmedContainerLimit(
-          data.invocationNamespace)
-      } yield {
-        logging.info(
-          this,
-          s"Live container count: ${count}, warmed container keeping count configuration: ${warmedContainerKeepingCount} in namespace: ${data.invocationNamespace}")
-        if (count <= warmedContainerKeepingCount) {
-          Keep(warmedContainerKeepingTimeout)
-        } else {
-          Remove
-        }
-      }).pipeTo(self)
+    case Event(StateTimeout, _: WarmData) =>
+      self ! DetermineKeepContainer(0)
       stay
-
+    case Event(DetermineKeepContainer(attempt), data: WarmData) =>
+      getLiveContainerCount(data.invocationNamespace, data.action.fullyQualifiedName(false), data.revision)
+        .flatMap(count => {
+          getWarmedContainerLimit(data.invocationNamespace).map(warmedContainerInfo => {
+            logging.info(
+              this,
+              s"Live container count: $count, warmed container keeping count configuration: ${warmedContainerInfo._1} in namespace: ${data.invocationNamespace}")
+            if (count <= warmedContainerInfo._1) {
+              self ! Keep(warmedContainerInfo._2)
+            } else {
+              self ! Remove
+            }
+          })
+        })
+        .recover({
+          case t: Throwable =>
+            logging.error(
+              this,
+              s"Failed to determine whether to keep or remove container on pause timeout for ${data.container.containerId}, retrying. Caused by: $t")
+            if (attempt < 5) {
+              startSingleTimer(DetermineKeepContainer.toString, DetermineKeepContainer(attempt + 1), 500.milli)
+            } else {
+              self ! Remove
+            }
+        })
+      stay
     case Event(Keep(warmedContainerKeepingTimeout), data: WarmData) =>
       logging.info(
         this,
         s"This is the remaining container for ${data.action}. The container will stop after $warmedContainerKeepingTimeout.")
       startSingleTimer(KeepingTimeoutName, Remove, warmedContainerKeepingTimeout)
       stay
-
     case Event(Remove | GracefulShutdown, data: WarmData) =>
+      cancelTimer(DetermineKeepContainer.toString)
       dataManagementService ! UnregisterData(
         ContainerKeys.warmedContainers(
           data.invocationNamespace,
@@ -733,7 +752,7 @@ class FunctionPullingContainerProxy(
         data.action.rev,
         Some(data.clientProxy))
 
-    case _ => delay
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Removing, unusedTimeout) {
@@ -750,10 +769,28 @@ class FunctionPullingContainerProxy(
     case Event(StateTimeout, _) =>
       logging.error(this, s"could not receive ClientClosed for ${unusedTimeout}, so just stop the container proxy.")
 
-      stop
+      stop()
 
     case Event(Remove | GracefulShutdown, _) =>
       stay()
+
+
+    case Event(DetermineKeepContainer(_), _) =>
+      stay()
+  }
+
+  whenUnhandled {
+    case Event(PingCache, data: WarmData) =>
+      val actionId = data.action.fullyQualifiedName(false).toDocId.asDocInfo(data.revision)
+      get(entityStore, actionId.id, actionId.rev, true).map(_ => {
+        logging.debug(
+          this,
+          s"Refreshed function cache for action ${data.action} from container ${data.container.containerId}.")
+      })
+      stay
+    case Event(PingCache, _) =>
+      logging.debug(this, "Container is not warm, ignore function cache ping.")
+      stay
   }
 
   onTransition {
@@ -811,7 +848,7 @@ class FunctionPullingContainerProxy(
                       fqn: FullyQualifiedEntityName,
                       revision: DocRevision,
                       clientProxy: Option[ActorRef]): State = {
-
+    cancelTimer(PingCacheName)
     dataManagementService ! UnregisterData(
       s"${ContainerKeys.existingContainers(invocationNamespace, fqn, revision, Some(instance), Some(container.containerId))}")
 
@@ -819,7 +856,6 @@ class FunctionPullingContainerProxy(
   }
 
   private def cleanUp(container: Container, clientProxy: Option[ActorRef], replacePrewarm: Boolean = true): State = {
-
     context.parent ! ContainerRemoved(replacePrewarm)
     val unpause = stateName match {
       case Paused => container.resume()(TransactionId.invokerNanny)
@@ -905,9 +941,8 @@ class FunctionPullingContainerProxy(
                 logging.error(this, s"An unknown DB connection error occurred while fetching an action: $e.")
                 ExecutionResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
             }
-            logging.error(
-              this,
-              s"Error to fetch action ${msg.action} for msg ${msg.activationId}, error is ${t.getMessage}")
+            val errMsg = s"Error to fetch action ${msg.action} for msg ${msg.activationId}, error is ${t.getMessage}"
+            logging.error(this, errMsg)
 
             val context = UserContext(msg.user)
             val activation = generateFallbackActivation(action, msg, response)
@@ -921,7 +956,7 @@ class FunctionPullingContainerProxy(
             storeActivation(msg.transid, activation, msg.blocking, context)
 
             // in case action is removed container proxy should be terminated
-            Future.failed(new IllegalStateException("action does not exist"))
+            Future.failed(new IllegalStateException(errMsg))
         }
     } else {
       // Iff the current namespace is blacklisted, an active-ack is only produced to keep the loadbalancer protocol

@@ -154,7 +154,7 @@ class MemoryQueueTestsFixture
   val actionThrottlingKey = ThrottlingKeys.action(testInvocationNamespace, fqn.copy(version = None))
 
   // queue variables
-  val queueConfig = QueueConfig(5 seconds, 10 seconds, 5 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10)
+  val queueConfig = QueueConfig(5 seconds, 10 seconds, 5 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10, false)
   val idleGrace = queueConfig.idleGrace
   val stopGrace = queueConfig.stopGrace
   val flushGrace = queueConfig.flushGrace

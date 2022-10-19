@@ -1200,5 +1200,6 @@ class QueueManagerTests
     queueManager ! RecoverQueue(activationMessage, fqn6, testActionMetaData)
 
     probe.expectMsgAllOf(10.seconds, GracefulShutdown, GracefulShutdown, GracefulShutdown)
+
   }
 }

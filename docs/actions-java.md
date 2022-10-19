@@ -48,6 +48,36 @@ public class Hello {
 }
 ```
 
+An action supports not only a JSON object but also a JSON array as a return value.
+
+It would be a simple example that uses an array as a return value:
+
+```java
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+public class HelloArray {
+    public static JsonArray main(JsonObject args) {
+        JsonArray jsonArray = new JsonArray();
+        jsonArray.add("a");
+        jsonArray.add("b");
+        return jsonArray;
+    }
+}
+```
+
+You can also create a sequence action with actions accepting an array param and returning an array result.
+
+You can easily figure out the parameters with the following example:
+
+```java
+import com.google.gson.JsonArray;
+public class Sort {
+    public static JsonArray main(JsonArray args) {
+        return args;
+    }
+}
+```
+
 Then, compile `Hello.java` into a JAR file `hello.jar` as follows:
 ```
 javac Hello.java

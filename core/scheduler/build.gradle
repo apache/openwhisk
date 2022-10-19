@@ -32,7 +32,6 @@ ext.coverageDirs = [
         "${buildDir}/classes/scala/scoverage",
         "${project(':common:scala').buildDir.absolutePath}/classes/scala/scoverage"
 ]
-distDockerCoverage.dependsOn ':common:scala:scoverageClasses', 'scoverageClasses'
 
 buildscript {
     repositories {
@@ -44,7 +43,7 @@ buildscript {
     dependencies {
         // see https://plugins.gradle.org/plugin/com.lightbend.akka.grpc.gradle
         // for the currently latest version.
-        classpath 'gradle.plugin.com.lightbend.akka.grpc:akka-grpc-gradle-plugin:0.7.2'
+        classpath 'com.lightbend.akka.grpc:akka-grpc-gradle-plugin:1.0.0'
     }
 }
 
@@ -55,7 +54,7 @@ configurations {
 
 dependencies {
     configurations.all {
-        resolutionStrategy.force "com.lihaoyi:fastparse_${gradle.scala.depVersion}:2.1.3"
+        resolutionStrategy.force "com.lihaoyi:fastparse_${gradle.scala.depVersion}:2.3.0"
         resolutionStrategy.force "com.typesafe.akka:akka-http-core_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-http_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-http2-support_${gradle.scala.depVersion}:${gradle.akka_http.version}"
@@ -63,10 +62,11 @@ dependencies {
         resolutionStrategy.force "com.typesafe.akka:akka-parsing_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-http_${gradle.scala.depVersion}:${gradle.akka_http.version}"
     }
-
-    compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile "io.altoo:akka-kryo-serialization_${gradle.scala.depVersion}:1.0.0"
-    compile project(':common:scala')
+    implementation "org.scala-lang:scala-library:${gradle.scala.version}"
+    implementation project(':common:scala')
+    implementation "io.altoo:akka-kryo-serialization_${gradle.scala.depVersion}:1.0.0"
+    implementation "com.lightbend.akka.management:akka-management-cluster-bootstrap_${gradle.scala.depVersion}:${gradle.akka_management.version}"
+    implementation "com.lightbend.akka.discovery:akka-discovery-kubernetes-api_${gradle.scala.depVersion}:${gradle.akka_management.version}"
 }
 
 // workaround for akka-grpc

@@ -1082,25 +1082,28 @@ object ContainerProxy {
    * @param initArgs set of parameters to treat as initialization arguments
    * @return A partition of the arguments into an environment variables map and the JsObject argument to the action
    */
-  def partitionArguments(content: Option[JsObject], initArgs: Set[String]): (Map[String, JsValue], JsObject) = {
+  def partitionArguments(content: Option[JsValue], initArgs: Set[String]): (Map[String, JsValue], JsValue) = {
     content match {
-      case None                         => (Map.empty, JsObject.empty)
-      case Some(js) if initArgs.isEmpty => (Map.empty, js)
-      case Some(js) =>
-        val (env, args) = js.fields.partition(k => initArgs.contains(k._1))
+      case None                                       => (Map.empty, JsObject.empty)
+      case Some(JsArray(elements))                    => (Map.empty, JsArray(elements))
+      case Some(JsObject(fields)) if initArgs.isEmpty => (Map.empty, JsObject(fields))
+      case Some(JsObject(fields)) =>
+        val (env, args) = fields.partition(k => initArgs.contains(k._1))
         (env, JsObject(args))
     }
   }
 
-  def unlockArguments(content: Option[JsObject],
+  def unlockArguments(content: Option[JsValue],
                       lockedArgs: Map[String, String],
-                      decoder: ParameterEncryption): Option[JsObject] = {
-    content.map {
-      case JsObject(fields) =>
-        JsObject(fields.map {
+                      decoder: ParameterEncryption): Option[JsValue] = {
+    content match {
+      case Some(JsObject(fields)) =>
+        Some(JsObject(fields.map {
           case (k, v: JsString) if lockedArgs.contains(k) => (k -> decoder.encryptor(lockedArgs(k)).decrypt(v))
           case p                                          => p
-        })
+        }))
+      // keep the original for other type(e.g. JsArray)
+      case contentValue => contentValue
     }
   }
 }

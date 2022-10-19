@@ -204,7 +204,7 @@ object Messages {
   }
 
   def invalidRunResponse(actualResponse: String) = {
-    "The action did not produce a valid JSON response" + {
+    "The action did not produce a valid JSON or JSON Array response" + {
       Option(actualResponse) filter { _.nonEmpty } map { s =>
         s": $s"
       } getOrElse "."
@@ -234,6 +234,8 @@ object Messages {
 
   /** Indicates that the image could not be pulled. */
   def imagePullError(image: String) = s"Failed to pull container image '$image'."
+
+  def commandNotFoundError = "executable file not found"
 
   /** Indicates that the container for the action could not be started. */
   val resourceProvisionError = "Failed to provision resources to run the action."
