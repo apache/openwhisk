@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.controller
 
 import java.util.Base64
-
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 import akka.http.scaladsl.model.HttpEntity.Empty
@@ -56,7 +55,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.types._
 import org.apache.openwhisk.core.loadBalancer.LoadBalancerException
 import org.apache.openwhisk.http.ErrorResponse.terminate
-import org.apache.openwhisk.http.Messages
+import org.apache.openwhisk.http.{CorsSettings, Messages}
 import org.apache.openwhisk.http.LenientSprayJsonSupport._
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.JsHelpers._
