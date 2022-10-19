@@ -264,7 +264,7 @@ class QueueManager(
     case StatusQuery =>
       Future
         .sequence {
-          QueuePool.values.map(_.queue.ask(StatusQuery).mapTo[StatusData])
+          QueuePool.values.map(_.queue.ask(StatusQuery)(Timeout(5.seconds)).mapTo[StatusData]).toList
         }
         .map(sender ! _)
 

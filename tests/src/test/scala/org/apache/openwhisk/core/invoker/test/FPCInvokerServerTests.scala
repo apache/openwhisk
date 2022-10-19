@@ -32,6 +32,8 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
 
+import scala.concurrent.Future
+
 /**
  * Tests InvokerServerV2 API.
  */
@@ -134,22 +136,27 @@ class TestFPCInvokerReactive extends InvokerCore with BasicHttpService {
   var enableCount = 0
   var disableCount = 0
 
-  override def enable(): Route = {
+  override def enable(): String = {
     enableCount += 1
-    complete("")
+    ""
   }
 
-  override def disable(): Route = {
+  override def disable(): String = {
     disableCount += 1
-    complete("")
+    ""
   }
 
-  override def isEnabled(): Route = {
+  override def isEnabled(): String = {
     complete(InvokerEnabled(true).serialize())
+    ""
   }
 
   override def backfillPrewarm(): Route = {
     complete("")
+  }
+
+  override def status(): Future[Map[String, List[String]]] = {
+    Future.successful(Map.empty[String, List[String]])
   }
 
   def reset(): Unit = {

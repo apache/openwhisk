@@ -17,8 +17,6 @@
 
 package org.apache.openwhisk.core.invoker
 
-import java.nio.charset.StandardCharsets
-import java.time.Instant
 import akka.Done
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.event.Logging.InfoLevel
@@ -30,10 +28,8 @@ import org.apache.openwhisk.core.ack.{MessagingActiveAck, UserEventSender}
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
-import org.apache.openwhisk.core.containerpool.v2.Data
-import org.apache.openwhisk.core.database.{UserContext, _}
+import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.http.Messages
@@ -42,6 +38,8 @@ import pureconfig._
 import pureconfig.generic.auto._
 import spray.json._
 
+import java.nio.charset.StandardCharsets
+import java.time.Instant
 import scala.collection.immutable
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}

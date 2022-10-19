@@ -25,7 +25,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.connector.StatusData
-import org.apache.openwhisk.core.entity.SchedulerInstanceId
+import org.apache.openwhisk.core.entity.{ActivationId, SchedulerInstanceId}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
@@ -56,9 +56,10 @@ class FPCSchedulerServerTests
   val queues = List((SchedulerInstanceId("0"), 2), (SchedulerInstanceId("1"), 3))
   val creationCount = 1
   val testQueueSize = 2
+  val activationIds = (1 to 10).map(_ => ActivationId.generate()).toList
   val statusDatas = List(
-    StatusData("testns1", "testaction1", 10, "Running", "RunningData"),
-    StatusData("testns2", "testaction2", 5, "Running", "RunningData"))
+    StatusData("testns1", "testaction1", activationIds, "Running", "RunningData"),
+    StatusData("testns2", "testaction2", activationIds.take(5), "Running", "RunningData"))
 
   // Create scheduler
   val scheduler = new TestScheduler(queues, creationCount, testQueueSize, statusDatas)

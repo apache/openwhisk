@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.invoker
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
-import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
@@ -28,6 +27,8 @@ import org.apache.openwhisk.http.BasicRasService
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import pureconfig.loadConfigOrThrow
 import spray.json.PrettyPrinter
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.concurrent.ExecutionContext
 
@@ -52,11 +53,11 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
           complete(invoker.disable())
         } ~ (path("isEnabled") & get) {
           complete(invoker.isEnabled())
-        } ~ (path("status") & get) {
+        } ~ (pathPrefix("status") & get) {
           pathEndOrSingleSlash {
-            complete(invoker.status().map(_.toString))
+            complete(invoker.status().map(_.toJson.compactPrint))
           } ~ (path("count") & get) {
-            complete(invoker.status().map(_.size.toString))
+            complete(invoker.status().map(_.size.toJson.compactPrint))
           }
         }
       case _ => terminate(StatusCodes.Unauthorized)

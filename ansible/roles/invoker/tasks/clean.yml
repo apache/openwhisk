@@ -45,8 +45,8 @@
     return_content: yes
   register: result
   until: result.content == '0'
-  retries: {{ invoker.deployment.retries }}
-  delay: {{ invoker.deployment.delay }}
+  retries: "{{ invoker.deployment.retries }}"
+  delay: "{{ invoker.deployment.delay }}"
   when: zeroDowntimeDeployment.enabled == true and enable_scheduler
   ignore_errors: "{{ invoker.deployment.ignore_error }}"
 

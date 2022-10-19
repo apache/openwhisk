@@ -96,7 +96,7 @@ class Controller(val instance: ControllerInstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth ~ activationStatus
   }
 
   // initialize datastores
@@ -174,7 +174,7 @@ class Controller(val instance: ControllerInstanceId,
    */
   protected[controller] val activationStatus = {
     implicit val executionContext = actorSystem.dispatcher
-    (path("activation") & get) {
+    (pathPrefix("activation") & get) {
       pathEndOrSingleSlash {
         complete(loadBalancer.activeActivationsByController.map(_.toJson))
       } ~ path("count") {

@@ -415,18 +415,30 @@ class FunctionPullingContainerPool(
       adjustPrewarmedContainer(false, true)
 
     case StatusQuery =>
-      val result = immutable.Map.empty[String, List[String]]
+      var result = immutable.Map.empty[String, List[String]]
       val pools = busyPool ++ warmedPool ++ inProgressPool
       pools.foreach { entry =>
         entry._2 match {
           case InitializedData(container, _, action, _) =>
-            result += (action.fullyQualifiedName(true).asString, container.containerId.asString)
+            val key = action.fullyQualifiedName(true).asString
+            var list = result.getOrElse(key, List.empty[String])
+            list = container.containerId.asString :: list
+            result += (action.fullyQualifiedName(true).asString -> list)
           case WarmData(container, _, action, _, _, _) =>
-            result += (action.fullyQualifiedName(true).asString, container.containerId.asString)
+            val key = action.fullyQualifiedName(true).asString
+            var list = result.getOrElse(key, List.empty[String])
+            list = container.containerId.asString :: list
+            result += (action.fullyQualifiedName(true).asString -> list)
           case ContainerCreatedData(container, _, action) =>
-            result += (action.fullyQualifiedName(true).asString, container.containerId.asString)
+            val key = action.fullyQualifiedName(true).asString
+            var list = result.getOrElse(key, List.empty[String])
+            list = container.containerId.asString :: list
+            result += (action.fullyQualifiedName(true).asString -> list)
           case ReschedulingData(container, _, action, _, _) =>
-            result += (action.fullyQualifiedName(true).asString, container.containerId.asString)
+            val key = action.fullyQualifiedName(true).asString
+            var list = result.getOrElse(key, List.empty[String])
+            list = container.containerId.asString :: list
+            result += (action.fullyQualifiedName(true).asString -> list)
           case _ => // do nothing
         }
       }

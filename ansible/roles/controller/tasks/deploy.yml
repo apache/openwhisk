@@ -384,8 +384,8 @@
     return_content: yes
   register: result
   until: result.content == '0'
-  retries: {{ controller.deployment.retries }}
-  delay: {{ controller.deployment.delay }}
+  retries: "{{ controller.deployment.retries }}"
+  delay: "{{ controller.deployment.delay }}"
   when: zeroDowntimeDeployment.enabled == true and controllerDeployed.stdout != "0" and (zeroDowntimeDeployment.solution == 'apicall')
   ignore_errors: "{{ controller.deployment.ignore_error }}"
 

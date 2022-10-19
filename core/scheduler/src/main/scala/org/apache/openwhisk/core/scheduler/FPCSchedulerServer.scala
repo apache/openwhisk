@@ -50,7 +50,7 @@ class FPCSchedulerServer(scheduler: SchedulerCore, systemUsername: String, syste
             scheduler.getState.map {
               case (list, creationCount) =>
                 (list
-                  .map(scheduler => scheduler._1.asString -> scheduler._2.toString)
+                  .map(scheduler => "queue:" -> scheduler._2.toString)
                   .toMap
                   ++ Map("creationCount" -> creationCount.toString)).toJson.asJsObject
             }
@@ -59,7 +59,7 @@ class FPCSchedulerServer(scheduler: SchedulerCore, systemUsername: String, syste
           logger.warn(this, "Scheduler is disabled")
           scheduler.disable()
           complete("scheduler disabled")
-        } ~ (path(FPCSchedulerServer.queuePathPrefix) & get) {
+        } ~ (pathPrefix(FPCSchedulerServer.queuePathPrefix) & get) {
           pathEndOrSingleSlash {
             complete(scheduler.getQueueStatusData.map(s => s.toJson))
           } ~ (path("count") & get) {

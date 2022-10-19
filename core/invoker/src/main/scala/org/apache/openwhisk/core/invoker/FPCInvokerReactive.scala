@@ -33,7 +33,7 @@ import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.containerpool.v2._
-import org.apache.openwhisk.core.database.{UserContext, _}
+import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.QueueKeys.queue
@@ -41,7 +41,6 @@ import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, SchedulerKeys}
 import org.apache.openwhisk.core.etcd.EtcdType._
 import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig, EtcdWorker}
 import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
-import org.apache.openwhisk.core.scheduler.queue.QueueSize
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulerStates}
 import org.apache.openwhisk.core.service.{DataManagementService, LeaseKeepAliveService, WatcherService}
 import org.apache.openwhisk.core.{ConfigKeys, WarmUp, WhiskConfig}
