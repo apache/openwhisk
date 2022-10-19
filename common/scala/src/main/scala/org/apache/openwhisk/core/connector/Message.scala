@@ -534,7 +534,13 @@ object InvokerResourceMessage extends DefaultJsonProtocol {
  */
 object StatusQuery
 
-case class StatusData(invocationNamespace: String, fqn: String, waitingActivation: Int, status: String, data: String)
+object ActivationStatusQuery
+
+case class StatusData(invocationNamespace: String,
+                      fqn: String,
+                      waitingActivation: List[ActivationId],
+                      status: String,
+                      data: String)
     extends Message {
 
   override def serialize: String = StatusData.serdes.write(this).compactPrint

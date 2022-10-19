@@ -299,7 +299,7 @@
 
 - name: wait until all queue and create queue task is finished before redeploy scheduler when using apicall solution or half solution
   uri:
-    url: "{{ scheduler.protocol }}://{{ ansible_host }}:{{ scheduler_port }}/queue/total"
+    url: "{{ scheduler.protocol }}://{{ ansible_host }}:{{ scheduler_port }}/activation/count"
     validate_certs: no
     return_content: yes
     user: "{{ scheduler.username }}"

@@ -566,7 +566,12 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
     // common case for all statuses
     case Event(StatusQuery, _) =>
-      sender ! StatusData(invocationNamespace, action.asString, queue.size, stateName.toString, stateData.toString)
+      sender ! StatusData(
+        invocationNamespace,
+        action.asString,
+        queue.toList.map(_.msg.activationId),
+        stateName.toString,
+        stateData.toString)
       stay
 
     // Common case for all cases
@@ -574,9 +579,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       logging.info(this, s"[$invocationNamespace:$action:$stateName] Gracefully shutdown the memory queue.")
       // delete relative data, e.g leaderKey, namespaceThrottlingKey, actionThrottlingKey
       cleanUpData()
-
-      // let queue manager knows this queue is going to stop and let it forward incoming activations to a new queue
-      context.parent ! queueRemovedMsg
 
       goto(Removing) using getRemovingData(data, outdated = false)
 
@@ -662,7 +664,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private def cleanUpDataAndGotoRemoved() = {
     cleanUpWatcher()
     cleanUpData()
-    context.parent ! queueRemovedMsg
 
     goto(Removed) using NoData()
   }
@@ -670,8 +671,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private def cleanUpActorsAndGotoRemoved(data: FlushingData) = {
     cleanUpActors(data)
     cleanUpData()
-
-    context.parent ! queueRemovedMsg
 
     goto(Removed) using NoData()
   }
@@ -688,7 +687,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         // let the container manager know this version of containers are outdated.
         containerManager ! ContainerDeletion(invocationNamespace, action, revision, actionMetaData)
       }
-      self ! QueueRemovedCompleted
 
       goto(Removed) using NoData()
     } else {

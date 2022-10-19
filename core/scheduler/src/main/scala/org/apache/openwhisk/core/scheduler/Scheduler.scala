@@ -131,7 +131,7 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
   }
 
   override def getQueueStatusData: Future[List[StatusData]] = {
-    queueManager.ask(StatusQuery)(Timeout(5.seconds)).mapTo[Future[List[StatusData]]].flatten
+    queueManager.ask(StatusQuery)(Timeout(5.seconds)).mapTo[List[StatusData]]
   }
 
   override def disable(): Unit = {

@@ -100,7 +100,8 @@ class QueueManagerTests
     ControllerInstanceId("0"),
     blocking = false,
     content = None)
-  val statusData = StatusData(testInvocationNamespace, testFQN.asString, 0, "Running", "RunningData")
+  val statusData =
+    StatusData(testInvocationNamespace, testFQN.asString, List.empty[ActivationId], "Running", "RunningData")
 
   // update start time for activation to ensure it's not stale
   def newActivation(start: Instant = Instant.now()): ActivationMessage = {
@@ -796,7 +797,7 @@ class QueueManagerTests
 
     (queueManager ? QueueSize).mapTo[Int].futureValue shouldBe 1
 
-    (queueManager ? StatusQuery).mapTo[Future[Iterable[StatusData]]].futureValue.futureValue shouldBe List(statusData)
+    (queueManager ? StatusQuery).mapTo[List[StatusData]].futureValue shouldBe List(statusData)
   }
 
   it should "drop the activation message that has not been scheduled for a long time" in {

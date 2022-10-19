@@ -59,13 +59,21 @@ class FPCSchedulerServer(scheduler: SchedulerCore, systemUsername: String, syste
           logger.warn(this, "Scheduler is disabled")
           scheduler.disable()
           complete("scheduler disabled")
-        } ~ (path(FPCSchedulerServer.queuePathPrefix / "total") & get) {
-          complete {
-            scheduler.getQueueSize.map(_.toString)
+        } ~ (path(FPCSchedulerServer.queuePathPrefix) & get) {
+          pathEndOrSingleSlash {
+            complete(scheduler.getQueueStatusData.map(s => s.toJson))
+          } ~ (path("count") & get) {
+            complete(scheduler.getQueueSize.map(s => s.toJson))
           }
-        } ~ (path(FPCSchedulerServer.queuePathPrefix / "status") & get) {
-          complete {
-            scheduler.getQueueStatusData.map(s => s.toJson)
+        } ~ (path("activation" / "count") & get) {
+          pathEndOrSingleSlash {
+            complete(
+              scheduler.getQueueStatusData
+                .map { s =>
+                  s.map(_.waitingActivation.size)
+                }
+                .map(a => a.sum)
+                .map(_.toJson))
           }
         }
       case _ =>
@@ -79,7 +87,7 @@ object FPCSchedulerServer {
 
   private val schedulerUsername = loadConfigOrThrow[String](ConfigKeys.whiskSchedulerUsername)
   private val schedulerPassword = loadConfigOrThrow[String](ConfigKeys.whiskSchedulerPassword)
-  private val queuePathPrefix = "queue"
+  private val queuePathPrefix = "queues"
 
   def instance(scheduler: SchedulerCore)(implicit ec: ExecutionContext,
                                          actorSystem: ActorSystem,
