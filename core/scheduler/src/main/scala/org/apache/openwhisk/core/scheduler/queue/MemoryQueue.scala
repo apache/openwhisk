@@ -69,17 +69,30 @@ case object NamespaceThrottled extends MemoryQueueState
 
 // Data
 sealed abstract class MemoryQueueData()
-case class NoData() extends MemoryQueueData()
-case class NoActors() extends MemoryQueueData()
-case class RunningData(schedulerActor: ActorRef, droppingActor: ActorRef) extends MemoryQueueData()
-case class ThrottledData(schedulerActor: ActorRef, droppingActor: ActorRef) extends MemoryQueueData()
+case class NoData() extends MemoryQueueData() {
+  override def toString = "NoData"
+}
+case class NoActors() extends MemoryQueueData() {
+  override def toString = "NoActors"
+}
+case class RunningData(schedulerActor: ActorRef, droppingActor: ActorRef) extends MemoryQueueData() {
+  override def toString = "RunningData"
+}
+case class ThrottledData(schedulerActor: ActorRef, droppingActor: ActorRef) extends MemoryQueueData() {
+  override def toString = "ThrottledData"
+}
 case class FlushingData(schedulerActor: ActorRef,
                         droppingActor: ActorRef,
                         error: ContainerCreationError,
                         reason: String,
                         activeDuringFlush: Boolean = false)
-    extends MemoryQueueData()
-case class RemovingData(schedulerActor: ActorRef, droppingActor: ActorRef, outdated: Boolean) extends MemoryQueueData()
+    extends MemoryQueueData() {
+  override def toString = s"ThrottledData(error: $error, reason: $reason, activeDuringFlush: $activeDuringFlush)"
+}
+case class RemovingData(schedulerActor: ActorRef, droppingActor: ActorRef, outdated: Boolean)
+    extends MemoryQueueData() {
+  override def toString = s"RemovingData(outdated: $outdated)"
+}
 
 // Events sent by the actor
 case class QueueRemoved(invocationNamespace: String, action: DocInfo, leaderKey: Option[String])

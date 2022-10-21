@@ -33,7 +33,7 @@
     user: "{{ invoker.username }}"
     password: "{{ invoker.password }}"
     force_basic_auth: yes
-  ignore_errors: "{{ invoker.deployment_ignore_error }}"
+  ignore_errors: "{{ invoker.deployment.ignore_error }}"
   when: zeroDowntimeDeployment.enabled == true and enable_scheduler
 
 - name: wait invoker{{ groups['invokers'].index(inventory_hostname) }} to clean up all existing containers
@@ -42,6 +42,8 @@
     validate_certs: no
     client_key: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/{{ invoker.ssl.key }}"
     client_cert: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/{{ invoker.ssl.cert }}"
+    user: "{{ invoker.username }}"
+    password: "{{ invoker.password }}"
     return_content: yes
   register: result
   until: result.content == '0'

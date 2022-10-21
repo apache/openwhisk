@@ -52,7 +52,7 @@ class FPCSchedulerServer(scheduler: SchedulerCore, systemUsername: String, syste
                 (list
                   .map(scheduler => "queue:" -> scheduler._2.toString)
                   .toMap
-                  ++ Map("creationCount" -> creationCount.toString)).toJson.asJsObject
+                  ++ Map("creationCount" -> creationCount.toString)).toJson
             }
           }
         } ~ (path("disable") & post) {

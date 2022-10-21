@@ -262,11 +262,10 @@ class QueueManager(
       sender ! QueuePool.size
 
     case StatusQuery =>
-      Future
-        .sequence {
-          QueuePool.values.map(_.queue.ask(StatusQuery)(Timeout(5.seconds)).mapTo[StatusData]).toList
-        }
-        .map(sender ! _)
+      val result =
+        Future.sequence(QueuePool.values.map(_.queue.ask(StatusQuery)(Timeout(5.seconds)).mapTo[StatusData]).toList)
+
+      sender ! result
 
     case msg =>
       logging.error(this, s"failed to elect a leader for ${msg}")
