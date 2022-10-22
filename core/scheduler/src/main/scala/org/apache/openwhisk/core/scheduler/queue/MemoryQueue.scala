@@ -46,6 +46,7 @@ import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcu
 import pureconfig.loadConfigOrThrow
 import spray.json._
 import pureconfig.generic.auto._
+import scala.collection.JavaConverters._
 
 import java.time.{Duration, Instant}
 import java.util.concurrent.atomic.AtomicInteger
@@ -167,8 +168,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private val staleQueueRemovedMsg = QueueRemoved(invocationNamespace, action.toDocId.asDocInfo(revision), None)
   private val actionRetentionTimeout = MemoryQueue.getRetentionTimeout(actionMetaData, queueConfig)
 
-  private[queue] var containers = Set.empty[String]
-  private[queue] var creationIds = Set.empty[String]
+  private[queue] var containers = java.util.concurrent.ConcurrentHashMap.newKeySet[String]().asScala
+  private[queue] var creationIds = java.util.concurrent.ConcurrentHashMap.newKeySet[String]().asScala
 
   private[queue] var queue = Queue.empty[TimeSeriesActivationEntry]
   private[queue] var in = new AtomicInteger(0)

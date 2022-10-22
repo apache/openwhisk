@@ -57,6 +57,7 @@ import org.scalatest.junit.JUnitRunner
 import spray.json.{JsObject, JsString}
 
 import scala.collection.immutable.Queue
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.{higherKinds, postfixOps}
@@ -478,7 +479,7 @@ class MemoryQueueTests
     probe2 watch fsm
 
     // do not remove itself when there are still existing containers
-    fsm.underlyingActor.containers = Set("1")
+    fsm.underlyingActor.containers = mutable.Set("1")
     fsm.setState(Running, RunningData(schedulerActor, droppingActor))
     expectMsg(Transition(fsm, Uninitialized, Running))
     fsm ! StateTimeout
@@ -488,7 +489,7 @@ class MemoryQueueTests
     dataManagementService.expectNoMessage()
 
     // change the existing containers count to 0, the StateTimeout should work
-    fsm.underlyingActor.containers = Set.empty[String]
+    fsm.underlyingActor.containers = mutable.Set.empty[String]
     fsm ! StateTimeout
     probe.expectTerminated(schedulerActor)
     probe.expectTerminated(droppingActor)
@@ -496,12 +497,12 @@ class MemoryQueueTests
     expectMsg(Transition(fsm, Running, Idle))
 
     fsm ! StateTimeout
-    parent.expectMsg(QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(revision), Some(leaderKey)))
     expectMsg(Transition(fsm, Idle, Removed))
-    fsm ! QueueRemovedCompleted
     dataManagementService.expectMsg(UnregisterData(leaderKey))
     dataManagementService.expectMsg(UnregisterData(namespaceThrottlingKey))
     dataManagementService.expectMsg(UnregisterData(actionThrottlingKey))
+    parent.expectMsg(QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(revision), Some(leaderKey)))
+    fsm ! QueueRemovedCompleted
     probe2.expectTerminated(fsm)
 
     fsm.stop()
@@ -562,7 +563,7 @@ class MemoryQueueTests
     fsm ! Start
     expectMsg(Transition(fsm, Uninitialized, Running))
 
-    fsm.underlyingActor.creationIds = Set.empty[String]
+    fsm.underlyingActor.creationIds = mutable.Set.empty[String]
     fsm ! StateTimeout
     expectMsg(Transition(fsm, Running, Idle))
 
@@ -576,8 +577,8 @@ class MemoryQueueTests
       .futureValue shouldBe GetActivationResponse(Right(message))
 
     queueRef.queue.length shouldBe 0
-    fsm.underlyingActor.containers = Set.empty[String]
-    fsm.underlyingActor.creationIds = Set.empty[String]
+    fsm.underlyingActor.containers = mutable.Set.empty[String]
+    fsm.underlyingActor.creationIds = mutable.Set.empty[String]
     fsm ! StateTimeout
     expectMsg(Transition(fsm, Running, Idle))
     (fsm ? GetActivation(tid, fqn, testContainerId, false, None))
@@ -643,7 +644,7 @@ class MemoryQueueTests
     fsm ! Start
     expectMsg(Transition(fsm, Uninitialized, Running))
 
-    fsm.underlyingActor.creationIds = Set.empty[String]
+    fsm.underlyingActor.creationIds = mutable.Set.empty[String]
     fsm ! StateTimeout
     expectMsg(Transition(fsm, Running, Idle))
 
@@ -1250,7 +1251,7 @@ class MemoryQueueTests
     val now = Instant.now
     fsm.underlyingActor.queue =
       Queue.apply(TimeSeriesActivationEntry(Instant.ofEpochMilli(now.toEpochMilli + 1000), message))
-    fsm.underlyingActor.containers = Set.empty[String]
+    fsm.underlyingActor.containers = mutable.Set.empty[String]
     fsm.setState(Running, RunningData(probe.ref, probe.ref))
     fsm ! StopSchedulingAsOutdated // update action
     queueManager.expectMsg(staleQueueRemovedMsg)
@@ -1294,7 +1295,7 @@ class MemoryQueueTests
     val now = Instant.now
     fsm.underlyingActor.queue =
       Queue.apply(TimeSeriesActivationEntry(Instant.ofEpochMilli(now.toEpochMilli + 1000), message))
-    fsm.underlyingActor.containers = Set(testContainerId)
+    fsm.underlyingActor.containers = mutable.Set(testContainerId)
     fsm.setState(Running, RunningData(probe.ref, probe.ref))
     fsm ! StopSchedulingAsOutdated // update action
     queueManager.expectMsg(staleQueueRemovedMsg)

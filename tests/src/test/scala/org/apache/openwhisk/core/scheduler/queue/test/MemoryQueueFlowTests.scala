@@ -47,6 +47,7 @@ import spray.json.{JsObject, JsString}
 
 import java.time.Instant
 import scala.collection.immutable.Queue
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 import scala.language.postfixOps
@@ -1032,7 +1033,7 @@ class MemoryQueueFlowTests
     container.send(fsm, getActivation(false))
     container.expectMsg(ActivationResponse(Left(NoActivationMessage())))
 
-    fsm.underlyingActor.creationIds = Set.empty[String]
+    fsm.underlyingActor.creationIds = mutable.Set.empty[String]
     fsm ! StateTimeout
     probe.expectMsg(Transition(fsm, Running, Idle))
 
@@ -1501,7 +1502,7 @@ class MemoryQueueFlowTests
           fsm.setState(state, FlushingData(schedulingActors.ref, schedulingActors.ref, WhiskError, "whisk error"))
 
         case Removing =>
-          fsm.underlyingActor.containers = Set(testContainerId)
+          fsm.underlyingActor.containers = mutable.Set(testContainerId)
           fsm ! message
           fsm.setState(state, RemovingData(schedulingActors.ref, schedulingActors.ref, outdated = true))
 
@@ -1537,7 +1538,7 @@ class MemoryQueueFlowTests
           container.send(fsm, getActivation())
           container.expectMsg(ActivationResponse(Right(message)))
           // has no old containers for old queue, so send the message to queueManager
-          fsm.underlyingActor.containers = Set.empty[String]
+          fsm.underlyingActor.containers = mutable.Set.empty[String]
           fsm.underlyingActor.queue =
             Queue.apply(TimeSeriesActivationEntry(Instant.ofEpochMilli(Instant.now.toEpochMilli + 1000), message))
           fsm ! StopSchedulingAsOutdated
