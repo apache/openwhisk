@@ -280,15 +280,18 @@ class ActivationClientProxy(
       stay
 
     case Event(CloseClientProxy, c: Client) =>
+      logging.info(this, "safely close client proxy and go to the ClientProxyRemoving state")
       safelyCloseClient(c)
       goto(ClientProxyRemoving)
 
     case Event(ClientClosed, _) =>
+      logging.info(this, "the underlying client is closed, stopping the activation client proxy")
       context.parent ! ClientClosed
 
       stop()
 
     case Event(StopClientProxy, c: Client) =>
+      logging.info(this, "stop close client proxy and go to the ClientProxyRemoving state")
       safelyCloseClient(c)
       stay()
   }
