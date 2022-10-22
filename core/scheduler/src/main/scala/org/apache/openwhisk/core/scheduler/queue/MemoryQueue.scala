@@ -1063,7 +1063,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
           case Right(msg) =>
             logging.info(
               this,
-              s"[$invocationNamespace:$action:$stateName] Send msg ${msg.activationId} to waiting request ${request.containerId}")
+              s"[$invocationNamespace:$action:$stateName] Send msg ${msg.activationId} to waiting request ${request.containerId}")(msg.transid)
             cancelPoll.cancel()
           case Left(_) => // do nothing
         }
