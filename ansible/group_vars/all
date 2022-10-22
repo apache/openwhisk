@@ -112,6 +112,8 @@ controller:
   authentication:
     spi: "{{ controller_authentication_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  username: "{{ controller_username | default('controller.user') }}"
+  password: "{{ controller_password | default('controller.pass') }}"
   entitlement:
     spi: "{{ controller_entitlement_spi | default('') }}"
   protocol: "{{ controller_protocol | default('https') }}"
@@ -458,8 +460,7 @@ metrics:
 user_events: "{{ user_events_enabled | default(false) | lower }}"
 
 zeroDowntimeDeployment:
-  enabled: "{{ zerodowntime_deployment_switch | default(true) }}"
-  solution: "{{ zerodowntime_deployment_solution | default('apicall') }}"
+  enabled: "{{ zerodowntime_deployment_switch | default(false) }}"
 
 etcd:
   version: "{{ etcd_version | default('v3.4.0') }}"

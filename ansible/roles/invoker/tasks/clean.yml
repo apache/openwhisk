@@ -44,6 +44,7 @@
     client_cert: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/{{ invoker.ssl.cert }}"
     user: "{{ invoker.username }}"
     password: "{{ invoker.password }}"
+    force_basic_auth: yes
     return_content: yes
   register: result
   until: result.content == '0'
@@ -89,12 +90,14 @@
     path: "{{ whisk_logs_dir }}/{{ invoker_name }}"
     state: absent
   become: "{{ logs.dir.become }}"
+  when: mode == "clean"
 
 - name: remove invoker conf directory
   file:
     path: "{{ invoker.confdir }}/{{ invoker_name }}"
     state: absent
   become: "{{ invoker.dir.become }}"
+  when: mode == "clean"
 
 # Workaround for orphaned ifstate.veth* files on Ubuntu 14.04
 # See https://github.com/moby/moby/issues/22513
