@@ -1029,7 +1029,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       queue = newQueue
       logging.info(
         this,
-        s"[$invocationNamespace:$action:$stateName] Get activation request ${request.containerId}, send one message: ${msg.activationId}")
+        s"[$invocationNamespace:$action:$stateName] Get activation request ${request.containerId}, send one message: ${msg.activationId}")(msg.transid)
       val totalTimeInScheduler = Interval(msg.transid.meta.start, Instant.now()).duration
       MetricEmitter.emitHistogramMetric(
         LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString),
@@ -1063,7 +1063,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
           case Right(msg) =>
             logging.info(
               this,
-              s"[$invocationNamespace:$action:$stateName] Send msg ${msg.activationId} to waiting request ${request.containerId}")(msg.transid)
+              s"[$invocationNamespace:$action:$stateName] Send msg ${msg.activationId} to waiting request ${request.containerId}")(
+              msg.transid)
             cancelPoll.cancel()
           case Left(_) => // do nothing
         }

@@ -22,7 +22,7 @@ import akka.actor.{ActorRef, ActorSystem, FSM, Props, Stash}
 import akka.grpc.internal.ClientClosedException
 import akka.pattern.pipe
 import io.grpc.StatusRuntimeException
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool.ContainerId
 import org.apache.openwhisk.core.entity._
@@ -227,22 +227,12 @@ class ActivationClientProxy(
   }
 
   when(ClientProxyRemoving) {
-    case Event(request: RequestActivation, client: Client) =>
-      request.newScheduler match {
-        // if scheduler is changed, client needs to be recreated
-        case Some(scheduler) if scheduler.host != client.rpcHost || scheduler.rpcPort != client.rpcPort =>
-          val newHost = request.newScheduler.get.host
-          val newPort = request.newScheduler.get.rpcPort
-          client.activationClient
-            .close()
-            .flatMap(_ =>
-              createActivationClient(invocationNamespace, action, newHost, newPort, tryOtherScheduler = false))
-            .pipeTo(self)
 
-        case _ =>
-          requestActivationMessage(invocationNamespace, action, rev, client.activationClient, request.lastDuration)
-            .pipeTo(self)
-      }
+    // This is the case where the last activation message is sent to the container proxy and container proxy requested
+    // another activation. But the activation client is being shut down and it no longer fetches any request.
+    case Event(_: RequestActivation, c: Client) =>
+      safelyCloseClient(c)
+
       stay()
 
     case Event(msg: ActivationMessage, _: Client) =>
@@ -250,7 +240,8 @@ class ActivationClientProxy(
 
       stay()
 
-    case Event(_: MemoryQueueError, _: Client) =>
+    case Event(_: MemoryQueueError, c: Client) =>
+      safelyCloseClient(c)
       self ! ClientClosed
 
       stay()
@@ -279,9 +270,14 @@ class ActivationClientProxy(
       warmed = true
       stay
 
-    case Event(CloseClientProxy, c: Client) =>
+    // When disabling an invoker, there could be still activations in the queue.
+    // Activation client keeps fetching data and forward it to the container(parent).
+    // Once it receives `NoActivationMessage` from the queue, it would close the activation client and send `ClientClosed`
+    // to the container(parent), rather than sending `RetryRequestActivation`.
+    // When a container proxy(parent) receives `ClientClosed`, it will finally shut down.
+    case Event(GracefulShutdown, _: Client) =>
       logging.info(this, "safely close client proxy and go to the ClientProxyRemoving state")
-      safelyCloseClient(c)
+
       goto(ClientProxyRemoving)
 
     case Event(ClientClosed, _) =>
