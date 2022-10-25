@@ -270,7 +270,7 @@ class ActivationClientProxy(
       warmed = true
       stay
 
-    // When disabling an invoker, there could be still activations in the queue.
+    // When disabling an invoker, there could still be activations in the queue.
     // Activation client keeps fetching data and forward it to the container(parent).
     // Once it receives `NoActivationMessage` from the queue, it would close the activation client and send `ClientClosed`
     // to the container(parent), rather than sending `RetryRequestActivation`.
