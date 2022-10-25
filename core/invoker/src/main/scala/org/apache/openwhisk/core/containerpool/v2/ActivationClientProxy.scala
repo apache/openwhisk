@@ -272,7 +272,7 @@ class ActivationClientProxy(
 
     // When disabling an invoker, there could still be activations in the queue.
     // The activation client keeps fetching data and will forward it to the container(parent).
-    // Once it receives `NoActivationMessage` from the queue, it would close the activation client and send `ClientClosed`
+    // Once it receives `NoActivationMessage` from the queue, it will close the activation client and send `ClientClosed`
     // to the container(parent), rather than sending `RetryRequestActivation`.
     // When a container proxy(parent) receives `ClientClosed`, it will finally shut down.
     case Event(GracefulShutdown, _: Client) =>
