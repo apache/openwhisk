@@ -72,7 +72,7 @@ class SchedulingDecisionMaker(
     } else {
       val capacity = if (schedulingConfig.allowOverProvisionBeforeThrottle && totalContainers == 0) {
         // if space available within the over provision ratio amount above namespace limit, create one container for new
-        // action so container traffic can attempt to balance without blocking entire action
+        // action so namespace traffic can attempt to re-balance without blocking entire action
         if ((ceiling(limit * schedulingConfig.namespaceOverProvisionBeforeThrottleRatio) - existingContainerCountInNs - inProgressContainerCountInNs) > 0) {
           1
         } else {

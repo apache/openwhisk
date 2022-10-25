@@ -774,7 +774,6 @@ class FunctionPullingContainerProxy(
     case Event(Remove | GracefulShutdown, _) =>
       stay()
 
-
     case Event(DetermineKeepContainer(_), _) =>
       stay()
   }
