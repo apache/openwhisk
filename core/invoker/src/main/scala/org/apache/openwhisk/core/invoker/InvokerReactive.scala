@@ -23,8 +23,6 @@ import java.time.Instant
 import akka.Done
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.event.Logging.InfoLevel
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.core.ack.{MessagingActiveAck, UserEventSender}
@@ -329,8 +327,8 @@ class InvokerReactive(
     InvokerEnabled(healthScheduler.nonEmpty).serialize()
   }
 
-  override def backfillPrewarm(): Route = {
-    complete("not supported")
+  override def backfillPrewarm(): String = {
+    "not supported"
   }
 
   override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {

@@ -153,8 +153,8 @@ class TestInvokerReactive extends InvokerCore with BasicHttpService {
     s""
   }
 
-  override def backfillPrewarm(): Route = {
-    complete("")
+  override def backfillPrewarm(): String = {
+    ""
   }
 
   override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {

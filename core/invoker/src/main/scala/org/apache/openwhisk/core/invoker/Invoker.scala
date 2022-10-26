@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.invoker
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.http.scaladsl.server.Route
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
@@ -250,7 +249,7 @@ trait InvokerCore {
   def enable(): String
   def disable(): String
   def isEnabled(): String
-  def backfillPrewarm(): Route
+  def backfillPrewarm(): String
   def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]]
 }
 

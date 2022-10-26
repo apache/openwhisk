@@ -399,9 +399,9 @@ class FPCInvokerReactive(config: WhiskConfig,
     InvokerEnabled(warmUpWatcher.nonEmpty).serialize()
   }
 
-  override def backfillPrewarm(): Route = {
+  override def backfillPrewarm(): String = {
     pool ! AdjustPrewarmedContainer
-    complete("backfilling prewarm container")
+    "backfilling prewarm container"
   }
 
   private val warmUpFetchRequest = FetchRequest(

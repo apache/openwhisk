@@ -152,8 +152,8 @@ class TestFPCInvokerReactive extends InvokerCore with BasicHttpService {
     ""
   }
 
-  override def backfillPrewarm(): Route = {
-    complete("")
+  override def backfillPrewarm(): String = {
+    ""
   }
 
   override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {
