@@ -579,7 +579,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       stay
 
     // common case for all statuses
-    case Event(StatusQuery, _) =>
+    case Event(GetState, _) =>
       sender ! StatusData(
         invocationNamespace,
         action.asString,
@@ -1029,7 +1029,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       queue = newQueue
       logging.info(
         this,
-        s"[$invocationNamespace:$action:$stateName] Get activation request ${request.containerId}, send one message: ${msg.activationId}")(msg.transid)
+        s"[$invocationNamespace:$action:$stateName] Get activation request ${request.containerId}, send one message: ${msg.activationId}")(
+        msg.transid)
       val totalTimeInScheduler = Interval(msg.transid.meta.start, Instant.now()).duration
       MetricEmitter.emitHistogramMetric(
         LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString),

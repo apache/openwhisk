@@ -390,8 +390,9 @@ class FPCInvokerReactive(config: WhiskConfig,
     s"${instance.toString} is now disabled."
   }
 
-  override def status(): Future[Map[String, List[String]]] = {
-    pool.ask(StatusQuery)(Timeout(5.seconds)).mapTo[Map[String, List[String]]]
+  override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {
+    implicit val timeout: Timeout = 5.seconds
+    (pool ? GetState).mapTo[TotalContainerPoolState].map(Right(_))
   }
 
   override def isEnabled(): String = {

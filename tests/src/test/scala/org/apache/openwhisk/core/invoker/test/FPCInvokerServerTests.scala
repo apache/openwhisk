@@ -24,6 +24,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.containerpool.v2.{NotSupportedPoolState, TotalContainerPoolState}
 import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
 import org.apache.openwhisk.core.invoker.{FPCInvokerServer, InvokerCore}
 import org.apache.openwhisk.http.BasicHttpService
@@ -155,8 +156,8 @@ class TestFPCInvokerReactive extends InvokerCore with BasicHttpService {
     complete("")
   }
 
-  override def status(): Future[Map[String, List[String]]] = {
-    Future.successful(Map.empty[String, List[String]])
+  override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {
+    Future.successful(Left(NotSupportedPoolState()))
   }
 
   def reset(): Unit = {

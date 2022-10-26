@@ -261,9 +261,9 @@ class QueueManager(
     case QueueSize =>
       sender ! QueuePool.size
 
-    case StatusQuery =>
+    case GetState =>
       val result =
-        Future.sequence(QueuePool.values.map(_.queue.ask(StatusQuery)(Timeout(5.seconds)).mapTo[StatusData]).toList)
+        Future.sequence(QueuePool.values.map(_.queue.ask(GetState)(Timeout(5.seconds)).mapTo[StatusData]).toList)
 
       sender ! result
 

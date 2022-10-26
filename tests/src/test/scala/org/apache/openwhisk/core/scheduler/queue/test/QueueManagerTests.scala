@@ -29,7 +29,7 @@ import org.apache.openwhisk.common.{GracefulShutdown, TransactionId}
 import org.apache.openwhisk.core.WarmUp.warmUpAction
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.test.TestConnector
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage, StatusData, StatusQuery}
+import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage, GetState, StatusData}
 import org.apache.openwhisk.core.database.{ArtifactStore, DocumentRevisionMismatchException, UserContext}
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import org.apache.openwhisk.core.entity._
@@ -133,7 +133,7 @@ class QueueManagerTests
         override def receive: Receive = {
           case GetActivation(_, _, _, _, _, _) =>
             sender ! ActivationResponse(Right(newActivation()))
-          case StatusQuery =>
+          case GetState =>
             sender ! statusData
         }
       }))
@@ -797,7 +797,7 @@ class QueueManagerTests
 
     (queueManager ? QueueSize).mapTo[Int].futureValue shouldBe 1
 
-    (queueManager ? StatusQuery).mapTo[List[StatusData]].futureValue shouldBe List(statusData)
+    (queueManager ? GetState).mapTo[List[StatusData]].futureValue shouldBe List(statusData)
   }
 
   it should "drop the activation message that has not been scheduled for a long time" in {

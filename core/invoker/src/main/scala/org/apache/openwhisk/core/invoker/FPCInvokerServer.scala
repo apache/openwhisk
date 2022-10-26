@@ -53,11 +53,25 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
           complete(invoker.disable())
         } ~ (path("isEnabled") & get) {
           complete(invoker.isEnabled())
-        } ~ (pathPrefix("status") & get) {
+        } ~ (pathPrefix("pool") & get) {
           pathEndOrSingleSlash {
-            complete(invoker.status().map(_.toJson.compactPrint))
+            complete {
+              invoker.getPoolState().map {
+                case Right(poolState) =>
+                  poolState.serialize()
+                case Left(value) =>
+                  value.serialize()
+              }
+            }
           } ~ (path("count") & get) {
-            complete(invoker.status().map(_.size.toJson.compactPrint))
+            complete {
+              invoker.getPoolState().map {
+                case Right(poolState) =>
+                  poolState.totalContainers.toJson.compactPrint
+                case Left(value) =>
+                  value.serialize()
+              }
+            }
           }
         }
       case _ => terminate(StatusCodes.Unauthorized)

@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.containerpool.v2
 
 import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector.ContainerCreationError._
@@ -25,8 +26,8 @@ import org.apache.openwhisk.core.connector.{
   ContainerCreationAckMessage,
   ContainerCreationMessage,
   ContainerDeletionMessage,
-  ResultMetadata,
-  StatusQuery
+  GetState,
+  ResultMetadata
 }
 import org.apache.openwhisk.core.containerpool.{
   AdjustPrewarmedContainer,
@@ -41,6 +42,7 @@ import org.apache.openwhisk.core.containerpool.{
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
+import spray.json.DefaultJsonProtocol
 
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
@@ -49,6 +51,27 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
 import scala.collection.immutable.Queue
+
+object TotalContainerPoolState extends DefaultJsonProtocol {
+  implicit val prewarmedPoolSerdes = jsonFormat2(PrewarmedContainerPoolState.apply)
+  implicit val warmPoolSerdes = jsonFormat2(WarmContainerPoolState.apply)
+  implicit val totalPoolSerdes = jsonFormat5(TotalContainerPoolState.apply)
+}
+
+case class PrewarmedContainerPoolState(total: Int, countsByKind: Map[String, Int])
+case class WarmContainerPoolState(total: Int, containers: List[BasicContainerInfo])
+case class TotalContainerPoolState(totalContainers: Int,
+                                   inProgressCount: Int,
+                                   prewarmedPool: PrewarmedContainerPoolState,
+                                   busyPool: WarmContainerPoolState,
+                                   pausedPool: WarmContainerPoolState) {
+
+  def serialize(): String = TotalContainerPoolState.totalPoolSerdes.write(this).compactPrint
+}
+
+case class NotSupportedPoolState() {
+  def serialize(): String = "not supported"
+}
 
 case class CreationContainer(creationMessage: ContainerCreationMessage, action: WhiskAction)
 case class DeletionContainer(deletionMessage: ContainerDeletionMessage)
@@ -88,7 +111,7 @@ class FunctionPullingContainerPool(
 
   implicit val ec = context.system.dispatcher
 
-  protected[containerpool] var busyPool = immutable.Map.empty[ActorRef, Data]
+  protected[containerpool] var busyPool = immutable.Map.empty[ActorRef, ContainerAvailableData]
   protected[containerpool] var inProgressPool = immutable.Map.empty[ActorRef, Data]
   protected[containerpool] var warmedPool = immutable.Map.empty[ActorRef, WarmData]
   protected[containerpool] var prewarmedPool = immutable.Map.empty[ActorRef, PreWarmData]
@@ -414,35 +437,14 @@ class FunctionPullingContainerPool(
       prewarmCreateFailedCount.set(0)
       adjustPrewarmedContainer(false, true)
 
-    case StatusQuery =>
-      var result = immutable.Map.empty[String, List[String]]
-      val pools = busyPool ++ warmedPool ++ inProgressPool
-      pools.foreach { entry =>
-        entry._2 match {
-          case InitializedData(container, _, action, _) =>
-            val key = action.fullyQualifiedName(true).asString
-            var list = result.getOrElse(key, List.empty[String])
-            list = container.containerId.asString :: list
-            result += (action.fullyQualifiedName(true).asString -> list)
-          case WarmData(container, _, action, _, _, _) =>
-            val key = action.fullyQualifiedName(true).asString
-            var list = result.getOrElse(key, List.empty[String])
-            list = container.containerId.asString :: list
-            result += (action.fullyQualifiedName(true).asString -> list)
-          case ContainerCreatedData(container, _, action) =>
-            val key = action.fullyQualifiedName(true).asString
-            var list = result.getOrElse(key, List.empty[String])
-            list = container.containerId.asString :: list
-            result += (action.fullyQualifiedName(true).asString -> list)
-          case ReschedulingData(container, _, action, _, _) =>
-            val key = action.fullyQualifiedName(true).asString
-            var list = result.getOrElse(key, List.empty[String])
-            list = container.containerId.asString :: list
-            result += (action.fullyQualifiedName(true).asString -> list)
-          case _ => // do nothing
-        }
-      }
-      sender() ! result
+    case GetState =>
+      val totalContainers = busyPool.size + inProgressPool.size + warmedPool.size + prewarmedPool.size
+      val prewarmedState =
+        PrewarmedContainerPoolState(prewarmedPool.size, prewarmedPool.groupBy(_._2.kind).mapValues(_.size))
+      val busyState = WarmContainerPoolState(busyPool.size, busyPool.values.map(_.basicContainerInfo).toList)
+      val pausedState = WarmContainerPoolState(warmedPool.size, warmedPool.values.map(_.basicContainerInfo).toList)
+      sender() ! TotalContainerPoolState(totalContainers, inProgressPool.size, prewarmedState, busyState, pausedState)
+
   }
 
   /** Install prewarm containers up to the configured requirements for each kind/memory combination or specified kind/memory */

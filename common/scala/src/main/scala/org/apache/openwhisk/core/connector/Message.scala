@@ -532,9 +532,7 @@ object InvokerResourceMessage extends DefaultJsonProtocol {
  * ...
  * ]
  */
-object StatusQuery
-
-object ActivationStatusQuery
+object GetState
 
 case class StatusData(invocationNamespace: String,
                       fqn: String,

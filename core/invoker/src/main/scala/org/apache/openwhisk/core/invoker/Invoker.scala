@@ -26,6 +26,7 @@ import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector.{MessageProducer, MessagingProvider}
+import org.apache.openwhisk.core.containerpool.v2.{NotSupportedPoolState, TotalContainerPoolState}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerPoolConfig}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -250,7 +251,7 @@ trait InvokerCore {
   def disable(): String
   def isEnabled(): String
   def backfillPrewarm(): Route
-  def status(): Future[Map[String, List[String]]]
+  def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]]
 }
 
 /**
