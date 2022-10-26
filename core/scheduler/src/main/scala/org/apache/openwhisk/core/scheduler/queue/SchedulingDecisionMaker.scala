@@ -139,9 +139,9 @@ class SchedulingDecisionMaker(
           case (Running, Some(duration)) if staleActivationNum > 0 =>
             // we can safely get the value as we already checked the existence
             val containerThroughput = staleThreshold / duration
-            val num = ceiling(availableMsg.toDouble / containerThroughput)
+            val num = ceiling(staleActivationNum.toDouble / containerThroughput)
             // if it tries to create more containers than existing messages, we just create shortage
-            val actualNum = (if (num > availableMsg) availableMsg else num) - inProgress
+            val actualNum = (if (num > staleActivationNum) staleActivationNum else num) - inProgress
             addServersIfPossible(
               existing,
               inProgress,
@@ -184,9 +184,9 @@ class SchedulingDecisionMaker(
           case (Removing, Some(duration)) if staleActivationNum > 0 =>
             // we can safely get the value as we already checked the existence
             val containerThroughput = staleThreshold / duration
-            val num = ceiling(availableMsg.toDouble / containerThroughput)
+            val num = ceiling(staleActivationNum.toDouble / containerThroughput)
             // if it tries to create more containers than existing messages, we just create shortage
-            val actualNum = (if (num > availableMsg) availableMsg else num) - inProgress
+            val actualNum = (if (num > staleActivationNum) staleActivationNum else num) - inProgress
             addServersIfPossible(
               existing,
               inProgress,
