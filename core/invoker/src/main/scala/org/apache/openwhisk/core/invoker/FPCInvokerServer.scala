@@ -67,7 +67,7 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
             complete {
               invoker.getPoolState().map {
                 case Right(poolState) =>
-                  poolState.totalContainers.toJson.compactPrint
+                  (poolState.busyPool.total + poolState.pausedPool.total + poolState.inProgressCount).toJson.compactPrint
                 case Left(value) =>
                   value.serialize()
               }

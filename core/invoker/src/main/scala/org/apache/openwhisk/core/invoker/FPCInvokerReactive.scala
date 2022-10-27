@@ -20,8 +20,6 @@ package org.apache.openwhisk.core.invoker
 import akka.Done
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.grpc.GrpcClientSettings
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 import com.ibm.etcd.api.Event.EventType
@@ -47,7 +45,6 @@ import org.apache.openwhisk.core.{ConfigKeys, WarmUp, WhiskConfig}
 import org.apache.openwhisk.grpc.{ActivationServiceClient, FetchRequest}
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
-import pureconfig.generic.auto._
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
