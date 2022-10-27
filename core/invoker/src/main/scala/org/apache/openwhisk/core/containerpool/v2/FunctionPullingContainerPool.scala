@@ -440,7 +440,7 @@ class FunctionPullingContainerPool(
     case GetState =>
       val totalContainers = busyPool.size + inProgressPool.size + warmedPool.size + prewarmedPool.size
       val prewarmedState =
-        PrewarmedContainerPoolState(prewarmedPool.size, prewarmedPool.groupBy(_._2.kind).mapValues(_.size))
+        PrewarmedContainerPoolState(prewarmedPool.size, prewarmedPool.groupBy(_._2.kind).mapValues(_.size).toMap)
       val busyState = WarmContainerPoolState(busyPool.size, busyPool.values.map(_.basicContainerInfo).toList)
       val pausedState = WarmContainerPoolState(warmedPool.size, warmedPool.values.map(_.basicContainerInfo).toList)
       sender() ! TotalContainerPoolState(totalContainers, inProgressPool.size, prewarmedState, busyState, pausedState)
