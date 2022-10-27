@@ -116,4 +116,4 @@ The OpenWhisk system is built from a [number of components](docs/dev/modules.md)
 
 This diagram depicts the steps which take place within Openwhisk when an action is invoked by the user:
 
-![component/repo mapping](docs/images/Openwhisk-diagram.png)
+![component/repo mapping](docs/images/Openwhisk-flow-diagram.png)
