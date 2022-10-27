@@ -45,6 +45,7 @@ import org.apache.openwhisk.core.{ConfigKeys, WarmUp, WhiskConfig}
 import org.apache.openwhisk.grpc.{ActivationServiceClient, FetchRequest}
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
