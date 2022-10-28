@@ -152,7 +152,9 @@ class SchedulingDecisionMaker(
             if (availableNonStaleActivations >= expectedTps && existing + inProgress < availableMsg) {
               val num = ceiling((availableNonStaleActivations / containerThroughput) - existing - inProgress)
               // if it tries to create more containers than existing messages, we just create shortage
-              val actualNum = if (num + totalContainers > availableNonStaleActivations) availableNonStaleActivations - totalContainers else num
+              val actualNum =
+                if (num + totalContainers > availableNonStaleActivations) availableNonStaleActivations - totalContainers
+                else num
               addServersIfPossible(
                 existing,
                 inProgress,
