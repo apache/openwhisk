@@ -251,6 +251,33 @@ class SchedulingDecisionMakerTests
     testProbe.expectMsg(DecisionResults(EnableNamespaceThrottling(dropMsg = true), 0))
   }
 
+  it should "enable namespace throttling with dropping msg when there is a container, and namespace over-provision has no additional capacity" in {
+    val schedulingConfigNamespaceOverProvisioning =
+      SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, true, 1.0)
+    val decisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfigNamespaceOverProvisioning))
+    val testProbe = TestProbe()
+
+    val msg = QueueSnapshot(
+      initialized = true,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 0,
+      existingContainerCount = 1,
+      inProgressContainerCount = 0,
+      staleActivationNum = 0,
+      existingContainerCountInNamespace = 1, // but there are already 2 containers in this namespace
+      inProgressContainerCountInNamespace = 1,
+      averageDuration = None,
+      limit = 2,
+      stateName = Running,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    // this queue cannot create an initial container so enable throttling and drop messages.
+    testProbe.expectMsg(DecisionResults(EnableNamespaceThrottling(dropMsg = false), 0))
+  }
+
   it should "not enable namespace throttling when there is not enough capacity but are some containers and namespace over-provision is enabled with capacity" in {
     val schedulingConfigNamespaceOverProvisioning =
       SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, true, 1.5)

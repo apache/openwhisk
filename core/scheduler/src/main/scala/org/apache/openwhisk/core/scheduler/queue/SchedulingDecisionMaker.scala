@@ -89,7 +89,9 @@ class SchedulingDecisionMaker(
            *
            * However, if the container exists(totalContainers != 0), the activation is not treated as a failure and the activation is delivered to the container.
            */
-          case Running if totalContainers == 0 || !schedulingConfig.allowOverProvisionBeforeThrottle =>
+          case Running
+              if !schedulingConfig.allowOverProvisionBeforeThrottle || (schedulingConfig.allowOverProvisionBeforeThrottle && ceiling(
+                limit * schedulingConfig.namespaceOverProvisionBeforeThrottleRatio) - existingContainerCountInNs - inProgressContainerCountInNs <= 0) =>
             logging.info(
               this,
               s"there is no capacity activations will be dropped or throttled, (availableMsg: $availableMsg totalContainers: $totalContainers, limit: $limit, namespaceContainers: ${existingContainerCountInNs}, namespaceInProgressContainer: ${inProgressContainerCountInNs}) [$invocationNamespace:$action]")

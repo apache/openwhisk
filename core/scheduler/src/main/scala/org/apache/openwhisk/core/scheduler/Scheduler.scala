@@ -421,5 +421,8 @@ object SchedulerStates extends DefaultJsonProtocol {
   def parse(states: String) = Try(serdes.read(states.parseJson))
 }
 
-case class SchedulingConfig(staleThreshold: FiniteDuration, checkInterval: FiniteDuration, dropInterval: FiniteDuration,
-                            allowOverProvisionBeforeThrottle: Boolean, namespaceOverProvisionBeforeThrottleRatio: Double)
+case class SchedulingConfig(staleThreshold: FiniteDuration,
+                            checkInterval: FiniteDuration,
+                            dropInterval: FiniteDuration,
+                            allowOverProvisionBeforeThrottle: Boolean,
+                            namespaceOverProvisionBeforeThrottleRatio: Double)
