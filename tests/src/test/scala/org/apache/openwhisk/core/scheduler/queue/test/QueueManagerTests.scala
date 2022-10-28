@@ -797,7 +797,7 @@ class QueueManagerTests
 
     (queueManager ? QueueSize).mapTo[Int].futureValue shouldBe 1
 
-    (queueManager ? GetState).mapTo[List[StatusData]].futureValue shouldBe List(statusData)
+    (queueManager ? GetState).mapTo[Future[List[StatusData]]].flatten.futureValue shouldBe List(statusData)
   }
 
   it should "drop the activation message that has not been scheduled for a long time" in {

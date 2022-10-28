@@ -501,6 +501,9 @@ class MemoryQueueTests
     dataManagementService.expectMsg(UnregisterData(leaderKey))
     dataManagementService.expectMsg(UnregisterData(namespaceThrottlingKey))
     dataManagementService.expectMsg(UnregisterData(actionThrottlingKey))
+
+    // queue is timed out again in the Removed state.
+    fsm ! StateTimeout
     parent.expectMsg(QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(revision), Some(leaderKey)))
     fsm ! QueueRemovedCompleted
     probe2.expectTerminated(fsm)
@@ -652,8 +655,12 @@ class MemoryQueueTests
     expectMsg(Transition(fsm, Idle, Removed))
     queueRef.queue.length shouldBe 0
     fsm ! message
-    parent.expectMsg(queueRemovedMsg)
+
+    // queue is timed out again in the Removed state.
     parent.expectMsg(message)
+
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
 
     expectNoMessage()
 
@@ -1096,10 +1103,13 @@ class MemoryQueueTests
     fsm ! message
     probe.expectMsg(ActivationResponse.developerError("nonExecutbleAction error"))
 
-    parent.expectMsg(
+    parent.expectMsgAnyOf(
       2 * queueConfig.flushGrace + 5.seconds,
-      QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(action.rev), Some(leaderKey)))
-    parent.expectMsg(Transition(fsm, Flushing, Removed))
+      QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(action.rev), Some(leaderKey)),
+      Transition(fsm, Flushing, Removed))
+
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
     parent.expectTerminated(fsm)
 
@@ -1207,10 +1217,9 @@ class MemoryQueueTests
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString("resource not enough")))
     }, 5.seconds)
 
-    parent.expectMsg(queueRemovedMsg)
-
     // should goto Removed
-    parent.expectMsg(Transition(fsm, Flushing, Removed))
+    parent.expectMsgAnyOf(queueRemovedMsg, Transition(fsm, Flushing, Removed))
+
     fsm ! QueueRemovedCompleted
 
     fsm.stop()
@@ -1400,10 +1409,10 @@ class MemoryQueueTests
 
     val duration = FiniteDuration(queueConfig.maxBlackboxRetentionMs, MILLISECONDS) + queueConfig.flushGrace
     probe.expectMsg(duration, ActivationResponse.whiskError("no available invokers"))
-    parent.expectMsg(
+    parent.expectMsgAnyOf(
       duration,
-      QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(action.rev), Some(leaderKey)))
-    parent.expectMsg(Transition(fsm, Flushing, Removed))
+      QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(action.rev), Some(leaderKey)),
+      Transition(fsm, Flushing, Removed))
     fsm ! QueueRemovedCompleted
     parent.expectTerminated(fsm)
 

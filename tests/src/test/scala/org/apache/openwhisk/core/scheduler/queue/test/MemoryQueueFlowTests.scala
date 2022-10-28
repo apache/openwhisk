@@ -173,9 +173,12 @@ class MemoryQueueFlowTests
 
     expectDataCleanUp(watcher, dataMgmtService)
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
 
+    // the queue is timed out again in the removed state
+    fsm ! StateTimeout
+
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     probe.expectTerminated(fsm, 10.seconds)
@@ -285,8 +288,10 @@ class MemoryQueueFlowTests
 
     fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
+
+    // the queue is timed out again in the removed state
+    fsm ! StateTimeout
 
     fsm ! QueueRemovedCompleted
 
@@ -370,14 +375,18 @@ class MemoryQueueFlowTests
 
     fsm ! GracefulShutdown
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, NamespaceThrottled, Removing))
 
-    fsm ! QueueRemovedCompleted
+    // the queue is timed out in the Removing state
+    fsm ! StateTimeout
 
     expectDataCleanUp(watcher, dataMgmtService)
 
     probe.expectMsg(Transition(fsm, Removing, Removed))
+
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    fsm ! QueueRemovedCompleted
 
     probe.expectTerminated(fsm, 10.seconds)
   }
@@ -495,9 +504,12 @@ class MemoryQueueFlowTests
 
     fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     expectDataCleanUp(watcher, dataMgmtService)
@@ -645,8 +657,11 @@ class MemoryQueueFlowTests
     probe.expectMsg(Transition(fsm, Running, Idle))
 
     fsm ! StateTimeout
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
+
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
 
     fsm ! QueueRemovedCompleted
     expectDataCleanUp(watcher, dataMgmtService)
@@ -757,9 +772,11 @@ class MemoryQueueFlowTests
 
     fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     expectDataCleanUp(watcher, dataMgmtService)
@@ -839,6 +856,8 @@ class MemoryQueueFlowTests
     expectDataCleanUp(watcher, dataMgmtService)
     probe.expectMsg(Transition(fsm, Flushing, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
     parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
@@ -936,9 +955,11 @@ class MemoryQueueFlowTests
     clock.plusSeconds(flushGrace.toSeconds * 2)
     fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Flushing, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     expectDataCleanUp(watcher, dataMgmtService)
@@ -1039,9 +1060,11 @@ class MemoryQueueFlowTests
 
     fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     expectDataCleanUp(watcher, dataMgmtService)
@@ -1148,9 +1171,11 @@ class MemoryQueueFlowTests
     fsm ! StateTimeout
 
     expectDataCleanUp(watcher, dataMgmtService)
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Flushing, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     probe.expectTerminated(fsm, 10.seconds)
@@ -1230,8 +1255,6 @@ class MemoryQueueFlowTests
       UnregisterData(namespaceThrottlingKey),
       UnregisterData(actionThrottlingKey))
 
-    parent.expectMsg(queueRemovedMsg)
-
     probe.expectMsg(Transition(fsm, Running, Removing))
 
     // a newly arrived message should be properly handled
@@ -1240,8 +1263,6 @@ class MemoryQueueFlowTests
     container.expectMsg(ActivationResponse(Right(messages(1))))
 
     fsm ! messages(2)
-
-    fsm ! QueueRemovedCompleted
 
     // if there is a message, it should not terminate
     fsm ! StateTimeout
@@ -1259,6 +1280,11 @@ class MemoryQueueFlowTests
       UnwatchEndpoint(leaderKey, isPrefix = false, watcherName))
 
     probe.expectMsg(Transition(fsm, Removing, Removed))
+
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
+    fsm ! QueueRemovedCompleted
 
     probe.expectTerminated(fsm, 10.seconds)
   }
@@ -1329,7 +1355,6 @@ class MemoryQueueFlowTests
 
       // another queue is already running
       fsm ! InitialDataStorageResults(`leaderKey`, Left(AlreadyExist()))
-
       parent.expectMsg(queueRemovedMsg)
       parent.expectMsg(message)
 
@@ -1342,6 +1367,9 @@ class MemoryQueueFlowTests
       // move to the Deprecated state
       probe.expectMsg(Transition(fsm, state, Removed))
 
+      // the queue is timed out again in the Removed state
+      fsm ! StateTimeout
+      parent.expectMsg(queueRemovedMsg)
       fsm ! QueueRemovedCompleted
 
       probe.expectTerminated(fsm, 10.seconds)
@@ -1432,6 +1460,7 @@ class MemoryQueueFlowTests
 
       // the queue is supposed to send queueRemovedMsg once again and stops itself.
       parent.expectMsg(queueRemovedMsg)
+      fsm ! QueueRemovedCompleted
       probe.expectTerminated(fsm, 10.seconds)
     }
   }
@@ -1743,20 +1772,20 @@ class MemoryQueueFlowTests
             UnwatchEndpoint(existingContainerKey, isPrefix = true, watcherName),
             UnwatchEndpoint(leaderKey, isPrefix = false, watcherName))
 
-          // queue is stale and will be removed
-          parent.expectMsg(queueRemovedMsg)
-
           probe.expectMsg(Transition(fsm, state, Removed))
 
+          // the queue is timed out againd in the Removed state
+          fsm ! StateTimeout
+
+          // queue is stale and will be removed
+          parent.expectMsg(queueRemovedMsg)
           fsm ! QueueRemovedCompleted
           probe.expectTerminated(fsm, 10.seconds)
 
         case _ =>
           // queue is stale and will be removed
-          parent.expectMsg(queueRemovedMsg)
-          probe.expectMsg(Transition(fsm, state, Removing))
 
-          fsm ! QueueRemovedCompleted
+          probe.expectMsg(Transition(fsm, state, Removing))
 
           // queue should not be terminated as there is an activation
           fsm ! StateTimeout
@@ -1772,6 +1801,11 @@ class MemoryQueueFlowTests
             UnwatchEndpoint(leaderKey, isPrefix = false, watcherName))
 
           probe.expectMsg(Transition(fsm, Removing, Removed))
+
+          // the queue is timed out againd in the Removed state
+          fsm ! StateTimeout
+          parent.expectMsg(queueRemovedMsg)
+          fsm ! QueueRemovedCompleted
           probe.expectTerminated(fsm, 10.seconds)
       }
     }

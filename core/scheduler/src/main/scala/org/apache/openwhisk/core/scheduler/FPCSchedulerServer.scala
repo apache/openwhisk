@@ -49,10 +49,8 @@ class FPCSchedulerServer(scheduler: SchedulerCore, systemUsername: String, syste
           complete {
             scheduler.getState.map {
               case (list, creationCount) =>
-                (list
-                  .map(scheduler => "queue:" -> scheduler._2.toString)
-                  .toMap
-                  ++ Map("creationCount" -> creationCount.toString)).toJson
+                val sum = list.map(tuple => tuple._2).sum
+                (Map("queue" -> sum.toString) ++ Map("creationCount" -> creationCount.toString)).toJson
             }
           }
         } ~ (path("disable") & post) {

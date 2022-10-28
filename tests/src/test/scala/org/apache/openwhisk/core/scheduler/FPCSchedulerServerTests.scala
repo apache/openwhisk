@@ -86,8 +86,8 @@ class FPCSchedulerServerTests
     val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
     Get(s"/state") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
       status should be(OK)
-      responseAs[JsObject] shouldBe (queues.map(s => s._1.asString -> s._2.toString).toMap ++ Map(
-        "creationCount" -> creationCount.toString)).toJson
+      responseAs[JsObject] shouldBe (Map("creationCount" -> creationCount.toString) ++ Map(
+        "queue" -> queues.map(_._2).sum.toString)).toJson
     }
   }
 
@@ -95,7 +95,7 @@ class FPCSchedulerServerTests
   it should "get total queue" in {
     implicit val tid = transid()
     val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
-    Get(s"/queue/total") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
+    Get(s"/queues/count") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
       status should be(OK)
       responseAs[String] shouldBe testQueueSize.toString
     }
@@ -105,7 +105,7 @@ class FPCSchedulerServerTests
   it should "get all queue status" in {
     implicit val tid = transid()
     val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
-    Get(s"/queue/status") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
+    Get(s"/queues") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
       status should be(OK)
       responseAs[List[JsObject]] shouldBe statusDatas.map(_.toJson)
     }
