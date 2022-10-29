@@ -124,13 +124,13 @@ class ActivationClientProxy(
       stay()
 
     case Event(e: RescheduleActivation, client: Client) =>
-      logging.info(this, s"got a reschedule message ${e.msg.activationId} for action: ${e.msg.action}")
+      logging.info(this, s"[${containerId.asString}] got a reschedule message ${e.msg.activationId} for action: ${e.msg.action}")
       client.activationClient
         .rescheduleActivation(
           RescheduleRequest(e.invocationNamespace, e.fqn.serialize, e.rev.serialize, e.msg.serialize))
         .recover {
           case t =>
-            logging.error(this, s"Failed to reschedule activation (error: $t)")
+            logging.error(this, s"[${containerId.asString}] Failed to reschedule activation (error: $t)")
             RescheduleResponse()
         }
         .foreach(res => {
@@ -139,7 +139,7 @@ class ActivationClientProxy(
       stay()
 
     case Event(msg: ActivationMessage, _: Client) =>
-      logging.debug(this, s"got a message ${msg.activationId} for action: ${msg.action}")
+      logging.debug(this, s"[${containerId.asString}] got a message ${msg.activationId} for action: ${msg.action}")
       context.parent ! msg
 
       stay()
@@ -152,7 +152,7 @@ class ActivationClientProxy(
         case _: NoMemoryQueue =>
           logging.error(
             this,
-            s"The queue of action ${action} under invocationNamespace ${invocationNamespace} does not exist. Check for queues in other schedulers.")
+            s"[${containerId.asString}] The queue of action ${action} under invocationNamespace ${invocationNamespace} does not exist. Check for queues in other schedulers.")
           c.activationClient
             .close()
             .flatMap(_ =>
@@ -162,7 +162,7 @@ class ActivationClientProxy(
           stay()
 
         case _: ActionMismatch =>
-          logging.error(this, s"action version does not match: $action")
+          logging.error(this, s"[${containerId.asString}] action version does not match: $action")
           c.activationClient.close().andThen {
             case _ => self ! ClientClosed
           }
@@ -170,7 +170,7 @@ class ActivationClientProxy(
           goto(ClientProxyRemoving)
 
         case _: NoActivationMessage => // retry
-          logging.debug(this, s"no activation message exist: $action")
+          logging.debug(this, s"[${containerId.asString}] no activation message exist: $action")
           context.parent ! RetryRequestActivation
 
           stay()
@@ -182,7 +182,7 @@ class ActivationClientProxy(
     case Event(f: FailureMessage, c: Client) =>
       f.cause match {
         case t: ParsingException =>
-          logging.error(this, s"failed to parse activation message: $t")
+          logging.error(this, s"[${containerId.asString}] failed to parse activation message: $t")
           context.parent ! RetryRequestActivation
 
           stay()
@@ -191,13 +191,13 @@ class ActivationClientProxy(
         // In such situation, it is better to stop the activationClientProxy, otherwise, in short time,
         // it would print huge log due to create another grpcClient to fetch activation again.
         case t: StatusRuntimeException if t.getMessage.contains(ActivationClientProxy.hostResolveError) =>
-          logging.error(this, s"akka grpc server connection failed: $t")
+          logging.error(this, s"[${containerId.asString}] akka grpc server connection failed: $t")
           self ! ClientClosed
 
           goto(ClientProxyRemoving)
 
         case t: StatusRuntimeException =>
-          logging.error(this, s"akka grpc server connection failed: $t")
+          logging.error(this, s"[${containerId.asString}] akka grpc server connection failed: $t")
           c.activationClient
             .close()
             .flatMap(_ =>
@@ -207,13 +207,13 @@ class ActivationClientProxy(
           stay()
 
         case _: ClientClosedException =>
-          logging.error(this, s"grpc client is already closed for $action")
+          logging.error(this, s"[${containerId.asString}] grpc client is already closed for $action")
           self ! ClientClosed
 
           goto(ClientProxyRemoving)
 
         case t: Throwable =>
-          logging.error(this, s"get activation from remote server error: $t")
+          logging.error(this, s"[${containerId.asString}] get activation from remote server error: $t")
           safelyCloseClient(c)
           goto(ClientProxyRemoving)
       }
@@ -247,7 +247,7 @@ class ActivationClientProxy(
       stay()
 
     case Event(f: FailureMessage, c: Client) =>
-      logging.error(this, s"some error happened for action: ${action} in state: $stateName, caused by: $f")
+      logging.error(this, s"[${containerId.asString}] some error happened for action: ${action} in state: $stateName, caused by: $f")
       safelyCloseClient(c)
       stay()
 
@@ -276,18 +276,18 @@ class ActivationClientProxy(
     // to the container(parent), rather than sending `RetryRequestActivation`.
     // When a container proxy(parent) receives `ClientClosed`, it will finally shut down.
     case Event(GracefulShutdown, _: Client) =>
-      logging.info(this, "safely close client proxy and go to the ClientProxyRemoving state")
+      logging.info(this, s"[${containerId.asString}] safely close client proxy and go to the ClientProxyRemoving state")
 
       goto(ClientProxyRemoving)
 
     case Event(ClientClosed, _) =>
-      logging.info(this, "the underlying client is closed, stopping the activation client proxy")
+      logging.info(this, s"[${containerId.asString}] the underlying client is closed, stopping the activation client proxy")
       context.parent ! ClientClosed
 
       stop()
 
     case Event(StopClientProxy, c: Client) =>
-      logging.info(this, "stop close client proxy and go to the ClientProxyRemoving state")
+      logging.info(this, s"[${containerId.asString}] stop close client proxy and go to the ClientProxyRemoving state")
       safelyCloseClient(c)
       stay()
   }
