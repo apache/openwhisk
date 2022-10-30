@@ -216,11 +216,11 @@ Here a `Makefile` is helpful. Check the [examples](https://github.com/apache/ope
 
 You can also use just the `openwhisk/actionloop` as runtime, it is smaller.
 
-<a name="vscode">
+<a name="vscode"/>
 
 ## Using VsCode
 
-If you are using [VsCode[(https://code.visualstudio.com/) as your Go development environment with the [VsCode Go](https://marketplace.visualstudio.com/items?itemName=ms-vscode.Go) support, without errors and with completion working you need to:
+If you are using [VsCode](https://code.visualstudio.com/) as your Go development environment with the [VsCode Go](https://marketplace.visualstudio.com/items?itemName=ms-vscode.Go) support, without errors and with completion working you need to:
 
 - enable the option `go.inferGopath`
 - place all your sources in a `src` folder
