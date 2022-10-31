@@ -683,6 +683,54 @@ class SchedulingDecisionMakerTests
     testProbe.expectMsg(DecisionResults(AddContainer, 2))
   }
 
+  it should "add more containers when there are stale messages and non-stale messages and both message classes need more containers" in {
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
+    val testProbe = TestProbe()
+
+    val msg = QueueSnapshot(
+      initialized = true,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 5,
+      existingContainerCount = 2,
+      inProgressContainerCount = 0,
+      staleActivationNum = 2,
+      existingContainerCountInNamespace = 2,
+      inProgressContainerCountInNamespace = 0,
+      averageDuration = Some(1000), // the average duration exists
+      limit = 10,
+      stateName = Running,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    //should add two for the stale messages and one to increase tps of non-stale available messages
+    testProbe.expectMsg(DecisionResults(AddContainer, 3))
+  }
+
+  it should "add more containers when there are stale messages and non-stale messages have needed tps" in {
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
+    val testProbe = TestProbe()
+
+    val msg = QueueSnapshot(
+      initialized = true,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 5,
+      existingContainerCount = 2,
+      inProgressContainerCount = 0,
+      staleActivationNum = 2,
+      existingContainerCountInNamespace = 2,
+      inProgressContainerCountInNamespace = 0,
+      averageDuration = Some(50), // the average duration gives container throughput of 2
+      limit = 10,
+      stateName = Running,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    //should add one additional container for stale messages and non-stale messages still meet tps
+    testProbe.expectMsg(DecisionResults(AddContainer, 1))
+  }
+
   it should "enable namespace throttling while adding more container when there are stale messages even in the GracefulShuttingDown" in {
     val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
