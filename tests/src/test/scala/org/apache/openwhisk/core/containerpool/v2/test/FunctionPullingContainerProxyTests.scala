@@ -444,7 +444,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, transid)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -509,7 +509,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -573,7 +573,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -642,7 +642,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -883,7 +883,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -943,7 +943,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1015,7 +1015,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1094,7 +1094,7 @@ class FunctionPullingContainerProxyTests
 
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1180,7 +1180,7 @@ class FunctionPullingContainerProxyTests
 
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1265,7 +1265,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1342,7 +1342,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1423,7 +1423,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1500,7 +1500,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1576,7 +1576,11 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
+
+    awaitAssert {
+      machine.underlyingActor.stateData.getContainer should not be None
+    }
 
     val containerId = machine.underlyingActor.stateData.getContainer match {
       case Some(container) => container.containerId
@@ -1666,7 +1670,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
     dataManagementService.expectMsg(
       RegisterData(
         ContainerKeys.existingContainers(
@@ -1775,7 +1779,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, noLogsAction, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1906,7 +1910,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -1980,7 +1984,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2057,7 +2061,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2136,7 +2140,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2226,7 +2230,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2289,7 +2293,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2355,7 +2359,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2425,7 +2429,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2508,7 +2512,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, Uninitialized, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2585,7 +2589,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2652,7 +2656,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2738,7 +2742,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2818,7 +2822,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, transid)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2889,7 +2893,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -2951,7 +2955,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
@@ -3017,7 +3021,7 @@ class FunctionPullingContainerProxyTests
     machine ! Initialize(invocationNamespace.asString, fqn, action, schedulerHost, rpcPort, messageTransId)
     probe.expectMsg(Transition(machine, ContainerCreated, CreatingClient))
     client.expectMsg(StartClient)
-    client.send(machine, ClientCreationCompleted())
+    client.send(machine, ClientCreationCompleted(Some(client.ref)))
 
     probe.expectMsg(Transition(machine, CreatingClient, ClientCreated))
     expectInitialized(probe)
