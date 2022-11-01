@@ -46,6 +46,7 @@ import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcu
 import pureconfig.loadConfigOrThrow
 import spray.json._
 import pureconfig.generic.auto._
+import scala.collection.JavaConverters._
 
 import java.time.{Duration, Instant}
 import java.util.concurrent.atomic.AtomicInteger
@@ -69,17 +70,30 @@ case object NamespaceThrottled extends MemoryQueueState
 
 // Data
 sealed abstract class MemoryQueueData()
-case class NoData() extends MemoryQueueData()
-case class NoActors() extends MemoryQueueData()
-case class RunningData(schedulerActor: ActorRef, droppingActor: ActorRef) extends MemoryQueueData()
-case class ThrottledData(schedulerActor: ActorRef, droppingActor: ActorRef) extends MemoryQueueData()
+case class NoData() extends MemoryQueueData() {
+  override def toString = "NoData"
+}
+case class NoActors() extends MemoryQueueData() {
+  override def toString = "NoActors"
+}
+case class RunningData(schedulerActor: ActorRef, droppingActor: ActorRef) extends MemoryQueueData() {
+  override def toString = "RunningData"
+}
+case class ThrottledData(schedulerActor: ActorRef, droppingActor: ActorRef) extends MemoryQueueData() {
+  override def toString = "ThrottledData"
+}
 case class FlushingData(schedulerActor: ActorRef,
                         droppingActor: ActorRef,
                         error: ContainerCreationError,
                         reason: String,
                         activeDuringFlush: Boolean = false)
-    extends MemoryQueueData()
-case class RemovingData(schedulerActor: ActorRef, droppingActor: ActorRef, outdated: Boolean) extends MemoryQueueData()
+    extends MemoryQueueData() {
+  override def toString = s"ThrottledData(error: $error, reason: $reason, activeDuringFlush: $activeDuringFlush)"
+}
+case class RemovingData(schedulerActor: ActorRef, droppingActor: ActorRef, outdated: Boolean)
+    extends MemoryQueueData() {
+  override def toString = s"RemovingData(outdated: $outdated)"
+}
 
 // Events sent by the actor
 case class QueueRemoved(invocationNamespace: String, action: DocInfo, leaderKey: Option[String])
@@ -154,8 +168,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private val staleQueueRemovedMsg = QueueRemoved(invocationNamespace, action.toDocId.asDocInfo(revision), None)
   private val actionRetentionTimeout = MemoryQueue.getRetentionTimeout(actionMetaData, queueConfig)
 
-  private[queue] var containers = Set.empty[String]
-  private[queue] var creationIds = Set.empty[String]
+  private[queue] var containers = java.util.concurrent.ConcurrentHashMap.newKeySet[String]().asScala
+  private[queue] var creationIds = java.util.concurrent.ConcurrentHashMap.newKeySet[String]().asScala
 
   private[queue] var queue = Queue.empty[TimeSeriesActivationEntry]
   private[queue] var in = new AtomicInteger(0)
@@ -565,8 +579,13 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       stay
 
     // common case for all statuses
-    case Event(StatusQuery, _) =>
-      sender ! StatusData(invocationNamespace, action.asString, queue.size, stateName.toString, stateData.toString)
+    case Event(GetState, _) =>
+      sender ! StatusData(
+        invocationNamespace,
+        action.asString,
+        queue.toList.map(_.msg.activationId),
+        stateName.toString,
+        stateData.toString)
       stay
 
     // Common case for all cases
@@ -574,9 +593,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       logging.info(this, s"[$invocationNamespace:$action:$stateName] Gracefully shutdown the memory queue.")
       // delete relative data, e.g leaderKey, namespaceThrottlingKey, actionThrottlingKey
       cleanUpData()
-
-      // let queue manager knows this queue is going to stop and let it forward incoming activations to a new queue
-      context.parent ! queueRemovedMsg
 
       goto(Removing) using getRemovingData(data, outdated = false)
 
@@ -662,7 +678,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private def cleanUpDataAndGotoRemoved() = {
     cleanUpWatcher()
     cleanUpData()
-    context.parent ! queueRemovedMsg
 
     goto(Removed) using NoData()
   }
@@ -670,8 +685,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private def cleanUpActorsAndGotoRemoved(data: FlushingData) = {
     cleanUpActors(data)
     cleanUpData()
-
-    context.parent ! queueRemovedMsg
 
     goto(Removed) using NoData()
   }
@@ -688,7 +701,6 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         // let the container manager know this version of containers are outdated.
         containerManager ! ContainerDeletion(invocationNamespace, action, revision, actionMetaData)
       }
-      self ! QueueRemovedCompleted
 
       goto(Removed) using NoData()
     } else {
@@ -1017,7 +1029,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       queue = newQueue
       logging.info(
         this,
-        s"[$invocationNamespace:$action:$stateName] Get activation request ${request.containerId}, send one message: ${msg.activationId}")
+        s"[$invocationNamespace:$action:$stateName] Get activation request ${request.containerId}, send one message: ${msg.activationId}")(
+        msg.transid)
       val totalTimeInScheduler = Interval(msg.transid.meta.start, Instant.now()).duration
       MetricEmitter.emitHistogramMetric(
         LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString),
@@ -1051,7 +1064,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
           case Right(msg) =>
             logging.info(
               this,
-              s"[$invocationNamespace:$action:$stateName] Send msg ${msg.activationId} to waiting request ${request.containerId}")
+              s"[$invocationNamespace:$action:$stateName] Send msg ${msg.activationId} to waiting request ${request.containerId}")(
+              msg.transid)
             cancelPoll.cancel()
           case Left(_) => // do nothing
         }

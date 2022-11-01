@@ -72,6 +72,8 @@ class ActivationServiceImpl()(implicit actorSystem: ActorSystem, logging: Loggin
         QueuePool.get(MemoryQueueKey(request.invocationNamespace, key)) match {
           case Some(queueValue) =>
             implicit val transid = TransactionId.serdes.read(request.transactionId.parseJson)
+            if (!request.alive) logging.info(this, s"the container(${request.containerId}) is not alive")
+
             (queueValue.queue ? GetActivation(
               transid,
               fqn,

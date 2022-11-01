@@ -44,9 +44,9 @@ import org.apache.openwhisk.core.containerpool.{
 }
 import org.apache.openwhisk.core.database.{ArtifactStore, StaleParameter, UserContext}
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
+import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.types.AuthStore
-import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys
 import org.apache.openwhisk.core.etcd.EtcdType._
@@ -1607,7 +1607,7 @@ class FunctionPullingContainerProxyTests
       UnregisterData(ContainerKeys
         .existingContainers(invocationNamespace.asString, fqn, action.rev, Some(instanceId), Some(containerId))))
 
-    client.expectMsg(CloseClientProxy)
+    client.expectMsg(GracefulShutdown)
     client.send(machine, ClientClosed)
 
     probe.expectMsgAllOf(ContainerRemoved(false), Transition(machine, Running, Removing))

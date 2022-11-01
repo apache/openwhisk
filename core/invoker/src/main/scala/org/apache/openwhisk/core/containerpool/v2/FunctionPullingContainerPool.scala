@@ -18,6 +18,7 @@
 package org.apache.openwhisk.core.containerpool.v2
 
 import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector.ContainerCreationError._
@@ -64,6 +65,10 @@ case class TotalContainerPoolState(totalContainers: Int,
                                    busyPool: WarmContainerPoolState,
                                    pausedPool: WarmContainerPoolState) {
   def serialize(): String = TotalContainerPoolState.totalPoolSerdes.write(this).compactPrint
+}
+
+case class NotSupportedPoolState() {
+  def serialize(): String = "not supported"
 }
 
 case class CreationContainer(creationMessage: ContainerCreationMessage, action: WhiskAction)
@@ -433,7 +438,7 @@ class FunctionPullingContainerPool(
     case GetState =>
       val totalContainers = busyPool.size + inProgressPool.size + warmedPool.size + prewarmedPool.size
       val prewarmedState =
-        PrewarmedContainerPoolState(prewarmedPool.size, prewarmedPool.groupBy(_._2.kind).mapValues(_.size))
+        PrewarmedContainerPoolState(prewarmedPool.size, prewarmedPool.groupBy(_._2.kind).mapValues(_.size).toMap)
       val busyState = WarmContainerPoolState(busyPool.size, busyPool.values.map(_.basicContainerInfo).toList)
       val pausedState = WarmContainerPoolState(warmedPool.size, warmedPool.values.map(_.basicContainerInfo).toList)
       sender() ! TotalContainerPoolState(totalContainers, inProgressPool.size, prewarmedState, busyState, pausedState)

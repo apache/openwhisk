@@ -155,6 +155,8 @@
       "CONFIG_whisk_info_date": "{{ whisk.version.date }}"
       "CONFIG_whisk_info_buildNo": "{{ docker.image.tag }}"
       "CONFIG_whisk_cluster_name": "{{ whisk.cluster_name | lower }}"
+      "CONFIG_whisk_controller_username": "{{ controller.username }}"
+      "CONFIG_whisk_controller_password": "{{ controller.password }}"
 
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor":
@@ -363,6 +365,53 @@
   include_tasks: "lean.yml"
   when: lean
 
+# Before redeploy controller, should remove that controller instance from nginx
+- name: remove the controller from nginx's upstream configuration
+  shell:
+    docker exec -t nginx sh -c "sed -i  \"s/ server {{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/ \#server {{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/g\"  /etc/nginx/nginx.conf  && nginx -s reload"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['edge'] }}"
+  when: zeroDowntimeDeployment.enabled == true
+
+- name: wait some time for controllers fire all existing triggers
+  shell: sleep 5s
+  when: zeroDowntimeDeployment.enabled == true
+
+- name: wait until {{ controller_name }} executes all existing activations
+  uri:
+    url: "{{ controller.protocol }}://{{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/activation/count"
+    validate_certs: no
+    client_key: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/{{ controller.ssl.key }}"
+    client_cert: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/{{ controller.ssl.cert }}"
+    return_content: yes
+    user: "{{ controller.username }}"
+    password: "{{ controller.password }}"
+    force_basic_auth: yes
+  register: result
+  until: result.content == '0'
+  retries: "{{ controller.deployment.retries }}"
+  delay: "{{ controller.deployment.delay }}"
+  when: zeroDowntimeDeployment.enabled == true
+  ignore_errors: "{{ controller.deployment.ignore_error }}"
+
+- name: Disable {{ controller_name }} before remove controller
+  uri:
+    url: "{{ controller.protocol }}://{{ ansible_host }}:{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}/disable"
+    validate_certs: no
+    client_key: "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.key }}"
+    client_cert: "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.cert }}"
+    method: POST
+    status_code: 200
+    user: "{{ controller.username }}"
+    password: "{{ controller.password }}"
+    force_basic_auth: yes
+  ignore_errors: "{{ controller.deployment.ignore_error }}"
+  when: zeroDowntimeDeployment.enabled == true
+
+- name: wait some time for controller to gracefully shutdown the consumer for activation ack
+  shell: sleep 5s
+  when: zeroDowntimeDeployment.enabled == true
+
 - name: (re)start controller
   docker_container:
     name: "{{ controller_name }}"
@@ -397,3 +446,37 @@
   until: result.status == 200
   retries: 12
   delay: 10
+
+- name: warm up activation path
+  uri:
+    url:
+      "{{controller.protocol}}://{{ lookup('file', '{{ catalog_auth_key }}')}}@{{ansible_host}}:{{controller_port}}/api/v1/namespaces/_/actions/invokerHealthTestAction{{controller_index}}?blocking=false&result=false"
+    validate_certs: "no"
+    client_key:
+      "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.key }}"
+    client_cert:
+      "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.cert }}"
+    method: POST
+  ignore_errors: True
+
+- name: wait for all invokers in {{ controller_name }} to become up
+  uri:
+    url: "{{ controller.protocol }}://{{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/invokers"
+    validate_certs: no
+    client_key: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/{{ controller.ssl.key }}"
+    client_cert: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/{{ controller.ssl.cert }}"
+    return_content: yes
+  register: invokerStatus
+  until: invokerStatus.json|length >= 1 and "unhealthy" not in invokerStatus.content
+  retries: 14
+  delay: 5
+  when: zeroDowntimeDeployment.enabled == true
+
+# When all invokers report their status to controller, add the controller instance to nginx when exist at least one invoker is up
+- name: Add the controller back to nginx's upstream configuration when there exist at least one healthy invoker
+  shell:
+    docker exec -t nginx sh -c "sed -i  \"s/ \#server {{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/ server {{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/g\"  /etc/nginx/nginx.conf  && nginx -s reload"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['edge'] }}"
+  ignore_errors: True
+  when: zeroDowntimeDeployment.enabled == true and "up" in invokerStatus.content

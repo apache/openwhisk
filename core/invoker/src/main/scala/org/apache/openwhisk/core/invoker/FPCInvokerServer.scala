@@ -29,6 +29,8 @@ import org.apache.openwhisk.http.CorsSettings.RespondWithServerCorsHeaders
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import pureconfig.loadConfigOrThrow
 import spray.json.PrettyPrinter
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.concurrent.ExecutionContext
 
@@ -45,20 +47,38 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
   implicit val jsonPrettyResponsePrinter = PrettyPrinter
 
   override def routes(implicit transid: TransactionId): Route = {
-      sendCorsHeaders {
-        super.routes ~ options {
-          complete(OK)
-        } ~ extractCredentials {
-          case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
-            (path("enable") & post) {
-              invoker.enable()
-            } ~ (path("disable") & post) {
-              invoker.disable()
-            } ~ (path("isEnabled") & get) {
-              invoker.isEnabled()
-            } ~ (path("pool") & get) {
-              invoker.getPoolState()
+    sendCorsHeaders {
+      super.routes ~ options {
+        complete(OK)
+      } ~ extractCredentials {
+        case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
+          (path("enable") & post) {
+            complete(invoker.enable())
+          } ~ (path("disable") & post) {
+            complete(invoker.disable())
+          } ~ (path("isEnabled") & get) {
+            complete(invoker.isEnabled())
+          } ~ (pathPrefix("pool") & get) {
+            pathEndOrSingleSlash {
+              complete {
+                invoker.getPoolState().map {
+                  case Right(poolState) =>
+                    poolState.serialize()
+                  case Left(value) =>
+                    value.serialize()
+                }
+              }
+            } ~ (path("count") & get) {
+              complete {
+                invoker.getPoolState().map {
+                  case Right(poolState) =>
+                    (poolState.busyPool.total + poolState.pausedPool.total + poolState.inProgressCount).toJson.compactPrint
+                  case Left(value) =>
+                    value.serialize()
+                }
+              }
             }
+          }
         case _ => terminate(StatusCodes.Unauthorized)
       }
     }

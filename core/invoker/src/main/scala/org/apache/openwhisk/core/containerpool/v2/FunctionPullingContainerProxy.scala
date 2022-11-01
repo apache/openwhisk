@@ -638,8 +638,8 @@ class FunctionPullingContainerProxy(
           Some(instance),
           Some(data.container.containerId)))
 
-      // Just send CloseClientProxy to ActivationClientProxy, make ActivationClientProxy throw ClientClosedException when fetchActivation next time.
-      data.clientProxy ! CloseClientProxy
+      // Just send GracefulShutdown to ActivationClientProxy, make ActivationClientProxy throw ClientClosedException when fetchActivation next time.
+      data.clientProxy ! GracefulShutdown
       stay
 
     case x: Event if x.event != PingCache => delay
@@ -783,7 +783,6 @@ class FunctionPullingContainerProxy(
 
     case Event(Remove | GracefulShutdown, _) =>
       stay()
-
 
     case Event(DetermineKeepContainer(_), _) =>
       stay()

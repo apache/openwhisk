@@ -20,8 +20,6 @@ package org.apache.openwhisk.core.invoker
 import akka.Done
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.grpc.GrpcClientSettings
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 import com.ibm.etcd.api.Event.EventType
@@ -32,8 +30,8 @@ import org.apache.openwhisk.core.ack.{ActiveAck, HealthActionAck, MessagingActiv
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
-import org.apache.openwhisk.core.containerpool.v2._
-import org.apache.openwhisk.core.database.{UserContext, _}
+import org.apache.openwhisk.core.containerpool.v2.{GetState => GetPoolState, _}
+import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.QueueKeys.queue
@@ -375,33 +373,33 @@ class FPCInvokerReactive(config: WhiskConfig,
       maxPeek,
       sendAckToScheduler))
 
-  override def enable(): Route = {
+  override def enable(): String = {
     invokerHealthManager ! Enable
     pool ! Enable
     warmUp()
-    complete("Success enable invoker")
+    s"${instance.toString} is now enabled."
   }
 
-  override def disable(): Route = {
+  override def disable(): String = {
     invokerHealthManager ! GracefulShutdown
     pool ! GracefulShutdown
     warmUpWatcher.foreach(_.close())
     warmUpWatcher = None
-    complete("Successfully disabled invoker")
+    s"${instance.toString} is now disabled."
   }
 
-  override def isEnabled(): Route = {
-    complete(InvokerEnabled(warmUpWatcher.nonEmpty).serialize())
-  }
-
-  override def getPoolState(): Route = {
+  override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {
     implicit val timeout: Timeout = 5.seconds
-    complete((pool ? GetState).mapTo[TotalContainerPoolState].map(_.serialize()))
+    (pool ? GetPoolState).mapTo[TotalContainerPoolState].map(Right(_))
   }
 
-  override def backfillPrewarm(): Route = {
+  override def isEnabled(): String = {
+    InvokerEnabled(warmUpWatcher.nonEmpty).serialize()
+  }
+
+  override def backfillPrewarm(): String = {
     pool ! AdjustPrewarmedContainer
-    complete("backfilling prewarm container")
+    "backfilling prewarm container"
   }
 
   private val warmUpFetchRequest = FetchRequest(
