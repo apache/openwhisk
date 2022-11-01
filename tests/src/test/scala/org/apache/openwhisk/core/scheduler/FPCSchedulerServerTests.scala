@@ -25,7 +25,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.connector.StatusData
-import org.apache.openwhisk.core.entity.SchedulerInstanceId
+import org.apache.openwhisk.core.entity.{ActivationId, SchedulerInstanceId}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.junit.JUnitRunner
@@ -56,9 +56,10 @@ class FPCSchedulerServerTests
   val queues = List((SchedulerInstanceId("0"), 2), (SchedulerInstanceId("1"), 3))
   val creationCount = 1
   val testQueueSize = 2
+  val activationIds = (1 to 10).map(_ => ActivationId.generate()).toList
   val statusDatas = List(
-    StatusData("testns1", "testaction1", 10, "Running", "RunningData"),
-    StatusData("testns2", "testaction2", 5, "Running", "RunningData"))
+    StatusData("testns1", "testaction1", activationIds, "Running", "RunningData"),
+    StatusData("testns2", "testaction2", activationIds.take(5), "Running", "RunningData"))
 
   // Create scheduler
   val scheduler = new TestScheduler(queues, creationCount, testQueueSize, statusDatas)
@@ -85,8 +86,8 @@ class FPCSchedulerServerTests
     val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
     Get(s"/state") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
       status should be(OK)
-      responseAs[JsObject] shouldBe (queues.map(s => s._1.asString -> s._2.toString).toMap ++ Map(
-        "creationCount" -> creationCount.toString)).toJson
+      responseAs[JsObject] shouldBe (Map("creationCount" -> creationCount.toString) ++ Map(
+        "queue" -> queues.map(_._2).sum.toString)).toJson
     }
   }
 
@@ -94,7 +95,7 @@ class FPCSchedulerServerTests
   it should "get total queue" in {
     implicit val tid = transid()
     val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
-    Get(s"/queue/total") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
+    Get(s"/queues/count") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
       status should be(OK)
       responseAs[String] shouldBe testQueueSize.toString
     }
@@ -104,7 +105,7 @@ class FPCSchedulerServerTests
   it should "get all queue status" in {
     implicit val tid = transid()
     val validCredentials = BasicHttpCredentials(systemUsername, systemPassword)
-    Get(s"/queue/status") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
+    Get(s"/queues") ~> addCredentials(validCredentials) ~> Route.seal(server.routes(tid)) ~> check {
       status should be(OK)
       responseAs[List[JsObject]] shouldBe statusDatas.map(_.toJson)
     }

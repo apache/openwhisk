@@ -22,6 +22,37 @@
     invoker_name: "{{ name_prefix ~ ((invoker_index_base | int) + host_group.index(inventory_hostname)) }}"
     invoker_index: "{{ (invoker_index_base | int) + host_group.index(inventory_hostname) }}"
 
+- name: disable invoker{{ groups['invokers'].index(inventory_hostname) }}
+  uri:
+    url: "{{ invoker.protocol }}://{{ ansible_host }}:{{ invoker.port + groups['invokers'].index(inventory_hostname) }}/disable"
+    validate_certs: no
+    client_key: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/{{ invoker.ssl.key }}"
+    client_cert: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/{{ invoker.ssl.cert }}"
+    method: POST
+    status_code: 200
+    user: "{{ invoker.username }}"
+    password: "{{ invoker.password }}"
+    force_basic_auth: yes
+  ignore_errors: "{{ invoker.deployment.ignore_error }}"
+  when: zeroDowntimeDeployment.enabled == true and enable_scheduler
+
+- name: wait invoker{{ groups['invokers'].index(inventory_hostname) }} to clean up all existing containers
+  uri:
+    url: "{{ invoker.protocol }}://{{ ansible_host }}:{{ invoker.port + groups['invokers'].index(inventory_hostname) }}/pool/count"
+    validate_certs: no
+    client_key: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/{{ invoker.ssl.key }}"
+    client_cert: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/{{ invoker.ssl.cert }}"
+    user: "{{ invoker.username }}"
+    password: "{{ invoker.password }}"
+    force_basic_auth: yes
+    return_content: yes
+  register: result
+  until: result.content == '0'
+  retries: "{{ invoker.deployment.retries }}"
+  delay: "{{ invoker.deployment.delay }}"
+  when: zeroDowntimeDeployment.enabled == true and enable_scheduler
+  ignore_errors: "{{ invoker.deployment.ignore_error }}"
+
 - name: remove invoker
   docker_container:
     name: "{{ invoker_name }}"
@@ -59,12 +90,14 @@
     path: "{{ whisk_logs_dir }}/{{ invoker_name }}"
     state: absent
   become: "{{ logs.dir.become }}"
+  when: mode == "clean"
 
 - name: remove invoker conf directory
   file:
     path: "{{ invoker.confdir }}/{{ invoker_name }}"
     state: absent
   become: "{{ invoker.dir.become }}"
+  when: mode == "clean"
 
 # Workaround for orphaned ifstate.veth* files on Ubuntu 14.04
 # See https://github.com/moby/moby/issues/22513

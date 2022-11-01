@@ -17,6 +17,12 @@
 ---
 # This role installs invokers.
 
+###
+# When the zero-downtime-deployment is enabled, clean.yml is used to gracefully shut down the invoker.
+#
+- import_tasks: clean.yml
+  when: zeroDowntimeDeployment.enabled == true and enable_scheduler
+
 - import_tasks: docker_login.yml
 
 - name: get invoker name and index

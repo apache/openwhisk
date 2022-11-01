@@ -24,6 +24,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
+import org.apache.openwhisk.core.containerpool.v2.{NotSupportedPoolState, TotalContainerPoolState}
 import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
 import org.apache.openwhisk.core.invoker.{FPCInvokerServer, InvokerCore}
 import org.apache.openwhisk.http.BasicHttpService
@@ -31,6 +32,8 @@ import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
+
+import scala.concurrent.Future
 
 /**
  * Tests InvokerServerV2 API.
@@ -134,22 +137,27 @@ class TestFPCInvokerReactive extends InvokerCore with BasicHttpService {
   var enableCount = 0
   var disableCount = 0
 
-  override def enable(): Route = {
+  override def enable(): String = {
     enableCount += 1
-    complete("")
+    ""
   }
 
-  override def disable(): Route = {
+  override def disable(): String = {
     disableCount += 1
-    complete("")
+    ""
   }
 
-  override def isEnabled(): Route = {
+  override def isEnabled(): String = {
     complete(InvokerEnabled(true).serialize())
+    ""
   }
 
-  override def backfillPrewarm(): Route = {
-    complete("")
+  override def backfillPrewarm(): String = {
+    ""
+  }
+
+  override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {
+    Future.successful(Left(NotSupportedPoolState()))
   }
 
   def reset(): Unit = {
