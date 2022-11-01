@@ -339,7 +339,11 @@ class FunctionPullingContainerProxy(
 
     // wait for container creation when cold start
     case Event(ClientCreationCompleted(proxy), _: NonexistentData) =>
-      self ! ClientCreationCompleted(proxy.orElse(Some(sender())))
+      akka.pattern.after(3.milliseconds, actorSystem.scheduler) {
+        self ! ClientCreationCompleted(proxy.orElse(Some(sender())))
+        Future.successful({})
+      }
+
       stay()
 
     // client was successfully obtained

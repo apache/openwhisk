@@ -124,7 +124,9 @@ class ActivationClientProxy(
       stay()
 
     case Event(e: RescheduleActivation, client: Client) =>
-      logging.info(this, s"[${containerId.asString}] got a reschedule message ${e.msg.activationId} for action: ${e.msg.action}")
+      logging.info(
+        this,
+        s"[${containerId.asString}] got a reschedule message ${e.msg.activationId} for action: ${e.msg.action}")
       client.activationClient
         .rescheduleActivation(
           RescheduleRequest(e.invocationNamespace, e.fqn.serialize, e.rev.serialize, e.msg.serialize))
@@ -247,7 +249,9 @@ class ActivationClientProxy(
       stay()
 
     case Event(f: FailureMessage, c: Client) =>
-      logging.error(this, s"[${containerId.asString}] some error happened for action: ${action} in state: $stateName, caused by: $f")
+      logging.error(
+        this,
+        s"[${containerId.asString}] some error happened for action: ${action} in state: $stateName, caused by: $f")
       safelyCloseClient(c)
       stay()
 
@@ -281,7 +285,9 @@ class ActivationClientProxy(
       goto(ClientProxyRemoving)
 
     case Event(ClientClosed, _) =>
-      logging.info(this, s"[${containerId.asString}] the underlying client is closed, stopping the activation client proxy")
+      logging.info(
+        this,
+        s"[${containerId.asString}] the underlying client is closed, stopping the activation client proxy")
       context.parent ! ClientClosed
 
       stop()
