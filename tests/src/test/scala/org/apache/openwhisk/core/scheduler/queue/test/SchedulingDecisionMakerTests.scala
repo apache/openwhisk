@@ -262,7 +262,7 @@ class SchedulingDecisionMakerTests
       initialized = true,
       incomingMsgCount = new AtomicInteger(0),
       currentMsgCount = 0,
-      existingContainerCount = 1, // there is no container for this action
+      existingContainerCount = 1, // there is one container for this action
       inProgressContainerCount = 0,
       staleActivationNum = 0,
       existingContainerCountInNamespace = 1, // but there are already 2 containers in this namespace
@@ -278,7 +278,7 @@ class SchedulingDecisionMakerTests
     testProbe.expectMsg(DecisionResults(DisableNamespaceThrottling, 0))
   }
 
-  it should "enable namespace throttling with dropping msg when there is a container, and namespace over-provision has no additional capacity" in {
+  it should "enable namespace throttling without dropping msg when there is a container, and namespace over-provision has no additional capacity" in {
     val schedulingConfigNamespaceOverProvisioning =
       SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, true, 1.0)
     val decisionMaker =
@@ -301,7 +301,7 @@ class SchedulingDecisionMakerTests
 
     decisionMaker ! msg
 
-    // this queue cannot create an initial container so enable throttling and drop messages.
+    // this queue cannot create an additional container so enable throttling and drop messages.
     testProbe.expectMsg(DecisionResults(EnableNamespaceThrottling(dropMsg = false), 0))
   }
 
