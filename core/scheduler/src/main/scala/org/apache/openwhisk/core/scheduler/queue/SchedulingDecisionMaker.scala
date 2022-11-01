@@ -70,7 +70,17 @@ class SchedulingDecisionMaker(
         case _        => Future.successful(DecisionResults(Pausing, 0))
       }
     } else {
-      val capacity = limit - existingContainerCountInNs - inProgressContainerCountInNs
+      val capacity = if (schedulingConfig.allowOverProvisionBeforeThrottle && totalContainers == 0) {
+        // if space available within the over provision ratio amount above namespace limit, create one container for new
+        // action so namespace traffic can attempt to re-balance without blocking entire action
+        if ((ceiling(limit * schedulingConfig.namespaceOverProvisionBeforeThrottleRatio) - existingContainerCountInNs - inProgressContainerCountInNs) > 0) {
+          1
+        } else {
+          0
+        }
+      } else {
+        limit - existingContainerCountInNs - inProgressContainerCountInNs
+      }
       if (capacity <= 0) {
         stateName match {
 
@@ -79,12 +89,15 @@ class SchedulingDecisionMaker(
            *
            * However, if the container exists(totalContainers != 0), the activation is not treated as a failure and the activation is delivered to the container.
            */
-          case Running =>
+          case Running
+              if !schedulingConfig.allowOverProvisionBeforeThrottle || (schedulingConfig.allowOverProvisionBeforeThrottle && ceiling(
+                limit * schedulingConfig.namespaceOverProvisionBeforeThrottleRatio) - existingContainerCountInNs - inProgressContainerCountInNs <= 0) =>
             logging.info(
               this,
               s"there is no capacity activations will be dropped or throttled, (availableMsg: $availableMsg totalContainers: $totalContainers, limit: $limit, namespaceContainers: ${existingContainerCountInNs}, namespaceInProgressContainer: ${inProgressContainerCountInNs}) [$invocationNamespace:$action]")
             Future.successful(DecisionResults(EnableNamespaceThrottling(dropMsg = totalContainers == 0), 0))
-
+          case NamespaceThrottled if schedulingConfig.allowOverProvisionBeforeThrottle && ceiling(limit * schedulingConfig.namespaceOverProvisionBeforeThrottleRatio) - existingContainerCountInNs - inProgressContainerCountInNs > 0 =>
+            Future.successful(DecisionResults(DisableNamespaceThrottling, 0))
           // do nothing
           case _ =>
             // no need to print any messages if the state is already NamespaceThrottled
