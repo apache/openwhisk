@@ -112,6 +112,8 @@ controller:
   authentication:
     spi: "{{ controller_authentication_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  username: "{{ controller_username | default('controller.user') }}"
+  password: "{{ controller_password | default('controller.pass') }}"
   entitlement:
     spi: "{{ controller_entitlement_spi | default('') }}"
   protocol: "{{ controller_protocol | default('https') }}"
@@ -126,6 +128,10 @@ controller:
       password: "openwhisk"
       name: "{{ __controller_ssl_keyPrefix }}openwhisk-keystore.p12"
   extraEnv: "{{ controller_extraEnv | default({}) }}"
+  deployment:
+    ignore_error: "{{ controller_deployment_ignore_error | default('False') }}"
+    retries: "{{ controller_deployment_retries | default(180) }}"
+    delay: "{{ controller_deployment_delay | default(5) }}"
 
 jmx:
   basePortController: 15000
@@ -234,6 +240,10 @@ invoker:
     creationMaxPeek: "{{ container_creation_max_peek | default(500) }}"
   reactiveSpi: "{{ invokerReactive_spi | default('') }}"
   serverSpi: "{{ invokerServer_spi | default('') }}"
+  deployment:
+    ignore_error: "{{ invoker_deployment_ignore_error | default('False') }}"
+    retries: "{{ invoker_deployment_retries | default(180) }}"
+    delay: "{{ invoker_deployment_delay | default(5) }}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
@@ -450,8 +460,7 @@ metrics:
 user_events: "{{ user_events_enabled | default(false) | lower }}"
 
 zeroDowntimeDeployment:
-  enabled: "{{ zerodowntime_deployment_switch | default(true) }}"
-  solution: "{{ zerodowntime_deployment_solution | default('apicall') }}"
+  enabled: "{{ zerodowntime_deployment_switch | default(false) }}"
 
 etcd:
   version: "{{ etcd_version | default('v3.4.0') }}"

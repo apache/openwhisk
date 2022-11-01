@@ -22,7 +22,8 @@ import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
+import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
@@ -36,6 +37,7 @@ import org.apache.openwhisk.core.entity.ActivationId.ActivationIdGenerator
 import org.apache.openwhisk.core.entity.ExecManifest.Runtimes
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.loadBalancer.LoadBalancerProvider
+import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
@@ -96,7 +98,7 @@ class Controller(val instance: ControllerInstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth ~ activationStatus ~ disable
   }
 
   // initialize datastores
@@ -167,6 +169,22 @@ class Controller(val instance: ControllerInstanceId,
     }
   }
 
+  /**
+   * Handles GET /activation URI.
+   *
+   * @return running activation
+   */
+  protected[controller] val activationStatus = {
+    implicit val executionContext = actorSystem.dispatcher
+    (pathPrefix("activation") & get) {
+      pathEndOrSingleSlash {
+        complete(loadBalancer.activeActivationsByController.map(_.toJson))
+      } ~ path("count") {
+        complete(loadBalancer.activeActivationsByController(controllerInstance.asString).map(_.toJson))
+      }
+    }
+  }
+
   // controller top level info
   private val info = Controller.info(
     whiskConfig,
@@ -175,6 +193,30 @@ class Controller(val instance: ControllerInstanceId,
     LogLimit.config,
     runtimes,
     List(apiV1.basepath()))
+
+  private val controllerUsername = loadConfigOrThrow[String](ConfigKeys.whiskControllerUsername)
+  private val controllerPassword = loadConfigOrThrow[String](ConfigKeys.whiskControllerPassword)
+
+  /**
+   * disable controller
+   */
+  private def disable(implicit transid: TransactionId) = {
+    implicit val executionContext = actorSystem.dispatcher
+    implicit val jsonPrettyResponsePrinter = PrettyPrinter
+    (path("disable") & post) {
+      extractCredentials {
+        case Some(BasicHttpCredentials(username, password)) =>
+          if (username == controllerUsername && password == controllerPassword) {
+            loadBalancer.close
+            logging.warn(this, "controller is disabled")
+            complete("controller is disabled")
+          } else {
+            terminate(StatusCodes.Unauthorized, "username or password are wrong.")
+          }
+        case _ => terminate(StatusCodes.Unauthorized)
+      }
+    }
+  }
 }
 
 /**

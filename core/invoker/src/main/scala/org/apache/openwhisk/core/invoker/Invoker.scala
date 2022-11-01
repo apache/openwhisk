@@ -19,13 +19,13 @@ package org.apache.openwhisk.core.invoker
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.http.scaladsl.server.Route
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector.{MessageProducer, MessagingProvider}
+import org.apache.openwhisk.core.containerpool.v2.{NotSupportedPoolState, TotalContainerPoolState}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerPoolConfig}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -246,10 +246,11 @@ trait InvokerProvider extends Spi {
 
 // this trait can be used to add common implementation
 trait InvokerCore {
-  def enable(): Route
-  def disable(): Route
-  def isEnabled(): Route
-  def backfillPrewarm(): Route
+  def enable(): String
+  def disable(): String
+  def isEnabled(): String
+  def backfillPrewarm(): String
+  def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]]
 }
 
 /**

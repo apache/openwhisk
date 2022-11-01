@@ -27,6 +27,8 @@ import org.apache.openwhisk.http.BasicRasService
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import pureconfig.loadConfigOrThrow
 import spray.json.PrettyPrinter
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.concurrent.ExecutionContext
 
@@ -46,11 +48,31 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
     super.routes ~ extractCredentials {
       case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
         (path("enable") & post) {
-          invoker.enable()
+          complete(invoker.enable())
         } ~ (path("disable") & post) {
-          invoker.disable()
+          complete(invoker.disable())
         } ~ (path("isEnabled") & get) {
-          invoker.isEnabled()
+          complete(invoker.isEnabled())
+        } ~ (pathPrefix("pool") & get) {
+          pathEndOrSingleSlash {
+            complete {
+              invoker.getPoolState().map {
+                case Right(poolState) =>
+                  poolState.serialize()
+                case Left(value) =>
+                  value.serialize()
+              }
+            }
+          } ~ (path("count") & get) {
+            complete {
+              invoker.getPoolState().map {
+                case Right(poolState) =>
+                  (poolState.busyPool.total + poolState.pausedPool.total + poolState.inProgressCount).toJson.compactPrint
+                case Left(value) =>
+                  value.serialize()
+              }
+            }
+          }
         }
       case _ => terminate(StatusCodes.Unauthorized)
     }

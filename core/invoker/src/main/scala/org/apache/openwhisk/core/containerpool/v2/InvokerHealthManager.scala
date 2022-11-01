@@ -262,7 +262,7 @@ case class HealthActivationServiceClient() extends Actor {
         case _ => // do nothing
       }
 
-    case CloseClientProxy =>
+    case GracefulShutdown =>
       closed = true
 
   }

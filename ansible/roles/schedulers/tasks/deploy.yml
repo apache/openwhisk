@@ -280,11 +280,6 @@
   include_tasks: "{{ item }}.yml"
   with_items: "{{ scheduler_plugins | default([]) }}"
 
-- name: Judge current scheduler whether deployed
-  shell: echo $(docker ps | grep {{ scheduler_name }} | wc -l)
-  register: schedulerDeployed
-  when: zeroDowntimeDeployment.enabled == true
-
 - name: disable scheduler{{ groups['schedulers'].index(inventory_hostname) }} before redeploy scheduler
   uri:
     url: "{{ scheduler.protocol }}://{{ ansible_host }}:{{ scheduler_port }}/disable"
@@ -295,26 +290,22 @@
     password: "{{ scheduler.password }}"
     force_basic_auth: yes
   ignore_errors: "{{ scheduler.deployment_ignore_error }}"
-  when: zeroDowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0"
+  when: zeroDowntimeDeployment.enabled == true
 
-- name: wait until all queue and create queue task is finished before redeploy scheduler when using apicall solution or half solution
+- name: wait until all activation is finished before redeploy scheduler
   uri:
-    url: "{{ scheduler.protocol }}://{{ ansible_host }}:{{ scheduler_port }}/queue/total"
+    url: "{{ scheduler.protocol }}://{{ ansible_host }}:{{ scheduler_port }}/activation/count"
     validate_certs: no
     return_content: yes
     user: "{{ scheduler.username }}"
     password: "{{ scheduler.password }}"
     force_basic_auth: yes
-  register: totalQueue
-  until: totalQueue.content == "0"
+  register: result
+  until: result.content == "0"
   retries: 180
   delay: 5
-  when: zeroDowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0"
+  when: zeroDowntimeDeployment.enabled == true
   ignore_errors: "{{ scheduler.deployment_ignore_error }}"
-
-- name: wait until all queue and create queue task is finished before redeploy scheduler using sleep solution
-  shell: sleep 120s
-  when: zeroDowntimeDeployment.enabled == true and schedulerDeployed.stdout != "0" and zeroDowntimeDeployment.solution == 'sleep'
 
 - name: (re)start scheduler
   docker_container:

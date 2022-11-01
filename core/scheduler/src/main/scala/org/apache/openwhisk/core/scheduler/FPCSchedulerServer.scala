@@ -49,23 +49,29 @@ class FPCSchedulerServer(scheduler: SchedulerCore, systemUsername: String, syste
           complete {
             scheduler.getState.map {
               case (list, creationCount) =>
-                (list
-                  .map(scheduler => scheduler._1.asString -> scheduler._2.toString)
-                  .toMap
-                  ++ Map("creationCount" -> creationCount.toString)).toJson.asJsObject
+                val sum = list.map(tuple => tuple._2).sum
+                (Map("queue" -> sum.toString) ++ Map("creationCount" -> creationCount.toString)).toJson
             }
           }
         } ~ (path("disable") & post) {
           logger.warn(this, "Scheduler is disabled")
           scheduler.disable()
           complete("scheduler disabled")
-        } ~ (path(FPCSchedulerServer.queuePathPrefix / "total") & get) {
-          complete {
-            scheduler.getQueueSize.map(_.toString)
+        } ~ (pathPrefix(FPCSchedulerServer.queuePathPrefix) & get) {
+          pathEndOrSingleSlash {
+            complete(scheduler.getQueueStatusData.map(s => s.toJson))
+          } ~ (path("count") & get) {
+            complete(scheduler.getQueueSize.map(s => s.toJson))
           }
-        } ~ (path(FPCSchedulerServer.queuePathPrefix / "status") & get) {
-          complete {
-            scheduler.getQueueStatusData.map(s => s.toJson)
+        } ~ (path("activation" / "count") & get) {
+          pathEndOrSingleSlash {
+            complete(
+              scheduler.getQueueStatusData
+                .map { s =>
+                  s.map(_.waitingActivation.size)
+                }
+                .map(a => a.sum)
+                .map(_.toJson))
           }
         }
       case _ =>
@@ -79,7 +85,7 @@ object FPCSchedulerServer {
 
   private val schedulerUsername = loadConfigOrThrow[String](ConfigKeys.whiskSchedulerUsername)
   private val schedulerPassword = loadConfigOrThrow[String](ConfigKeys.whiskSchedulerPassword)
-  private val queuePathPrefix = "queue"
+  private val queuePathPrefix = "queues"
 
   def instance(scheduler: SchedulerCore)(implicit ec: ExecutionContext,
                                          actorSystem: ActorSystem,
