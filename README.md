@@ -111,3 +111,9 @@ You can also join the OpenWhisk Team on Slack [https://openwhisk-team.slack.com]
 The OpenWhisk system is built from a [number of components](docs/dev/modules.md).  The picture below groups the components by their GitHub repos. Please open issues for a component against the appropriate repo (if in doubt just open against the main openwhisk repo).
 
 ![component/repo mapping](docs/images/components_to_repos.png)
+
+### What happens on an invocation?
+
+This diagram depicts the steps which take place within Openwhisk when an action is invoked by the user:
+
+![component/repo mapping](docs/images/Openwhisk-flow-diagram.png)
