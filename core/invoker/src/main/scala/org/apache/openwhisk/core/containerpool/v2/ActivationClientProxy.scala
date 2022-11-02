@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.containerpool.v2
 
 import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorRef, ActorSystem, FSM, Props, Stash}
+import akka.actor.{ActorSystem, FSM, Props, Stash}
 import akka.grpc.internal.ClientClosedException
 import akka.pattern.pipe
 import io.grpc.StatusRuntimeException
@@ -36,7 +36,7 @@ import scala.concurrent.Future
 import scala.util.{Success, Try}
 
 // Event send by the actor
-case class ClientCreationCompleted(client: Option[ActorRef] = None)
+case object ClientCreationCompleted
 case object ClientClosed
 
 // Event received by the actor
@@ -91,12 +91,14 @@ class ActivationClientProxy(
       stay using r
 
     case Event(client: ActivationClient, _) =>
-      context.parent ! ClientCreationCompleted()
+      context.parent ! ClientCreationCompleted
 
       goto(ClientProxyReady) using Client(client.client, client.rpcHost, client.rpcPort)
 
     case Event(f: FailureMessage, _) =>
       logging.error(this, s"failed to create grpc client for ${action} caused by: $f")
+      context.parent ! f
+
       self ! ClientClosed
 
       goto(ClientProxyRemoving)
@@ -164,9 +166,12 @@ class ActivationClientProxy(
           stay()
 
         case _: ActionMismatch =>
-          logging.error(this, s"[${containerId.asString}] action version does not match: $action")
+          val errorMsg = s"[${containerId.asString}] action version does not match: $action"
+          logging.error(this, errorMsg)
           c.activationClient.close().andThen {
-            case _ => self ! ClientClosed
+            case _ =>
+              context.parent ! FailureMessage(new RuntimeException(errorMsg))
+              self ! ClientClosed
           }
 
           goto(ClientProxyRemoving)
@@ -194,6 +199,7 @@ class ActivationClientProxy(
         // it would print huge log due to create another grpcClient to fetch activation again.
         case t: StatusRuntimeException if t.getMessage.contains(ActivationClientProxy.hostResolveError) =>
           logging.error(this, s"[${containerId.asString}] akka grpc server connection failed: $t")
+          context.parent ! FailureMessage(t)
           self ! ClientClosed
 
           goto(ClientProxyRemoving)
@@ -208,14 +214,18 @@ class ActivationClientProxy(
 
           stay()
 
-        case _: ClientClosedException =>
+        case t: ClientClosedException =>
           logging.error(this, s"[${containerId.asString}] grpc client is already closed for $action")
+          context.parent ! FailureMessage(t)
+
           self ! ClientClosed
 
           goto(ClientProxyRemoving)
 
         case t: Throwable =>
           logging.error(this, s"[${containerId.asString}] get activation from remote server error: $t")
+          context.parent ! FailureMessage(t)
+
           safelyCloseClient(c)
           goto(ClientProxyRemoving)
       }
@@ -372,7 +382,7 @@ class ActivationClientProxy(
           logging.debug(this, s"grpc client is closed for $fqn in the Try closure")
           Future.successful(ClientClosed)
       }
-      .getOrElse(Future.failed(new Exception(s"error to get $fqn activation from grpc server")))
+      .getOrElse(Future.failed(new RuntimeException(s"error to get $fqn activation from grpc server")))
   }
 
   private def createActivationClient(invocationNamespace: String,

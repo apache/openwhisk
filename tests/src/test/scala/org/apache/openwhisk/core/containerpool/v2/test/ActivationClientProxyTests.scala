@@ -103,7 +103,7 @@ class ActivationClientProxyTests
 
     machine ! StartClient
 
-    probe.expectMsg(ClientCreationCompleted())
+    probe.expectMsg(ClientCreationCompleted)
     probe.expectMsg(Transition(machine, ClientProxyUninitialized, ClientProxyReady))
   }
 
@@ -426,7 +426,7 @@ class ActivationClientProxyTests
 
   def ready(machine: ActorRef, probe: TestProbe) = {
     machine ! StartClient
-    probe.expectMsg(ClientCreationCompleted())
+    probe.expectMsg(ClientCreationCompleted)
     probe.expectMsg(Transition(machine, ClientProxyUninitialized, ClientProxyReady))
   }
 
