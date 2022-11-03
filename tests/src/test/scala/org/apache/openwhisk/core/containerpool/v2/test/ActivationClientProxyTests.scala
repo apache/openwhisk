@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.containerpool.v2.test
 
 import akka.Done
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import akka.actor.Status.Failure
 import akka.actor.{ActorRef, ActorSystem}
 import akka.grpc.internal.ClientClosedException
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
@@ -124,6 +125,9 @@ class ActivationClientProxyTests
 
     machine ! StartClient
 
+    probe.expectMsgPF() {
+      case Failure(t) => t.getMessage shouldBe "The number of client creation retries has been exceeded."
+    }
     probe.expectMsg(Transition(machine, ClientProxyUninitialized, ClientProxyRemoving))
     probe.expectMsg(ClientClosed)
 
@@ -208,7 +212,12 @@ class ActivationClientProxyTests
     ready(machine, probe)
 
     machine ! RequestActivation()
+
     probe.expectMsg(Transition(machine, ClientProxyReady, ClientProxyRemoving))
+    probe.expectMsgPF() {
+      case Failure(t) => t.getMessage.contains(s"action version does not match") shouldBe true
+    }
+
     probe.expectMsg(ClientClosed)
 
     probe expectTerminated machine
@@ -319,7 +328,11 @@ class ActivationClientProxyTests
     ready(machine, probe)
 
     machine ! RequestActivation()
+    probe.expectMsgPF() {
+      case Failure(t) => t.isInstanceOf[ClientClosedException] shouldBe true
+    }
     probe.expectMsg(Transition(machine, ClientProxyReady, ClientProxyRemoving))
+
     probe.expectMsg(ClientClosed)
 
     probe expectTerminated machine
@@ -343,6 +356,9 @@ class ActivationClientProxyTests
     ready(machine, probe)
 
     machine ! RequestActivation()
+    probe.expectMsgPF() {
+      case Failure(t) => t.getMessage.contains("Unknown exception") shouldBe true
+    }
     probe.expectMsg(Transition(machine, ClientProxyReady, ClientProxyRemoving))
     probe.expectMsg(ClientClosed)
 
