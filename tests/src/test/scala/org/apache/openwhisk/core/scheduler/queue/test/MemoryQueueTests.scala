@@ -1470,7 +1470,7 @@ class MemoryQueueTests
     fsm ! QueueRemovedCompleted
     parent.expectMsg(10 seconds, Transition(fsm, Removing, Removed))
 
-    probe.expectTerminated(fsm)
+    probe.expectTerminated(fsm, 10 seconds)
   }
 
   it should "throttle the namespace when the limit is already reached" in {
