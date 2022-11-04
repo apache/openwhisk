@@ -272,8 +272,7 @@ class FunctionPullingContainerProxy(
               job.rpcPort,
               container.containerId)) match {
             case Success(clientProxy) =>
-              clientProxy ! StartClient
-              ContainerCreatedData(container, job.invocationNamespace, job.action)
+              InitializedData(container, job.invocationNamespace, job.action, clientProxy)
             case Failure(t) =>
               logging.error(this, s"failed to create activation client caused by: $t")
               ClientCreationFailed(t, container, job.invocationNamespace, job.action)
@@ -303,7 +302,7 @@ class FunctionPullingContainerProxy(
   // prewarmed state, container created
   when(ContainerCreated) {
     case Event(job: Initialize, data: PreWarmData) =>
-      Try(
+      val res = Try(
         clientProxyFactory(
           context,
           job.invocationNamespace,
@@ -313,13 +312,15 @@ class FunctionPullingContainerProxy(
           job.rpcPort,
           data.container.containerId)) match {
         case Success(proxy) =>
-          proxy ! StartClient
+          InitializedData(data.container, job.invocationNamespace, job.action, proxy)
         case Failure(t) =>
           logging.error(this, s"failed to create activation client for ${job.action} caused by: $t")
-          self ! ClientCreationFailed(t, data.container, job.invocationNamespace, job.action)
+          ClientCreationFailed(t, data.container, job.invocationNamespace, job.action)
       }
 
-      goto(CreatingClient) using ContainerCreatedData(data.container, job.invocationNamespace, job.action)
+      self ! res
+
+      goto(CreatingClient)
 
     case Event(Remove, data: PreWarmData) =>
       cleanUp(data.container, None, false)
@@ -334,27 +335,19 @@ class FunctionPullingContainerProxy(
 
   when(CreatingClient) {
     // wait for client creation when cold start
-    case Event(job: ContainerCreatedData, _: NonexistentData) =>
+    case Event(job: InitializedData, _) =>
+      job.clientProxy ! StartClient
+
       stay() using job
 
-    // wait for container creation when cold start
-    case Event(ClientCreationCompleted(proxy), _: NonexistentData) =>
-      akka.pattern.after(3.milliseconds, actorSystem.scheduler) {
-        self ! ClientCreationCompleted(proxy.orElse(Some(sender())))
-        Future.successful({})
-      }
-
-      stay()
-
     // client was successfully obtained
-    case Event(ClientCreationCompleted(proxy), data: ContainerCreatedData) =>
-      val clientProxy = proxy.getOrElse(sender())
+    case Event(ClientCreationCompleted, data: InitializedData) =>
       val fqn = data.action.fullyQualifiedName(true)
       val revision = data.action.rev
       dataManagementService ! RegisterData(
         s"${ContainerKeys.existingContainers(data.invocationNamespace, fqn, revision, Some(instance), Some(data.container.containerId))}",
         "")
-      self ! InitializedData(data.container, data.invocationNamespace, data.action, clientProxy)
+      self ! data
       goto(ClientCreated)
 
     // client creation failed
@@ -362,13 +355,7 @@ class FunctionPullingContainerProxy(
       invokerHealthManager ! HealthMessage(state = false)
       cleanUp(t.container, t.invocationNamespace, t.action.fullyQualifiedName(withVersion = true), t.action.rev, None)
 
-    // there can be a case that client create is failed and a ClientClosed will be sent by ActivationClientProxy
-    // wait for container creation when cold start
-    case Event(ClientClosed, _: NonexistentData) =>
-      self ! ClientClosed
-      stay()
-
-    case Event(ClientClosed, data: ContainerCreatedData) =>
+    case Event(ClientClosed, data: InitializedData) =>
       invokerHealthManager ! HealthMessage(state = false)
       cleanUp(
         data.container,
@@ -378,7 +365,7 @@ class FunctionPullingContainerProxy(
         None)
 
     // container creation failed when cold start
-    case Event(t: FailureMessage, _) =>
+    case Event(_: FailureMessage, _) =>
       context.parent ! ContainerRemoved(true)
       stop()
 
@@ -518,6 +505,8 @@ class FunctionPullingContainerProxy(
         data.action.fullyQualifiedName(withVersion = true),
         data.action.rev,
         Some(data.clientProxy))
+
+    case x: Event if x.event != PingCache => delay
   }
 
   when(Running) {
