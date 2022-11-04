@@ -213,9 +213,11 @@ class ActivationClientProxyTests
 
     machine ! RequestActivation()
 
-    probe.expectMsg(Transition(machine, ClientProxyReady, ClientProxyRemoving))
-    probe.expectMsgPF() {
-      case Failure(t) => t.getMessage.contains(s"action version does not match") shouldBe true
+    inAnyOrder {
+      probe.expectMsg(Transition(machine, ClientProxyReady, ClientProxyRemoving))
+      probe.expectMsgPF() {
+        case Failure(t) => t.getMessage.contains(s"action version does not match") shouldBe true
+      }
     }
 
     probe.expectMsg(ClientClosed)
