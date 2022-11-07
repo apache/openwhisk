@@ -247,7 +247,7 @@ case class HealthActivationServiceClient() extends Actor {
   private var closed: Boolean = false
 
   override def receive: Receive = {
-    case StartClient => sender() ! ClientCreationCompleted()
+    case StartClient => sender() ! ClientCreationCompleted
     case _: RequestActivation =>
       InvokerHealthManager.healthActivation match {
         case Some(activation) if !closed =>

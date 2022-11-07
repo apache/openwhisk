@@ -47,7 +47,7 @@ class SchedulingDecisionMakerTests
   val testAction = "test-action"
   val action = FullyQualifiedEntityName(EntityPath(testNamespace), EntityName(testAction), Some(SemVer(0, 0, 1)))
 
-  val schedulingConfig = SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds)
+  val schedulingConfig = SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, false, 1.5)
 
   it should "decide pausing when the limit is less than equal to 0" in {
     val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
@@ -149,7 +149,7 @@ class SchedulingDecisionMakerTests
     }
   }
 
-  it should "enable namespace throttling with dropping msg when there is not enough capacity and no container" in {
+  it should "enable namespace throttling with dropping msg when there is not enough capacity, no container, and namespace over-provision disabled" in {
     val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
@@ -173,7 +173,7 @@ class SchedulingDecisionMakerTests
     testProbe.expectMsg(DecisionResults(EnableNamespaceThrottling(dropMsg = true), 0))
   }
 
-  it should "enable namespace throttling without dropping msg when there is not enough capacity but are some containers" in {
+  it should "enable namespace throttling without dropping msg when there is not enough capacity but are some containers and namespace over-provision disabled" in {
     val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
@@ -197,7 +197,142 @@ class SchedulingDecisionMakerTests
     testProbe.expectMsg(DecisionResults(EnableNamespaceThrottling(dropMsg = false), 0))
   }
 
-  it should "add an initial container if there is no any" in {
+  it should "add one container when there is no container, and namespace over-provision has capacity" in {
+    val schedulingConfigNamespaceOverProvisioning =
+      SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, true, 1.5)
+    val decisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfigNamespaceOverProvisioning))
+    val testProbe = TestProbe()
+
+    val msg = QueueSnapshot(
+      initialized = false,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 0,
+      existingContainerCount = 0, // there is no container for this action
+      inProgressContainerCount = 0,
+      staleActivationNum = 0,
+      existingContainerCountInNamespace = 1, // but there are already 2 containers in this namespace
+      inProgressContainerCountInNamespace = 1,
+      averageDuration = None,
+      limit = 2,
+      stateName = Running,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    // this queue cannot create an initial container so enable throttling and drop messages.
+    testProbe.expectMsg(DecisionResults(AddInitialContainer, 1))
+  }
+
+  it should "enable namespace throttling with dropping msg when there is no container, and namespace over-provision has no capacity" in {
+    val schedulingConfigNamespaceOverProvisioning =
+      SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, true, 1.0)
+    val decisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfigNamespaceOverProvisioning))
+    val testProbe = TestProbe()
+
+    val msg = QueueSnapshot(
+      initialized = true,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 0,
+      existingContainerCount = 0, // there is no container for this action
+      inProgressContainerCount = 0,
+      staleActivationNum = 0,
+      existingContainerCountInNamespace = 1, // but there are already 2 containers in this namespace
+      inProgressContainerCountInNamespace = 1,
+      averageDuration = None,
+      limit = 2,
+      stateName = Running,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    // this queue cannot create an initial container so enable throttling and drop messages.
+    testProbe.expectMsg(DecisionResults(EnableNamespaceThrottling(dropMsg = true), 0))
+  }
+
+  it should "disable namespace throttling when namespace over-provision has capacity again" in {
+    val schedulingConfigNamespaceOverProvisioning =
+      SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, true, 1.1)
+    val decisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfigNamespaceOverProvisioning))
+    val testProbe = TestProbe()
+
+    val msg = QueueSnapshot(
+      initialized = true,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 0,
+      existingContainerCount = 1, // there is one container for this action
+      inProgressContainerCount = 0,
+      staleActivationNum = 0,
+      existingContainerCountInNamespace = 1, // but there are already 2 containers in this namespace
+      inProgressContainerCountInNamespace = 1,
+      averageDuration = None,
+      limit = 2,
+      stateName = NamespaceThrottled,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    // this queue cannot create an initial container so enable throttling and drop messages.
+    testProbe.expectMsg(DecisionResults(DisableNamespaceThrottling, 0))
+  }
+
+  it should "enable namespace throttling without dropping msg when there is a container, and namespace over-provision has no additional capacity" in {
+    val schedulingConfigNamespaceOverProvisioning =
+      SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, true, 1.0)
+    val decisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfigNamespaceOverProvisioning))
+    val testProbe = TestProbe()
+
+    val msg = QueueSnapshot(
+      initialized = true,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 0,
+      existingContainerCount = 1,
+      inProgressContainerCount = 0,
+      staleActivationNum = 0,
+      existingContainerCountInNamespace = 1, // but there are already 2 containers in this namespace
+      inProgressContainerCountInNamespace = 1,
+      averageDuration = None,
+      limit = 2,
+      stateName = Running,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    // this queue cannot create an additional container so enable throttling and drop messages.
+    testProbe.expectMsg(DecisionResults(EnableNamespaceThrottling(dropMsg = false), 0))
+  }
+
+  it should "not enable namespace throttling when there is not enough capacity but are some containers and namespace over-provision is enabled with capacity" in {
+    val schedulingConfigNamespaceOverProvisioning =
+      SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, true, 1.5)
+    val decisionMaker =
+      system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfigNamespaceOverProvisioning))
+    val testProbe = TestProbe()
+
+    val msg = QueueSnapshot(
+      initialized = true,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 0,
+      existingContainerCount = 1, // there are some containers for this action
+      inProgressContainerCount = 1,
+      staleActivationNum = 0,
+      existingContainerCountInNamespace = 2, // but there are already 2 containers in this namespace
+      inProgressContainerCountInNamespace = 2, // this value includes the count of this action as well.
+      averageDuration = None,
+      limit = 4,
+      stateName = Running,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    // this queue cannot create more containers
+    testProbe.expectNoMessage()
+  }
+
+  it should "add an initial container if there is not any" in {
     val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()
 
@@ -219,6 +354,7 @@ class SchedulingDecisionMakerTests
 
     testProbe.expectMsg(DecisionResults(AddInitialContainer, 1))
   }
+
   it should "disable the namespace throttling with adding an initial container when there is no container" in {
     val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
     val testProbe = TestProbe()

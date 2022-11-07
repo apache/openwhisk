@@ -86,7 +86,7 @@ class MemoryQueueTestsFixture
   val testNamespace = "test-namespace"
   val testAction = "test-action"
 
-  val schedulingConfig = SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds)
+  val schedulingConfig = SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, false, 1.5)
 
   val fqn = FullyQualifiedEntityName(EntityPath(testNamespace), EntityName(testAction), Some(SemVer(0, 0, 1)))
   val revision = DocRevision("1-testRev")
