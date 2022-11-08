@@ -47,8 +47,8 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
   implicit val jsonPrettyResponsePrinter = PrettyPrinter
 
   override def routes(implicit transid: TransactionId): Route = {
-    sendCorsHeaders {
-      super.routes ~ options {
+    super.routes ~ sendCorsHeaders {
+      options {
         complete(OK)
       } ~ extractCredentials {
         case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
