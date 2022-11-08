@@ -41,7 +41,8 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
   implicit val ec: ExecutionContext,
   val actorSystem: ActorSystem,
   val logger: Logging)
-    extends BasicRasService with RespondWithServerCorsHeaders {
+    extends BasicRasService
+    with RespondWithServerCorsHeaders {
 
   /** Pretty print JSON response. */
   implicit val jsonPrettyResponsePrinter = PrettyPrinter
@@ -51,7 +52,8 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
       options {
         complete(OK)
       } ~ extractCredentials {
-        case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
+        case Some(BasicHttpCredentials(username, password))
+            if username == systemUsername && password == systemPassword =>
           (path("enable") & post) {
             complete(invoker.enable())
           } ~ (path("disable") & post) {

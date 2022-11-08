@@ -18,7 +18,11 @@
 package org.apache.openwhisk.http
 
 import akka.http.scaladsl.model.HttpMethods._
-import akka.http.scaladsl.model.headers.{`Access-Control-Allow-Headers`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Origin`}
+import akka.http.scaladsl.model.headers.{
+  `Access-Control-Allow-Headers`,
+  `Access-Control-Allow-Methods`,
+  `Access-Control-Allow-Origin`
+}
 import akka.http.scaladsl.server.Directives
 
 /**

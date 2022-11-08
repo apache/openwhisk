@@ -79,7 +79,8 @@ class Controller(val instance: ControllerInstanceId,
                  implicit val whiskConfig: WhiskConfig,
                  implicit val actorSystem: ActorSystem,
                  implicit val logging: Logging)
-    extends BasicRasService with RespondWithServerCorsHeaders {
+    extends BasicRasService
+    with RespondWithServerCorsHeaders {
 
   TransactionId.controller.mark(
     this,

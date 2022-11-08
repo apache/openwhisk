@@ -42,14 +42,16 @@ class FPCSchedulerServer(scheduler: SchedulerCore, systemUsername: String, syste
   implicit val ec: ExecutionContext,
   implicit val actorSystem: ActorSystem,
   implicit val logger: Logging)
-    extends BasicRasService with RespondWithServerCorsHeaders {
+    extends BasicRasService
+    with RespondWithServerCorsHeaders {
 
   override def routes(implicit transid: TransactionId): Route = {
     super.routes ~ sendCorsHeaders {
       options {
         complete(OK)
       } ~ extractCredentials {
-        case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
+        case Some(BasicHttpCredentials(username, password))
+            if username == systemUsername && password == systemPassword =>
           (path("state") & get) {
             complete {
               scheduler.getState.map {
