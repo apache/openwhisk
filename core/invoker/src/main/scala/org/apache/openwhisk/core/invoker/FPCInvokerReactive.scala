@@ -30,7 +30,7 @@ import org.apache.openwhisk.core.ack.{ActiveAck, HealthActionAck, MessagingActiv
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
-import org.apache.openwhisk.core.containerpool.v2.{GetState => GetPoolState, _}
+import org.apache.openwhisk.core.containerpool.v2._
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
@@ -390,7 +390,7 @@ class FPCInvokerReactive(config: WhiskConfig,
 
   override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {
     implicit val timeout: Timeout = 5.seconds
-    (pool ? GetPoolState).mapTo[TotalContainerPoolState].map(Right(_))
+    (pool ? GetState).mapTo[TotalContainerPoolState].map(Right(_))
   }
 
   override def isEnabled(): String = {

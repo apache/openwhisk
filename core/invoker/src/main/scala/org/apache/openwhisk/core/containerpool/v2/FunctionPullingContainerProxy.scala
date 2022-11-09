@@ -152,6 +152,7 @@ case class InitializedData(container: Container,
                            override val clientProxy: ActorRef)
     extends ContainerAvailableData(container, invocationNamespace, action)
     with WithClient {
+  override def getContainer = Some(container)
   def toReschedulingData(resumeRun: RunActivation) =
     ReschedulingData(container, invocationNamespace, action, clientProxy, resumeRun)
 }
@@ -164,6 +165,7 @@ case class WarmData(container: Container,
                     override val clientProxy: ActorRef)
     extends ContainerAvailableData(container, invocationNamespace, action)
     with WithClient {
+  override def getContainer = Some(container)
   def toReschedulingData(resumeRun: RunActivation) =
     ReschedulingData(container, invocationNamespace, action, clientProxy, resumeRun)
 }

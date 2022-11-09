@@ -26,6 +26,7 @@ import org.apache.openwhisk.core.connector.{
   ContainerCreationAckMessage,
   ContainerCreationMessage,
   ContainerDeletionMessage,
+  GetState,
   ResultMetadata
 }
 import org.apache.openwhisk.core.containerpool.{
@@ -76,7 +77,6 @@ case class DeletionContainer(deletionMessage: ContainerDeletionMessage)
 case object Remove
 case class Keep(timeout: FiniteDuration)
 case class PrewarmContainer(maxConcurrent: Int)
-case object GetState
 
 /**
  * A pool managing containers to run actions on.
