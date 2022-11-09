@@ -46,11 +46,11 @@ class DefaultInvokerServer(val invoker: InvokerCore, systemUsername: String, sys
     super.routes ~ extractCredentials {
       case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
         (path("enable") & post) {
-          invoker.enable()
+          complete(invoker.enable())
         } ~ (path("disable") & post) {
-          invoker.disable()
+          complete(invoker.disable())
         } ~ (path("isEnabled") & get) {
-          invoker.isEnabled()
+          complete(invoker.isEnabled())
         }
       case _ => terminate(StatusCodes.Unauthorized)
     }

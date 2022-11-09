@@ -358,13 +358,24 @@ class DockerClientTests
     }
 
     Seq[(ProcessRunningException, String)](
-      (ProcessUnsuccessfulException(ExitStatus(127), id.asString, "Unknown command"), "Exit code not 125"),
       (ProcessUnsuccessfulException(ExitStatus(125), "", "Unknown flag: --foo"), "No container ID"),
       (ProcessUnsuccessfulException(ExitStatus(1), "", ""), "Exit code not 125 and no container ID"),
       (ProcessTimeoutException(1.second, ExitStatus(125), id.asString, ""), "Timeout instead of unsuccessful command"))
       .foreach {
         case (pre, clue) => runAndVerify(pre, clue)
       }
+  }
+
+  it should "fail with BrokenDockerContainer when run returns with exit status 127 and a container ID" in {
+    val dc = dockerClient {
+      Future.failed(
+        ProcessUnsuccessfulException(
+          exitStatus = ExitStatus(127),
+          stdout = id.asString,
+          stderr = """Error response from daemon: OCI runtime create failed: executable file not found"""))
+    }
+    val bdc = the[BrokenDockerContainer] thrownBy await(dc.run("image", Seq.empty))
+    bdc.id shouldBe id
   }
 
   it should "fail with ProcessTimeoutException when command times out" in {

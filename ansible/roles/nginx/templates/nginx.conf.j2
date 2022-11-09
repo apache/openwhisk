@@ -10,7 +10,7 @@ events {
 
 http {
 {# allow large uploads, need to thread proper limit into here #}
-    client_max_body_size 50M;
+    client_max_body_size 65M;
 
     rewrite_log on;
 {# change log format to display the upstream information #}

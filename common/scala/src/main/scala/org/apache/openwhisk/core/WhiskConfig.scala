@@ -312,9 +312,15 @@ object ConfigKeys {
 
   val dataManagementServiceRetryInterval = "whisk.scheduler.data-management-service.retry-interval"
 
+  val whiskControllerUsername = "whisk.controller.username"
+  val whiskControllerPassword = "whisk.controller.password"
+
   val whiskSchedulerUsername = "whisk.scheduler.username"
   val whiskSchedulerPassword = "whisk.scheduler.password"
 
   val whiskInvokerUsername = "whisk.invoker.username"
   val whiskInvokerPassword = "whisk.invoker.password"
+
+  val invokerResourceTags = "whisk.invoker.resource.tags"
+  val invokerDedicatedNamespaces = "whisk.invoker.dedicated.namespaces"
 }

@@ -22,6 +22,7 @@ import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, 
 import akka.testkit.{TestActor, TestFSMRef, TestProbe}
 import com.sksamuel.elastic4s.http.{search => _}
 import org.apache.openwhisk.common.GracefulShutdown
+import org.apache.openwhisk.common.time.{Clock, SystemClock}
 import org.apache.openwhisk.core.connector.ContainerCreationError.{NonExecutableActionError, WhiskError}
 import org.apache.openwhisk.core.connector.ContainerCreationMessage
 import org.apache.openwhisk.core.entity._
@@ -46,9 +47,21 @@ import spray.json.{JsObject, JsString}
 
 import java.time.Instant
 import scala.collection.immutable.Queue
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 import scala.language.postfixOps
+
+class FakeClock extends Clock {
+  var instant: Instant = Instant.now()
+  def now() = instant
+  def set(now: Instant): Unit = {
+    instant = now
+  }
+  def plusSeconds(secondsToAdd: Long): Unit = {
+    instant = instant.plusSeconds(secondsToAdd)
+  }
+}
 
 @RunWith(classOf[JUnitRunner])
 class MemoryQueueFlowTests
@@ -75,6 +88,7 @@ class MemoryQueueFlowTests
   behavior of "MemoryQueueFlow"
 
   it should "normally be created and handle an activation and became idle an finally removed" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -151,23 +165,27 @@ class MemoryQueueFlowTests
     container.send(fsm, getActivation(false))
     container.expectMsg(ActivationResponse(Left(NoActivationMessage())))
 
-    Thread.sleep(idleGrace.toMillis)
+    fsm ! StateTimeout
 
     probe.expectMsg(Transition(fsm, Running, Idle))
 
-    Thread.sleep(stopGrace.toMillis)
+    fsm ! StateTimeout
 
     expectDataCleanUp(watcher, dataMgmtService)
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
 
+    // the queue is timed out again in the removed state
+    fsm ! StateTimeout
+
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     probe.expectTerminated(fsm, 10.seconds)
   }
 
   it should "became Idle and Running again if a message arrives" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -235,7 +253,7 @@ class MemoryQueueFlowTests
     container.send(fsm, getActivation(false))
     container.expectMsg(ActivationResponse(Left(NoActivationMessage())))
 
-    Thread.sleep(idleGrace.toMillis)
+    fsm ! StateTimeout
 
     probe.expectMsg(Transition(fsm, Running, Idle))
 
@@ -243,7 +261,7 @@ class MemoryQueueFlowTests
 
     probe.expectMsg(Transition(fsm, Idle, Running))
 
-    Thread.sleep(idleGrace.toMillis)
+    fsm ! StateTimeout
     // since there is one message, it should not be Idle
     probe.expectNoMessage()
 
@@ -264,14 +282,16 @@ class MemoryQueueFlowTests
     container.send(fsm, getActivation(false))
     container.expectMsg(ActivationResponse(Left(NoActivationMessage())))
 
-    Thread.sleep(idleGrace.toMillis)
+    fsm ! StateTimeout
 
     probe.expectMsg(Transition(fsm, Running, Idle))
 
-    Thread.sleep(stopGrace.toMillis)
+    fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
+
+    // the queue is timed out again in the removed state
+    fsm ! StateTimeout
 
     fsm ! QueueRemovedCompleted
 
@@ -280,7 +300,8 @@ class MemoryQueueFlowTests
     probe.expectTerminated(fsm, 10.seconds)
   }
 
-  it should "go to the Flushing state dropping messages when it can't create an initial container" in {
+  it should "go to the NamespaceThrottled state dropping messages when it can't create an initial container" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -340,7 +361,7 @@ class MemoryQueueFlowTests
     fsm ! message
 
     dataMgmtService.expectMsg(RegisterData(namespaceThrottlingKey, true.toString, failoverEnabled = false))
-    probe.expectMsg(Transition(fsm, Running, Flushing))
+    probe.expectMsg(Transition(fsm, Running, NamespaceThrottled))
 
     awaitAssert({
       ackedMessageCount shouldBe 1
@@ -352,17 +373,26 @@ class MemoryQueueFlowTests
       fsm.underlyingActor.queue.size shouldBe 0
     }, 5.seconds)
 
-    parent.expectMsg(flushGrace * 2 + 5.seconds, queueRemovedMsg)
-    probe.expectMsg(Transition(fsm, Flushing, Removed))
+    fsm ! GracefulShutdown
 
-    fsm ! QueueRemovedCompleted
+    probe.expectMsg(Transition(fsm, NamespaceThrottled, Removing))
+
+    // the queue is timed out in the Removing state
+    fsm ! StateTimeout
 
     expectDataCleanUp(watcher, dataMgmtService)
+
+    probe.expectMsg(Transition(fsm, Removing, Removed))
+
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    fsm ! QueueRemovedCompleted
 
     probe.expectTerminated(fsm, 10.seconds)
   }
 
   it should "go to the NamespaceThrottled state without dropping messages and get back to the Running container" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -467,16 +497,19 @@ class MemoryQueueFlowTests
     container.send(fsm, getActivation(false, "testContainerId2"))
     container.expectMsg(ActivationResponse(Left(NoActivationMessage())))
 
-    Thread.sleep(idleGrace.toMillis)
+    fsm ! StateTimeout
 
     // all subsequent procedures are same with the Running case
     probe.expectMsg(Transition(fsm, Running, Idle))
 
-    Thread.sleep(stopGrace.toMillis)
+    fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     expectDataCleanUp(watcher, dataMgmtService)
@@ -485,6 +518,7 @@ class MemoryQueueFlowTests
   }
 
   it should "go to the ActionThrottled state when there are too many stale activations including transition to NamespaceThrottling" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -496,7 +530,7 @@ class MemoryQueueFlowTests
 
     // max retention size is 10 and throttling fraction is 0.8
     // queue will be action throttled at 10 messages and disabled action throttling at 8 messages
-    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 5000, 10000, 0.8, 10)
+    val queueConfig = QueueConfig(5 seconds, 10 seconds, 10 seconds, 5 seconds, 10, 5000, 10000, 0.8, 10, false)
 
     // limit is 1
     val getUserLimit = (_: String) => Future.successful(1)
@@ -619,12 +653,15 @@ class MemoryQueueFlowTests
     probe.expectMsg(Transition(fsm, NamespaceThrottled, Running))
 
     // normal termination process
-    Thread.sleep(idleGrace.toMillis)
+    fsm ! StateTimeout
     probe.expectMsg(Transition(fsm, Running, Idle))
 
-    Thread.sleep(stopGrace.toMillis)
-    parent.expectMsg(queueRemovedMsg)
+    fsm ! StateTimeout
     probe.expectMsg(Transition(fsm, Idle, Removed))
+
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
 
     fsm ! QueueRemovedCompleted
     expectDataCleanUp(watcher, dataMgmtService)
@@ -633,6 +670,7 @@ class MemoryQueueFlowTests
   }
 
   it should "be Flushing when the limit is 0 and restarted back to Running state when the limit is increased" in {
+    implicit val clock = new FakeClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -685,10 +723,12 @@ class MemoryQueueFlowTests
     expectInitialData(watcher, dataMgmtService)
     probe.expectMsg(Transition(fsm, Uninitialized, Running))
 
+    clock.plusSeconds(FiniteDuration(retentionTimeout, MILLISECONDS).toSeconds)
+
     probe.expectMsg(Transition(fsm, Running, Flushing))
     // activation received in Flushing state won't be flushed immediately if Flushing state is caused by a whisk error
-    Thread.sleep(flushGrace.toMillis)
     fsm ! messages(1)
+    fsm ! StateTimeout
 
     awaitAssert({
       ackedMessageCount shouldBe 1
@@ -696,7 +736,7 @@ class MemoryQueueFlowTests
       storedMessageCount shouldBe 1
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString(namespaceLimitUnderZero)))
       fsm.underlyingActor.queue.length shouldBe 1
-    }, FiniteDuration(retentionTimeout, MILLISECONDS))
+    }, 5.seconds)
     // limit is increased by an operator
     limit = 10
 
@@ -726,15 +766,17 @@ class MemoryQueueFlowTests
     fsm.underlyingActor.namespaceContainerCount.existingContainerNumByNamespace -= 1
 
     // normal termination process
-    Thread.sleep(idleGrace.toMillis)
+    fsm ! StateTimeout
 
     probe.expectMsg(Transition(fsm, Running, Idle))
 
-    Thread.sleep(stopGrace.toMillis)
+    fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     expectDataCleanUp(watcher, dataMgmtService)
@@ -743,6 +785,7 @@ class MemoryQueueFlowTests
   }
 
   it should "be Flushing when the limit is 0 and be terminated without recovering" in {
+    implicit val clock = new FakeClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -797,7 +840,8 @@ class MemoryQueueFlowTests
     fsm ! messages(1)
 
     // activation received in Flushing state won't be flushed immediately if Flushing state is caused by a whisk error
-    Thread.sleep(flushGrace.toMillis)
+    clock.plusSeconds((queueConfig.maxRetentionMs) / 1000)
+    fsm ! DropOld
 
     awaitAssert({
       ackedMessageCount shouldBe 2
@@ -805,12 +849,15 @@ class MemoryQueueFlowTests
       storedMessageCount shouldBe 2
       lastAckedActivationResult.response.result shouldBe Some(JsObject("error" -> JsString(namespaceLimitUnderZero)))
       fsm.underlyingActor.queue.length shouldBe 0
-    }, FiniteDuration(retentionTimeout, MILLISECONDS))
+    }, 5.seconds)
 
     // In this case data clean up happens first.
+    fsm ! StateTimeout
     expectDataCleanUp(watcher, dataMgmtService)
     probe.expectMsg(Transition(fsm, Flushing, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
     parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
@@ -818,6 +865,7 @@ class MemoryQueueFlowTests
   }
 
   it should "be the Flushing state when a whisk error happens" in {
+    implicit val clock = new FakeClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -893,7 +941,8 @@ class MemoryQueueFlowTests
 
     fsm ! messages(1)
 
-    Thread.sleep(flushGrace.toMillis)
+    clock.plusSeconds(FiniteDuration(retentionTimeout, MILLISECONDS).toSeconds)
+    fsm ! StateTimeout
 
     awaitAssert({
       ackedMessageCount shouldBe 2
@@ -903,11 +952,14 @@ class MemoryQueueFlowTests
       fsm.underlyingActor.queue.length shouldBe 0
     }, FiniteDuration(retentionTimeout, MILLISECONDS))
 
-    Thread.sleep(flushGrace.toMillis * 2)
+    clock.plusSeconds(flushGrace.toSeconds * 2)
+    fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Flushing, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     expectDataCleanUp(watcher, dataMgmtService)
@@ -916,6 +968,7 @@ class MemoryQueueFlowTests
   }
 
   it should "be the Flushing state when a whisk error happens and be recovered when a container is created" in {
+    implicit val clock = new FakeClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -971,12 +1024,12 @@ class MemoryQueueFlowTests
         fsm ! FailedCreationJob(id, testInvocationNamespace, fqn, revision, WhiskError, "whisk error")
     }
 
+    clock.plusSeconds(FiniteDuration(retentionTimeout, MILLISECONDS).toSeconds)
     probe.expectMsg(Transition(fsm, Running, Flushing))
-    Thread.sleep(1000)
     fsm ! messages(1)
 
     // activation received in Flushing state won't be flushed immediately if Flushing state is caused by a whisk error
-    Thread.sleep(flushGrace.toMillis)
+    fsm ! StateTimeout
 
     awaitAssert({
       ackedMessageCount shouldBe 1
@@ -1001,15 +1054,17 @@ class MemoryQueueFlowTests
     container.send(fsm, getActivation(false))
     container.expectMsg(ActivationResponse(Left(NoActivationMessage())))
 
-    Thread.sleep(idleGrace.toMillis)
-
+    fsm.underlyingActor.creationIds = mutable.Set.empty[String]
+    fsm ! StateTimeout
     probe.expectMsg(Transition(fsm, Running, Idle))
 
-    Thread.sleep(stopGrace.toMillis)
+    fsm ! StateTimeout
 
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Idle, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     expectDataCleanUp(watcher, dataMgmtService)
@@ -1018,6 +1073,7 @@ class MemoryQueueFlowTests
   }
 
   it should "be the Flushing state when a developer error happens" in {
+    implicit val clock = new FakeClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -1109,18 +1165,24 @@ class MemoryQueueFlowTests
       fsm.underlyingActor.queue.length shouldBe 0
     }
 
-    Thread.sleep(flushGrace.toMillis * 2)
+    // simulate timeout 2 times
+    clock.plusSeconds(flushGrace.toSeconds * 2)
+    fsm ! StateTimeout
+    fsm ! StateTimeout
 
     expectDataCleanUp(watcher, dataMgmtService)
-    parent.expectMsg(queueRemovedMsg)
     probe.expectMsg(Transition(fsm, Flushing, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
     fsm ! QueueRemovedCompleted
 
     probe.expectTerminated(fsm, 10.seconds)
   }
 
   it should "be gracefully terminated when it receives a GracefulShutDown message" in {
+    implicit val clock = SystemClock
     val mockEtcdClient = mock[EtcdClient]
     val parent = TestProbe()
     val watcher = TestProbe()
@@ -1193,8 +1255,6 @@ class MemoryQueueFlowTests
       UnregisterData(namespaceThrottlingKey),
       UnregisterData(actionThrottlingKey))
 
-    parent.expectMsg(queueRemovedMsg)
-
     probe.expectMsg(Transition(fsm, Running, Removing))
 
     // a newly arrived message should be properly handled
@@ -1204,15 +1264,13 @@ class MemoryQueueFlowTests
 
     fsm ! messages(2)
 
-    fsm ! QueueRemovedCompleted
-
     // if there is a message, it should not terminate
-    Thread.sleep(gracefulShutdownTimeout.toMillis)
+    fsm ! StateTimeout
 
     container.send(fsm, getActivation())
     container.expectMsg(ActivationResponse(Right(messages(2))))
 
-    Thread.sleep(gracefulShutdownTimeout.toMillis)
+    fsm ! StateTimeout
 
     // it doesn't need to check if all containers are timeout as same version of a new queue will be created in another scheduler.
 
@@ -1223,6 +1281,11 @@ class MemoryQueueFlowTests
 
     probe.expectMsg(Transition(fsm, Removing, Removed))
 
+    // the queue is timed out again in the Removed state
+    fsm ! StateTimeout
+    parent.expectMsg(queueRemovedMsg)
+    fsm ! QueueRemovedCompleted
+
     probe.expectTerminated(fsm, 10.seconds)
   }
 
@@ -1231,6 +1294,7 @@ class MemoryQueueFlowTests
     val allStates = List(Running, Idle, Flushing, ActionThrottled, NamespaceThrottled, Removing, Removed)
 
     allStates.foreach { state =>
+      implicit val clock = SystemClock
       val mockEtcdClient = mock[EtcdClient]
       val parent = TestProbe()
       val watcher = TestProbe()
@@ -1291,7 +1355,6 @@ class MemoryQueueFlowTests
 
       // another queue is already running
       fsm ! InitialDataStorageResults(`leaderKey`, Left(AlreadyExist()))
-
       parent.expectMsg(queueRemovedMsg)
       parent.expectMsg(message)
 
@@ -1304,6 +1367,9 @@ class MemoryQueueFlowTests
       // move to the Deprecated state
       probe.expectMsg(Transition(fsm, state, Removed))
 
+      // the queue is timed out again in the Removed state
+      fsm ! StateTimeout
+      parent.expectMsg(queueRemovedMsg)
       fsm ! QueueRemovedCompleted
 
       probe.expectTerminated(fsm, 10.seconds)
@@ -1315,6 +1381,7 @@ class MemoryQueueFlowTests
     val allStates = List(Running, Idle, Flushing, ActionThrottled, NamespaceThrottled, Removing, Removed)
 
     allStates.foreach { state =>
+      implicit val clock = SystemClock
       val mockEtcdClient = mock[EtcdClient]
       val parent = TestProbe()
       val watcher = TestProbe()
@@ -1389,10 +1456,11 @@ class MemoryQueueFlowTests
       probe.expectMsg(Transition(fsm, state, Removed))
 
       // queue manager could not respond to the memory queue.
-      Thread.sleep(stopGrace.toMillis)
+      fsm ! StateTimeout
 
       // the queue is supposed to send queueRemovedMsg once again and stops itself.
       parent.expectMsg(queueRemovedMsg)
+      fsm ! QueueRemovedCompleted
       probe.expectTerminated(fsm, 10.seconds)
     }
   }
@@ -1404,6 +1472,7 @@ class MemoryQueueFlowTests
       List(Running, Idle, ActionThrottled, NamespaceThrottled, Flushing, Removing, Removed)
 
     allStates.foreach { state =>
+      implicit val clock = SystemClock
       val mockEtcdClient = mock[EtcdClient]
       val parent = TestProbe()
       val watcher = TestProbe()
@@ -1462,7 +1531,7 @@ class MemoryQueueFlowTests
           fsm.setState(state, FlushingData(schedulingActors.ref, schedulingActors.ref, WhiskError, "whisk error"))
 
         case Removing =>
-          fsm.underlyingActor.containers = Set(testContainerId)
+          fsm.underlyingActor.containers = mutable.Set(testContainerId)
           fsm ! message
           fsm.setState(state, RemovingData(schedulingActors.ref, schedulingActors.ref, outdated = true))
 
@@ -1498,14 +1567,14 @@ class MemoryQueueFlowTests
           container.send(fsm, getActivation())
           container.expectMsg(ActivationResponse(Right(message)))
           // has no old containers for old queue, so send the message to queueManager
-          fsm.underlyingActor.containers = Set.empty[String]
+          fsm.underlyingActor.containers = mutable.Set.empty[String]
           fsm.underlyingActor.queue =
             Queue.apply(TimeSeriesActivationEntry(Instant.ofEpochMilli(Instant.now.toEpochMilli + 1000), message))
           fsm ! StopSchedulingAsOutdated
           parent.expectMsg(message)
 
           // queue should be terminated after gracefulShutdownTimeout
-          Thread.sleep(gracefulShutdownTimeout.toMillis)
+          fsm ! StateTimeout
 
           // clean up actors only because etcd data is being used by a new queue
           watcher.expectMsgAllOf(
@@ -1544,13 +1613,14 @@ class MemoryQueueFlowTests
           probe.expectMsg(Transition(fsm, state, Removed))
 
           fsm ! QueueRemovedCompleted
-
-          Thread.sleep(gracefulShutdownTimeout.toMillis)
+          fsm ! StateTimeout
 
           watcher.expectMsgAllOf(
             UnwatchEndpoint(inProgressContainerKey, isPrefix = true, watcherName),
             UnwatchEndpoint(existingContainerKey, isPrefix = true, watcherName),
             UnwatchEndpoint(leaderKey, isPrefix = false, watcherName))
+
+          probe.expectTerminated(fsm, 10.seconds)
 
         case _ =>
           parent.expectMsg(staleQueueRemovedMsg)
@@ -1580,6 +1650,7 @@ class MemoryQueueFlowTests
       List(Running, Idle, ActionThrottled, NamespaceThrottled, Flushing, Removing, Removed)
 
     allStates.foreach { state =>
+      implicit val clock = SystemClock
       val mockEtcdClient = mock[EtcdClient]
       val parent = TestProbe()
       val watcher = TestProbe()
@@ -1672,13 +1743,13 @@ class MemoryQueueFlowTests
         // queue will be gracefully shutdown.
         case Removing =>
           // queue should not be terminated as there is an activation
-          Thread.sleep(gracefulShutdownTimeout.toMillis)
+          fsm ! StateTimeout
 
           container.send(fsm, getActivation())
           container.expectMsg(ActivationResponse(Right(message)))
 
           // queue should not be terminated as there is an activation
-          Thread.sleep(gracefulShutdownTimeout.toMillis)
+          fsm ! StateTimeout
 
           // clean up actors only because etcd data is being used by a new queue
           watcher.expectMsgAllOf(
@@ -1701,28 +1772,28 @@ class MemoryQueueFlowTests
             UnwatchEndpoint(existingContainerKey, isPrefix = true, watcherName),
             UnwatchEndpoint(leaderKey, isPrefix = false, watcherName))
 
-          // queue is stale and will be removed
-          parent.expectMsg(queueRemovedMsg)
-
           probe.expectMsg(Transition(fsm, state, Removed))
 
+          // the queue is timed out againd in the Removed state
+          fsm ! StateTimeout
+
+          // queue is stale and will be removed
+          parent.expectMsg(queueRemovedMsg)
           fsm ! QueueRemovedCompleted
           probe.expectTerminated(fsm, 10.seconds)
 
         case _ =>
           // queue is stale and will be removed
-          parent.expectMsg(queueRemovedMsg)
+
           probe.expectMsg(Transition(fsm, state, Removing))
 
-          fsm ! QueueRemovedCompleted
-
           // queue should not be terminated as there is an activation
-          Thread.sleep(gracefulShutdownTimeout.toMillis)
+          fsm ! StateTimeout
 
           container.send(fsm, getActivation())
           container.expectMsg(ActivationResponse(Right(message)))
 
-          Thread.sleep(gracefulShutdownTimeout.toMillis)
+          fsm ! StateTimeout
 
           watcher.expectMsgAllOf(
             UnwatchEndpoint(inProgressContainerKey, isPrefix = true, watcherName),
@@ -1730,6 +1801,11 @@ class MemoryQueueFlowTests
             UnwatchEndpoint(leaderKey, isPrefix = false, watcherName))
 
           probe.expectMsg(Transition(fsm, Removing, Removed))
+
+          // the queue is timed out againd in the Removed state
+          fsm ! StateTimeout
+          parent.expectMsg(queueRemovedMsg)
+          fsm ! QueueRemovedCompleted
           probe.expectTerminated(fsm, 10.seconds)
       }
     }

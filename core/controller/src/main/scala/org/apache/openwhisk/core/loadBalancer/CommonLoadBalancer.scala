@@ -86,8 +86,9 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue)
   override def activeActivationsByController(controller: String): Future[Int] =
     Future.successful(activationsPerController.get(ControllerInstanceId(controller)).map(_.intValue()).getOrElse(0))
-  override def activeActivationsByController: Future[List[ActivationId]] =
-    Future.successful(activationSlots.keySet.toList)
+  override def activeActivationsByController: Future[List[(String, String)]] =
+    Future.successful(
+      activationSlots.values.map(entry => (entry.id.asString, entry.fullyQualifiedEntityName.toString)).toList)
   override def activeActivationsByInvoker(invoker: String): Future[Int] =
     Future.successful(
       activationsPerInvoker.get(InvokerInstanceId(invoker.toInt, userMemory = 0.MB)).map(_.intValue()).getOrElse(0))

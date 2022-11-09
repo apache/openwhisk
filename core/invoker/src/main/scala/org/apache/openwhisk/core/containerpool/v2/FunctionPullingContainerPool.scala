@@ -18,14 +18,15 @@
 package org.apache.openwhisk.core.containerpool.v2
 
 import java.util.concurrent.atomic.AtomicInteger
-import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
 
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector.ContainerCreationError._
 import org.apache.openwhisk.core.connector.{
   ContainerCreationAckMessage,
   ContainerCreationMessage,
   ContainerDeletionMessage,
+  GetState,
   ResultMetadata
 }
 import org.apache.openwhisk.core.containerpool.{
@@ -41,6 +42,7 @@ import org.apache.openwhisk.core.containerpool.{
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.Messages
+import spray.json.DefaultJsonProtocol
 
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
@@ -49,6 +51,27 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
 import scala.collection.immutable.Queue
+
+object TotalContainerPoolState extends DefaultJsonProtocol {
+  implicit val prewarmedPoolSerdes = jsonFormat2(PrewarmedContainerPoolState.apply)
+  implicit val warmPoolSerdes = jsonFormat2(WarmContainerPoolState.apply)
+  implicit val totalPoolSerdes = jsonFormat5(TotalContainerPoolState.apply)
+}
+
+case class PrewarmedContainerPoolState(total: Int, countsByKind: Map[String, Int])
+case class WarmContainerPoolState(total: Int, containers: List[BasicContainerInfo])
+case class TotalContainerPoolState(totalContainers: Int,
+                                   inProgressCount: Int,
+                                   prewarmedPool: PrewarmedContainerPoolState,
+                                   busyPool: WarmContainerPoolState,
+                                   pausedPool: WarmContainerPoolState) {
+
+  def serialize(): String = TotalContainerPoolState.totalPoolSerdes.write(this).compactPrint
+}
+
+case class NotSupportedPoolState() {
+  def serialize(): String = "not supported"
+}
 
 case class CreationContainer(creationMessage: ContainerCreationMessage, action: WhiskAction)
 case class DeletionContainer(deletionMessage: ContainerDeletionMessage)
@@ -88,7 +111,7 @@ class FunctionPullingContainerPool(
 
   implicit val ec = context.system.dispatcher
 
-  protected[containerpool] var busyPool = immutable.Map.empty[ActorRef, Data]
+  protected[containerpool] var busyPool = immutable.Map.empty[ActorRef, ContainerAvailableData]
   protected[containerpool] var inProgressPool = immutable.Map.empty[ActorRef, Data]
   protected[containerpool] var warmedPool = immutable.Map.empty[ActorRef, WarmData]
   protected[containerpool] var prewarmedPool = immutable.Map.empty[ActorRef, PreWarmData]
@@ -413,6 +436,15 @@ class FunctionPullingContainerPool(
       // Reset the prewarmCreateCount value when do expiration check and backfill prewarm if possible
       prewarmCreateFailedCount.set(0)
       adjustPrewarmedContainer(false, true)
+
+    case GetState =>
+      val totalContainers = busyPool.size + inProgressPool.size + warmedPool.size + prewarmedPool.size
+      val prewarmedState =
+        PrewarmedContainerPoolState(prewarmedPool.size, prewarmedPool.groupBy(_._2.kind).mapValues(_.size).toMap)
+      val busyState = WarmContainerPoolState(busyPool.size, busyPool.values.map(_.basicContainerInfo).toList)
+      val pausedState = WarmContainerPoolState(warmedPool.size, warmedPool.values.map(_.basicContainerInfo).toList)
+      sender() ! TotalContainerPoolState(totalContainers, inProgressPool.size, prewarmedState, busyState, pausedState)
+
   }
 
   /** Install prewarm containers up to the configured requirements for each kind/memory combination or specified kind/memory */

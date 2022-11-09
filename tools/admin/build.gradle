@@ -42,7 +42,7 @@ bootJar {
 }
 
 dependencies {
-    compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile project(':common:scala')
-    compile "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
+    implementation "org.scala-lang:scala-library:${gradle.scala.version}"
+    implementation project(':common:scala')
+    implementation "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 }

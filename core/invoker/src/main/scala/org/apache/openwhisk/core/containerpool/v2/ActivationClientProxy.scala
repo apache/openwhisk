@@ -18,11 +18,11 @@
 package org.apache.openwhisk.core.containerpool.v2
 
 import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorRef, ActorSystem, FSM, Props, Stash}
+import akka.actor.{ActorSystem, FSM, Props, Stash}
 import akka.grpc.internal.ClientClosedException
 import akka.pattern.pipe
 import io.grpc.StatusRuntimeException
-import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ActivationMessage
 import org.apache.openwhisk.core.containerpool.ContainerId
 import org.apache.openwhisk.core.entity._
@@ -36,7 +36,7 @@ import scala.concurrent.Future
 import scala.util.{Success, Try}
 
 // Event send by the actor
-case class ClientCreationCompleted(client: Option[ActorRef] = None)
+case object ClientCreationCompleted
 case object ClientClosed
 
 // Event received by the actor
@@ -91,12 +91,14 @@ class ActivationClientProxy(
       stay using r
 
     case Event(client: ActivationClient, _) =>
-      context.parent ! ClientCreationCompleted()
+      context.parent ! ClientCreationCompleted
 
       goto(ClientProxyReady) using Client(client.client, client.rpcHost, client.rpcPort)
 
     case Event(f: FailureMessage, _) =>
       logging.error(this, s"failed to create grpc client for ${action} caused by: $f")
+      context.parent ! f
+
       self ! ClientClosed
 
       goto(ClientProxyRemoving)
@@ -124,13 +126,15 @@ class ActivationClientProxy(
       stay()
 
     case Event(e: RescheduleActivation, client: Client) =>
-      logging.info(this, s"got a reschedule message ${e.msg.activationId} for action: ${e.msg.action}")
+      logging.info(
+        this,
+        s"[${containerId.asString}] got a reschedule message ${e.msg.activationId} for action: ${e.msg.action}")
       client.activationClient
         .rescheduleActivation(
           RescheduleRequest(e.invocationNamespace, e.fqn.serialize, e.rev.serialize, e.msg.serialize))
         .recover {
           case t =>
-            logging.error(this, s"Failed to reschedule activation (error: $t)")
+            logging.error(this, s"[${containerId.asString}] Failed to reschedule activation (error: $t)")
             RescheduleResponse()
         }
         .foreach(res => {
@@ -139,7 +143,7 @@ class ActivationClientProxy(
       stay()
 
     case Event(msg: ActivationMessage, _: Client) =>
-      logging.debug(this, s"got a message ${msg.activationId} for action: ${msg.action}")
+      logging.debug(this, s"[${containerId.asString}] got a message ${msg.activationId} for action: ${msg.action}")
       context.parent ! msg
 
       stay()
@@ -152,7 +156,7 @@ class ActivationClientProxy(
         case _: NoMemoryQueue =>
           logging.error(
             this,
-            s"The queue of action ${action} under invocationNamespace ${invocationNamespace} does not exist. Check for queues in other schedulers.")
+            s"[${containerId.asString}] The queue of action ${action} under invocationNamespace ${invocationNamespace} does not exist. Check for queues in other schedulers.")
           c.activationClient
             .close()
             .flatMap(_ =>
@@ -162,15 +166,18 @@ class ActivationClientProxy(
           stay()
 
         case _: ActionMismatch =>
-          logging.error(this, s"action version does not match: $action")
+          val errorMsg = s"[${containerId.asString}] action version does not match: $action"
+          logging.error(this, errorMsg)
           c.activationClient.close().andThen {
-            case _ => self ! ClientClosed
+            case _ =>
+              context.parent ! FailureMessage(new RuntimeException(errorMsg))
+              self ! ClientClosed
           }
 
           goto(ClientProxyRemoving)
 
         case _: NoActivationMessage => // retry
-          logging.debug(this, s"no activation message exist: $action")
+          logging.debug(this, s"[${containerId.asString}] no activation message exist: $action")
           context.parent ! RetryRequestActivation
 
           stay()
@@ -182,7 +189,7 @@ class ActivationClientProxy(
     case Event(f: FailureMessage, c: Client) =>
       f.cause match {
         case t: ParsingException =>
-          logging.error(this, s"failed to parse activation message: $t")
+          logging.error(this, s"[${containerId.asString}] failed to parse activation message: $t")
           context.parent ! RetryRequestActivation
 
           stay()
@@ -191,13 +198,14 @@ class ActivationClientProxy(
         // In such situation, it is better to stop the activationClientProxy, otherwise, in short time,
         // it would print huge log due to create another grpcClient to fetch activation again.
         case t: StatusRuntimeException if t.getMessage.contains(ActivationClientProxy.hostResolveError) =>
-          logging.error(this, s"akka grpc server connection failed: $t")
+          logging.error(this, s"[${containerId.asString}] akka grpc server connection failed: $t")
+          context.parent ! FailureMessage(t)
           self ! ClientClosed
 
           goto(ClientProxyRemoving)
 
         case t: StatusRuntimeException =>
-          logging.error(this, s"akka grpc server connection failed: $t")
+          logging.error(this, s"[${containerId.asString}] akka grpc server connection failed: $t")
           c.activationClient
             .close()
             .flatMap(_ =>
@@ -206,14 +214,18 @@ class ActivationClientProxy(
 
           stay()
 
-        case _: ClientClosedException =>
-          logging.error(this, s"grpc client is already closed for $action")
+        case t: ClientClosedException =>
+          logging.error(this, s"[${containerId.asString}] grpc client is already closed for $action")
+          context.parent ! FailureMessage(t)
+
           self ! ClientClosed
 
           goto(ClientProxyRemoving)
 
         case t: Throwable =>
-          logging.error(this, s"get activation from remote server error: $t")
+          logging.error(this, s"[${containerId.asString}] get activation from remote server error: $t")
+          context.parent ! FailureMessage(t)
+
           safelyCloseClient(c)
           goto(ClientProxyRemoving)
       }
@@ -227,22 +239,12 @@ class ActivationClientProxy(
   }
 
   when(ClientProxyRemoving) {
-    case Event(request: RequestActivation, client: Client) =>
-      request.newScheduler match {
-        // if scheduler is changed, client needs to be recreated
-        case Some(scheduler) if scheduler.host != client.rpcHost || scheduler.rpcPort != client.rpcPort =>
-          val newHost = request.newScheduler.get.host
-          val newPort = request.newScheduler.get.rpcPort
-          client.activationClient
-            .close()
-            .flatMap(_ =>
-              createActivationClient(invocationNamespace, action, newHost, newPort, tryOtherScheduler = false))
-            .pipeTo(self)
 
-        case _ =>
-          requestActivationMessage(invocationNamespace, action, rev, client.activationClient, request.lastDuration)
-            .pipeTo(self)
-      }
+    // This is the case where the last activation message is sent to the container proxy and container proxy requested
+    // another activation. But the activation client is being shut down and it no longer fetches any request.
+    case Event(_: RequestActivation, c: Client) =>
+      safelyCloseClient(c)
+
       stay()
 
     case Event(msg: ActivationMessage, _: Client) =>
@@ -250,13 +252,16 @@ class ActivationClientProxy(
 
       stay()
 
-    case Event(_: MemoryQueueError, _: Client) =>
+    case Event(_: MemoryQueueError, c: Client) =>
+      safelyCloseClient(c)
       self ! ClientClosed
 
       stay()
 
     case Event(f: FailureMessage, c: Client) =>
-      logging.error(this, s"some error happened for action: ${action} in state: $stateName, caused by: $f")
+      logging.error(
+        this,
+        s"[${containerId.asString}] some error happened for action: ${action} in state: $stateName, caused by: $f")
       safelyCloseClient(c)
       stay()
 
@@ -279,16 +284,26 @@ class ActivationClientProxy(
       warmed = true
       stay
 
-    case Event(CloseClientProxy, c: Client) =>
-      safelyCloseClient(c)
+    // When disabling an invoker, there could still be activations in the queue.
+    // The activation client keeps fetching data and will forward it to the container(parent).
+    // Once it receives `NoActivationMessage` from the queue, it will close the activation client and send `ClientClosed`
+    // to the container(parent), rather than sending `RetryRequestActivation`.
+    // When a container proxy(parent) receives `ClientClosed`, it will finally shut down.
+    case Event(GracefulShutdown, _: Client) =>
+      logging.info(this, s"[${containerId.asString}] safely close client proxy and go to the ClientProxyRemoving state")
+
       goto(ClientProxyRemoving)
 
     case Event(ClientClosed, _) =>
+      logging.info(
+        this,
+        s"[${containerId.asString}] the underlying client is closed, stopping the activation client proxy")
       context.parent ! ClientClosed
 
       stop()
 
     case Event(StopClientProxy, c: Client) =>
+      logging.info(this, s"[${containerId.asString}] stop close client proxy and go to the ClientProxyRemoving state")
       safelyCloseClient(c)
       stay()
   }
@@ -367,7 +382,7 @@ class ActivationClientProxy(
           logging.debug(this, s"grpc client is closed for $fqn in the Try closure")
           Future.successful(ClientClosed)
       }
-      .getOrElse(Future.failed(new Exception(s"error to get $fqn activation from grpc server")))
+      .getOrElse(Future.failed(new RuntimeException(s"error to get $fqn activation from grpc server")))
   }
 
   private def createActivationClient(invocationNamespace: String,

@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-func main(args: [String:Any]) -> [String:Any] {
-    if let str = args["delimiter"] as? String {
+func main(args: Any) -> Any {
+    let dict = args as! [String:Any]
+    if let str = dict["delimiter"] as? String {
         let msg = "\(str) ☃ \(str)"
         print(msg)
         return [ "winter" : msg ]

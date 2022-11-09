@@ -26,7 +26,7 @@ import akka.util.ByteString
 import pureconfig._
 import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
+import spray.json.{JsObject, JsValue}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.ActivationResponse.{ContainerConnectionError, ContainerResponse}
@@ -135,6 +135,13 @@ trait Container {
           transid.failed(this, start, s"initializiation failed with $t")
       }
       .flatMap { result =>
+        // if runtime container is shutting down, reschedule the activation message
+        result.response.right.map { res =>
+          if (res.shuttingDown) {
+            throw ContainerHealthError(transid, containerId.asString)
+          }
+        }
+
         if (result.ok) {
           Future.successful(result.interval)
         } else if (result.interval.duration >= timeout) {
@@ -152,7 +159,7 @@ trait Container {
   }
 
   /** Runs code in the container. Thread-safe - caller may invoke concurrently for concurrent activation processing. */
-  def run(parameters: JsObject,
+  def run(parameters: JsValue,
           environment: JsObject,
           timeout: FiniteDuration,
           maxConcurrent: Int,
@@ -180,6 +187,13 @@ trait Container {
           transid.failed(this, start, s"run failed with $t")
       }
       .map { result =>
+        // if runtime container is shutting down, reschedule the activation message
+        result.response.right.map { res =>
+          if (res.shuttingDown) {
+            throw ContainerHealthError(transid, containerId.asString)
+          }
+        }
+
         val response = if (result.interval.duration >= timeout) {
           ActivationResponse.developerError(Messages.timedoutActivation(timeout, false))
         } else {

@@ -33,11 +33,11 @@ import org.apache.openwhisk.core.connector.{
   MessageProducer,
   ResultMetadata
 }
-import org.apache.openwhisk.core.containerpool.docker.DockerContainer
 import org.apache.openwhisk.core.containerpool.v2._
 import org.apache.openwhisk.core.containerpool.{
   Container,
   ContainerAddress,
+  ContainerId,
   ContainerPoolConfig,
   ContainerRemoved,
   PrewarmContainerCreationConfig,
@@ -137,9 +137,15 @@ class FunctionPullingContainerPoolTests
   private val schedulerInstanceId = SchedulerInstanceId("0")
   private val producer = stub[MessageProducer]
   private val prewarmedData = PreWarmData(mock[MockableV2Container], actionKind, memoryLimit)
+  private val mockContainer = mock[MockableV2Container]
+  (mockContainer.containerId _: () => ContainerId)
+    .expects()
+    .returning(ContainerId("test-container-id"))
+    .anyNumberOfTimes()
+
   private val initializedData =
     InitializedData(
-      mock[MockableV2Container],
+      mockContainer,
       invocationNamespace.asString,
       whiskAction.toExecutableWhiskAction.get,
       TestProbe().ref)
@@ -315,6 +321,11 @@ class FunctionPullingContainerPoolTests
   private def retry[T](fn: => T) = org.apache.openwhisk.utils.retry(fn, 10, Some(1.second))
 
   it should "stop containers gradually when shut down" in within(timeout * 20) {
+    (mockContainer.containerId _: () => ContainerId)
+      .expects()
+      .returning(ContainerId("test-container-id"))
+      .anyNumberOfTimes()
+
     val (containers, factory) = testContainers(10)
     val disablingContainers = ListBuffer[ActorRef]()
 
@@ -356,7 +367,7 @@ class FunctionPullingContainerPoolTests
           pool,
           ContainerIsPaused(
             WarmData(
-              stub[DockerContainer],
+              mockContainer,
               invocationNamespace.asString,
               whiskAction.toExecutableWhiskAction.get,
               doc.rev,
@@ -636,6 +647,10 @@ class FunctionPullingContainerPoolTests
   }
 
   it should "use a warmed container when invocationNamespace, action and revision matched" in within(timeout) {
+    (mockContainer.containerId _: () => ContainerId)
+      .expects()
+      .returning(ContainerId("test-container-id"))
+      .anyNumberOfTimes()
     val (containers, factory) = testContainers(3)
     val doc = put(entityStore, whiskAction)
 
@@ -654,7 +669,7 @@ class FunctionPullingContainerPoolTests
     pool.tell(
       ContainerIsPaused(
         WarmData(
-          stub[DockerContainer],
+          mockContainer,
           invocationNamespace.asString,
           whiskAction.toExecutableWhiskAction.get,
           doc.rev,
@@ -687,6 +702,10 @@ class FunctionPullingContainerPoolTests
   }
 
   it should "retry when chosen warmed container is failed to resume" in within(timeout) {
+    (mockContainer.containerId _: () => ContainerId)
+      .expects()
+      .returning(ContainerId("test-container-id"))
+      .anyNumberOfTimes()
 
     val (containers, factory) = testContainers(2)
     val doc = put(entityStore, whiskAction)
@@ -706,7 +725,7 @@ class FunctionPullingContainerPoolTests
     pool.tell(
       ContainerIsPaused(
         WarmData(
-          stub[DockerContainer],
+          mockContainer,
           invocationNamespace.asString,
           whiskAction.toExecutableWhiskAction.get,
           doc.rev,
@@ -724,7 +743,7 @@ class FunctionPullingContainerPoolTests
     pool.tell(
       ResumeFailed(
         WarmData(
-          stub[DockerContainer],
+          mockContainer,
           invocationNamespace.asString,
           whiskAction.toExecutableWhiskAction.get,
           doc.rev,
@@ -739,6 +758,10 @@ class FunctionPullingContainerPoolTests
   }
 
   it should "remove oldest previously used container to make space for the job passed to run" in within(timeout) {
+    (mockContainer.containerId _: () => ContainerId)
+      .expects()
+      .returning(ContainerId("test-container-id"))
+      .anyNumberOfTimes()
     val (containers, factory) = testContainers(2)
     val doc = put(entityStore, whiskAction)
 
@@ -757,7 +780,7 @@ class FunctionPullingContainerPoolTests
     pool.tell(
       ContainerIsPaused(
         WarmData(
-          stub[DockerContainer],
+          mockContainer,
           invocationNamespace.asString,
           whiskAction.toExecutableWhiskAction.get,
           doc.rev,
@@ -769,7 +792,7 @@ class FunctionPullingContainerPoolTests
     pool.tell(
       ContainerIsPaused(
         WarmData(
-          stub[DockerContainer],
+          mockContainer,
           invocationNamespace.asString,
           whiskAction.toExecutableWhiskAction.get,
           doc.rev,
@@ -781,7 +804,7 @@ class FunctionPullingContainerPoolTests
     pool.tell(
       ContainerIsPaused(
         WarmData(
-          stub[DockerContainer],
+          mockContainer,
           invocationNamespace.asString,
           whiskAction.toExecutableWhiskAction.get,
           doc.rev,
@@ -854,6 +877,10 @@ class FunctionPullingContainerPoolTests
   }
 
   it should "send ack(success) to scheduler when chosen warmed container is resumed" in within(timeout) {
+    (mockContainer.containerId _: () => ContainerId)
+      .expects()
+      .returning(ContainerId("test-container-id"))
+      .anyNumberOfTimes()
     val (containers, factory) = testContainers(1)
     val doc = put(entityStore, whiskAction)
     // Actions are created with default memory limit (MemoryLimit.stdMemory). This means 4 actions can be scheduled.
@@ -878,7 +905,7 @@ class FunctionPullingContainerPoolTests
     pool.tell(
       ContainerIsPaused(
         WarmData(
-          stub[DockerContainer],
+          mockContainer,
           invocationNamespace.asString,
           whiskAction.toExecutableWhiskAction.get,
           doc.rev,
@@ -894,7 +921,7 @@ class FunctionPullingContainerPoolTests
     pool.tell(
       Resumed(
         WarmData(
-          stub[DockerContainer],
+          mockContainer,
           invocationNamespace.asString,
           whiskAction.toExecutableWhiskAction.get,
           doc.rev,

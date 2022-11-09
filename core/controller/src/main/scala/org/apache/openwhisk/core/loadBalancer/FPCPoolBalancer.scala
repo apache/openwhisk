@@ -663,8 +663,9 @@ class FPCPoolBalancer(config: WhiskConfig,
     Future.successful(activationsPerController.get(ControllerInstanceId(controller)).map(_.intValue()).getOrElse(0))
 
   /** Gets the in-flight activations */
-  override def activeActivationsByController: Future[List[ActivationId]] =
-    Future.successful(activationSlots.keySet.toList)
+  override def activeActivationsByController: Future[List[(String, String)]] =
+    Future.successful(
+      activationSlots.values.map(entry => (entry.id.asString, entry.fullyQualifiedEntityName.toString)).toList)
 
   /** Gets the number of in-flight activations for a specific invoker. */
   override def activeActivationsByInvoker(invoker: String): Future[Int] = Future.successful(0)

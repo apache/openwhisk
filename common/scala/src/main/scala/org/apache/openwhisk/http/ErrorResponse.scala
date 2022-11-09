@@ -75,7 +75,8 @@ object Messages {
   def tooManyConcurrentRequests(count: Int, allowed: Int) =
     s"Too many concurrent requests in flight (count: $count, allowed: $allowed)."
 
-  def maxActionContainerConcurrencyExceedsNamespace(namespaceConcurrencyLimit: Int) = s"Max action container concurrency must not exceed your namespace concurrency of $namespaceConcurrencyLimit."
+  def maxActionContainerConcurrencyExceedsNamespace(namespaceConcurrencyLimit: Int) =
+    s"Max action container concurrency must not exceed your namespace concurrency of $namespaceConcurrencyLimit."
 
   /** System overload message. */
   val systemOverloaded = "System is overloaded, try again later."
@@ -206,7 +207,7 @@ object Messages {
   }
 
   def invalidRunResponse(actualResponse: String) = {
-    "The action did not produce a valid JSON response" + {
+    "The action did not produce a valid JSON or JSON Array response" + {
       Option(actualResponse) filter { _.nonEmpty } map { s =>
         s": $s"
       } getOrElse "."
@@ -236,6 +237,8 @@ object Messages {
 
   /** Indicates that the image could not be pulled. */
   def imagePullError(image: String) = s"Failed to pull container image '$image'."
+
+  def commandNotFoundError = "executable file not found"
 
   /** Indicates that the container for the action could not be started. */
   val resourceProvisionError = "Failed to provision resources to run the action."

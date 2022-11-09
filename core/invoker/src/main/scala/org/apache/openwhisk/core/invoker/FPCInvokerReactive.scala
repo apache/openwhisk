@@ -20,8 +20,8 @@ package org.apache.openwhisk.core.invoker
 import akka.Done
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
 import akka.grpc.GrpcClientSettings
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Route
+import akka.pattern.ask
+import akka.util.Timeout
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.client.kv.KvClient.Watch
 import com.ibm.etcd.client.kv.WatchUpdate
@@ -31,16 +31,16 @@ import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.containerpool.v2._
-import org.apache.openwhisk.core.database.{UserContext, _}
+import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdKV.ContainerKeys.containerPrefix
 import org.apache.openwhisk.core.etcd.EtcdKV.QueueKeys.queue
 import org.apache.openwhisk.core.etcd.EtcdKV.{ContainerKeys, SchedulerKeys}
 import org.apache.openwhisk.core.etcd.EtcdType._
-import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
+import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig, EtcdWorker}
 import org.apache.openwhisk.core.invoker.Invoker.InvokerEnabled
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulerStates}
-import org.apache.openwhisk.core.service.{DataManagementService, EtcdWorker, LeaseKeepAliveService, WatcherService}
+import org.apache.openwhisk.core.service.{DataManagementService, LeaseKeepAliveService, WatcherService}
 import org.apache.openwhisk.core.{ConfigKeys, WarmUp, WhiskConfig}
 import org.apache.openwhisk.grpc.{ActivationServiceClient, FetchRequest}
 import org.apache.openwhisk.spi.SpiLoader
@@ -151,7 +151,7 @@ class FPCInvokerReactive(config: WhiskConfig,
     Identity
       .get(authStore, EntityName(invocationNamespace))(trasnid)
       .map { identity =>
-        val warmedContainerKeepingCount = identity.limits.warmedContainerKeepingCount.getOrElse(1)
+        val warmedContainerKeepingCount = identity.limits.warmedContainerKeepingCount.getOrElse(0)
         val warmedContainerKeepingTimeout = Try {
           identity.limits.warmedContainerKeepingTimeout.map(Duration(_).toSeconds.seconds).get
         }.getOrElse(containerProxyTimeoutConfig.keepingDuration)
@@ -373,42 +373,33 @@ class FPCInvokerReactive(config: WhiskConfig,
       maxPeek,
       sendAckToScheduler))
 
-  override def enable(): Route = {
+  override def enable(): String = {
     invokerHealthManager ! Enable
     pool ! Enable
-    // re-enable consumer
-    if (consumer.isEmpty)
-      consumer = Some(
-        new ContainerMessageConsumer(
-          instance,
-          pool,
-          entityStore,
-          cfg,
-          msgProvider,
-          longPollDuration = 1.second,
-          maxPeek,
-          sendAckToScheduler))
     warmUp()
-    complete("Success enable invoker")
+    s"${instance.toString} is now enabled."
   }
 
-  override def disable(): Route = {
+  override def disable(): String = {
     invokerHealthManager ! GracefulShutdown
     pool ! GracefulShutdown
-    consumer.foreach(_.close())
-    consumer = None
     warmUpWatcher.foreach(_.close())
     warmUpWatcher = None
-    complete("Successfully disabled invoker")
+    s"${instance.toString} is now disabled."
   }
 
-  override def isEnabled(): Route = {
-    complete(InvokerEnabled(consumer.nonEmpty && warmUpWatcher.nonEmpty).serialize())
+  override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {
+    implicit val timeout: Timeout = 5.seconds
+    (pool ? GetState).mapTo[TotalContainerPoolState].map(Right(_))
   }
 
-  override def backfillPrewarm(): Route = {
+  override def isEnabled(): String = {
+    InvokerEnabled(warmUpWatcher.nonEmpty).serialize()
+  }
+
+  override def backfillPrewarm(): String = {
     pool ! AdjustPrewarmedContainer
-    complete("backfilling prewarm container")
+    "backfilling prewarm container"
   }
 
   private val warmUpFetchRequest = FetchRequest(

@@ -86,7 +86,7 @@ class MemoryQueueTestsFixture
   val testNamespace = "test-namespace"
   val testAction = "test-action"
 
-  val schedulingConfig = SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds)
+  val schedulingConfig = SchedulingConfig(100.milliseconds, 100.milliseconds, 10.seconds, false, 1.5)
 
   val fqn = FullyQualifiedEntityName(EntityPath(testNamespace), EntityName(testAction), Some(SemVer(0, 0, 1)))
   val revision = DocRevision("1-testRev")
@@ -154,7 +154,7 @@ class MemoryQueueTestsFixture
   val actionThrottlingKey = ThrottlingKeys.action(testInvocationNamespace, fqn.copy(version = None))
 
   // queue variables
-  val queueConfig = QueueConfig(5 seconds, 10 seconds, 5 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10)
+  val queueConfig = QueueConfig(5 seconds, 10 seconds, 5 seconds, 5 seconds, 10, 10000, 20000, 0.9, 10, false)
   val idleGrace = queueConfig.idleGrace
   val stopGrace = queueConfig.stopGrace
   val flushGrace = queueConfig.flushGrace

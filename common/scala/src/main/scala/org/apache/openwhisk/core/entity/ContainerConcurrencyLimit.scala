@@ -40,6 +40,7 @@ import spray.json._
 protected[entity] class ContainerConcurrencyLimit private (val maxConcurrentContainers: Int) extends AnyVal
 
 protected[core] object ContainerConcurrencyLimit extends ArgNormalizer[ContainerConcurrencyLimit] {
+
   /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
   protected[core] val MIN_CONTAINER_CONCURRENT: Int = 1
 
@@ -52,7 +53,9 @@ protected[core] object ContainerConcurrencyLimit extends ArgNormalizer[Container
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(maxConcurrency: Int): ContainerConcurrencyLimit = {
-    require(maxConcurrency >= MIN_CONTAINER_CONCURRENT, s"max container concurrency $maxConcurrency below allowed threshold of $MIN_CONTAINER_CONCURRENT")
+    require(
+      maxConcurrency >= MIN_CONTAINER_CONCURRENT,
+      s"max container concurrency $maxConcurrency below allowed threshold of $MIN_CONTAINER_CONCURRENT")
     new ContainerConcurrencyLimit(maxConcurrency)
   }
 

@@ -19,13 +19,13 @@ package org.apache.openwhisk.core.invoker
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.http.scaladsl.server.Route
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector.{MessageProducer, MessagingProvider}
+import org.apache.openwhisk.core.containerpool.v2.{NotSupportedPoolState, TotalContainerPoolState}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerPoolConfig}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -109,7 +109,18 @@ object Invoker {
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
     val poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
     val limitConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit)
+    val tags: Seq[String] = Some(loadConfigOrThrow[String](ConfigKeys.invokerResourceTags))
+      .map(_.trim())
+      .filter(_ != "")
+      .map(_.split(",").toSeq)
+      .getOrElse(Seq.empty[String])
+    val dedicatedNamespaces: Seq[String] = Some(loadConfigOrThrow[String](ConfigKeys.invokerDedicatedNamespaces))
+      .map(_.trim())
+      .filter(_ != "")
+      .map(_.split(",").toSeq)
+      .getOrElse(Seq.empty[String])
 
+    logger.info(this, s"invoker tags: (${tags.mkString(", ")})")
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
       logger.info(this, s"Shutting down Kamon with coordinated shutdown")
@@ -190,7 +201,14 @@ object Invoker {
 
     val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     val invokerInstance =
-      InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName, poolConfig.userMemory)
+      InvokerInstanceId(
+        assignedInvokerId,
+        cmdLineArgs.uniqueName,
+        cmdLineArgs.displayedName,
+        poolConfig.userMemory,
+        None,
+        tags,
+        dedicatedNamespaces)
 
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider
@@ -228,10 +246,11 @@ trait InvokerProvider extends Spi {
 
 // this trait can be used to add common implementation
 trait InvokerCore {
-  def enable(): Route
-  def disable(): Route
-  def isEnabled(): Route
-  def backfillPrewarm(): Route
+  def enable(): String
+  def disable(): String
+  def isEnabled(): String
+  def backfillPrewarm(): String
+  def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]]
 }
 
 /**

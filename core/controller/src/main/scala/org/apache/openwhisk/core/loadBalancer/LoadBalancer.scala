@@ -59,7 +59,7 @@ trait LoadBalancer {
   def activeActivationsByController(controller: String): Future[Int]
 
   /** Gets the in-flight activations */
-  def activeActivationsByController: Future[List[ActivationId]]
+  def activeActivationsByController: Future[List[(String, String)]]
 
   /** Gets the number of in-flight activations for a specific invoker. */
   def activeActivationsByInvoker(invoker: String): Future[Int]

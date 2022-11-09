@@ -21,6 +21,8 @@ import akka.Done
 import akka.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.management.scaladsl.AkkaManagement
+import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigValueFactory
@@ -34,11 +36,11 @@ import org.apache.openwhisk.core.database.{ActivationStoreProvider, NoDocumentEx
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.etcd.EtcdKV.{QueueKeys, SchedulerKeys}
 import org.apache.openwhisk.core.etcd.EtcdType.ByteStringToString
-import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
+import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig, EtcdWorker}
 import org.apache.openwhisk.core.scheduler.container.{ContainerManager, CreationJobManager}
 import org.apache.openwhisk.core.scheduler.grpc.ActivationServiceImpl
 import org.apache.openwhisk.core.scheduler.queue._
-import org.apache.openwhisk.core.service.{DataManagementService, EtcdWorker, LeaseKeepAliveService, WatcherService}
+import org.apache.openwhisk.core.service.{DataManagementService, LeaseKeepAliveService, WatcherService}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.grpc.ActivationServiceHandler
 import org.apache.openwhisk.http.BasicHttpService
@@ -125,11 +127,11 @@ class Scheduler(schedulerId: SchedulerInstanceId, schedulerEndpoints: SchedulerE
   }
 
   override def getQueueSize: Future[Int] = {
-    queueManager.ask(QueueSize)(Timeout(5.seconds)).mapTo[Int]
+    queueManager.ask(QueueSize)(Timeout(1.minute)).mapTo[Int]
   }
 
   override def getQueueStatusData: Future[List[StatusData]] = {
-    queueManager.ask(StatusQuery)(Timeout(5.seconds)).mapTo[Future[List[StatusData]]].flatten
+    queueManager.ask(GetState)(Timeout(1.minute)).mapTo[Future[List[StatusData]]].flatten
   }
 
   override def disable(): Unit = {
@@ -258,6 +260,7 @@ trait SchedulerCore {
 object Scheduler {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.scheduler.protocol")
+  protected val useClusterBootstrap = loadConfigOrThrow[Boolean]("whisk.cluster.use-cluster-bootstrap")
 
   val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
 
@@ -288,6 +291,11 @@ object Scheduler {
       ActorSystem(name = "scheduler-actor-system", defaultExecutionContext = Some(ec))
 
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+
+    if (useClusterBootstrap) {
+      AkkaManagement(actorSystem).start()
+      ClusterBootstrap(actorSystem).start()
+    }
 
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
@@ -389,6 +397,21 @@ case class SchedulerStates(sid: SchedulerInstanceId, queueSize: Int, endpoints: 
   def getSchedulerId(): SchedulerInstanceId = sid
 
   def serialize = SchedulerStates.serdes.write(this).compactPrint
+
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: SchedulerStates => {
+        this.queueSize == that.queueSize
+      }
+      case _ => false
+    }
+
+  override def hashCode: Int = {
+    var result = 1
+    val prime = 31
+    result = prime * result + queueSize.hashCode()
+    result
+  }
 }
 
 object SchedulerStates extends DefaultJsonProtocol {
@@ -398,4 +421,8 @@ object SchedulerStates extends DefaultJsonProtocol {
   def parse(states: String) = Try(serdes.read(states.parseJson))
 }
 
-case class SchedulingConfig(staleThreshold: FiniteDuration, checkInterval: FiniteDuration, dropInterval: FiniteDuration)
+case class SchedulingConfig(staleThreshold: FiniteDuration,
+                            checkInterval: FiniteDuration,
+                            dropInterval: FiniteDuration,
+                            allowOverProvisionBeforeThrottle: Boolean,
+                            namespaceOverProvisionBeforeThrottleRatio: Double)

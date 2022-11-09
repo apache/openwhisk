@@ -289,8 +289,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           complete(Accepted, activationId.toJsObject)
         }
       case Success(Right(activation)) =>
-        val response = if (result) activation.resultAsJson else activation.toExtendedJson()
-
+        val response = activation.response.result match {
+          case Some(JsArray(elements)) =>
+            JsArray(elements)
+          case _ =>
+            if (result) activation.resultAsJson else activation.toExtendedJson()
+        }
         respondWithActivationIdHeader(activation.activationId) {
           if (activation.response.isSuccess) {
             complete(OK, response)
@@ -667,10 +671,23 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     }
   }
 
-  private def checkContainerConcurrencyLessThanNamespaceConcurrency(user: Identity, content: WhiskActionPut)(implicit transid: TransactionId): Future[Unit] = {
-    val namespaceConcurrencyLimit = user.limits.concurrentInvocations.getOrElse(whiskConfig.actionInvokeConcurrentLimit.toInt)
-    content.limits.map(l => l.maxContainerConcurrency.map(m => if (m.maxConcurrentContainers > namespaceConcurrencyLimit) Future failed RejectRequest(BadRequest, maxActionContainerConcurrencyExceedsNamespace(namespaceConcurrencyLimit)) else Future.successful({}))
-      .getOrElse(Future.successful({}))).getOrElse(Future.successful({}))
+  private def checkContainerConcurrencyLessThanNamespaceConcurrency(user: Identity, content: WhiskActionPut)(
+    implicit transid: TransactionId): Future[Unit] = {
+    val namespaceConcurrencyLimit =
+      user.limits.concurrentInvocations.getOrElse(whiskConfig.actionInvokeConcurrentLimit.toInt)
+    content.limits
+      .map(
+        l =>
+          l.maxContainerConcurrency
+            .map(
+              m =>
+                if (m.maxConcurrentContainers > namespaceConcurrencyLimit)
+                  Future failed RejectRequest(
+                    BadRequest,
+                    maxActionContainerConcurrencyExceedsNamespace(namespaceConcurrencyLimit))
+                else Future.successful({}))
+            .getOrElse(Future.successful({})))
+      .getOrElse(Future.successful({}))
   }
 
   /**
