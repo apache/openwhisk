@@ -334,5 +334,4 @@ class InvokerReactive(
   override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {
     Future.successful(Left(NotSupportedPoolState()))
   }
-
 }

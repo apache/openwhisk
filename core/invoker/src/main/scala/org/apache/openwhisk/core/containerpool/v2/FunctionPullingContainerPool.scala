@@ -65,7 +65,6 @@ case class TotalContainerPoolState(totalContainers: Int,
                                    prewarmedPool: PrewarmedContainerPoolState,
                                    busyPool: WarmContainerPoolState,
                                    pausedPool: WarmContainerPoolState) {
-
   def serialize(): String = TotalContainerPoolState.totalPoolSerdes.write(this).compactPrint
 }
 
@@ -436,7 +435,6 @@ class FunctionPullingContainerPool(
       // Reset the prewarmCreateCount value when do expiration check and backfill prewarm if possible
       prewarmCreateFailedCount.set(0)
       adjustPrewarmedContainer(false, true)
-
     case GetState =>
       val totalContainers = busyPool.size + inProgressPool.size + warmedPool.size + prewarmedPool.size
       val prewarmedState =
@@ -444,7 +442,6 @@ class FunctionPullingContainerPool(
       val busyState = WarmContainerPoolState(busyPool.size, busyPool.values.map(_.basicContainerInfo).toList)
       val pausedState = WarmContainerPoolState(warmedPool.size, warmedPool.values.map(_.basicContainerInfo).toList)
       sender() ! TotalContainerPoolState(totalContainers, inProgressPool.size, prewarmedState, busyState, pausedState)
-
   }
 
   /** Install prewarm containers up to the configured requirements for each kind/memory combination or specified kind/memory */

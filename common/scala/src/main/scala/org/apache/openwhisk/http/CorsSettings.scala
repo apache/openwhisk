@@ -15,15 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.openwhisk.core.controller
+package org.apache.openwhisk.http
 
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.HttpMethods.{DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT}
+import akka.http.scaladsl.model.HttpMethods._
+import akka.http.scaladsl.model.headers.{
+  `Access-Control-Allow-Headers`,
+  `Access-Control-Allow-Methods`,
+  `Access-Control-Allow-Origin`
+}
+import akka.http.scaladsl.server.Directives
 
 /**
  * Defines the CORS settings for the REST APIs and Web Actions.
  */
-protected[controller] object CorsSettings {
+object CorsSettings {
 
   trait RestAPIs {
     val allowOrigin = Defaults.allowOrigin
@@ -36,6 +41,16 @@ protected[controller] object CorsSettings {
     val allowOrigin = Defaults.allowOrigin
     val allowHeaders = Defaults.allowHeaders
     val allowMethods = `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH)
+  }
+
+  object ServerAPIs {
+    val allowOrigin = Defaults.allowOrigin
+    val allowHeaders = Defaults.allowHeaders
+    val allowMethods = `Access-Control-Allow-Methods`(OPTIONS, GET, POST)
+  }
+
+  trait RespondWithServerCorsHeaders extends Directives {
+    val sendCorsHeaders = respondWithHeaders(ServerAPIs.allowOrigin, ServerAPIs.allowHeaders, ServerAPIs.allowMethods)
   }
 
   object Defaults {
