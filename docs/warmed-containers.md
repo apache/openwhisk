@@ -42,7 +42,7 @@ So those can be configured in the same way that operators configure the `invocat
 ```json
 {
   "_id": "guest/limits",
-  "invocationPerMinutes": 10,
+  "invocationsPerMinute": 10,
   "warmedContainerKeepingCount": 8,
   "warmedContainerKeepingTimeout": "24 hours"
 }
