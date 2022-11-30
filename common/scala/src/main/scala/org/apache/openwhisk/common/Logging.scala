@@ -378,7 +378,9 @@ object LoggingMarkers {
       counter,
       Some(actionWithoutVersion),
       Map("namespace" -> namespace, "action" -> actionWithVersion))(MeasurementUnit.none)
-  def SCHEDULER_ACTION_INPROGRESS_CONTAINER(namespace: String, actionWithVersion: String, actionWithoutVersion: String) =
+  def SCHEDULER_ACTION_INPROGRESS_CONTAINER(namespace: String,
+                                            actionWithVersion: String,
+                                            actionWithoutVersion: String) =
     LogMarkerToken(
       scheduler,
       "actionInProgressContainer",
@@ -604,7 +606,12 @@ object LoggingMarkers {
   def SCHEDULER_QUEUE_UPDATE(reason: String) =
     LogMarkerToken(scheduler, "queueUpdate", counter, None, Map("reason" -> reason))(MeasurementUnit.none)
   def SCHEDULER_QUEUE_WAITING_ACTIVATION(namespace: String, actionWithVersion: String, actionWithoutVersion: String) =
-    LogMarkerToken(scheduler, "queueActivation", counter, Some(actionWithoutVersion), Map("namespace" -> namespace, "action" -> actionWithVersion))(MeasurementUnit.none)
+    LogMarkerToken(
+      scheduler,
+      "queueActivation",
+      counter,
+      Some(actionWithoutVersion),
+      Map("namespace" -> namespace, "action" -> actionWithVersion))(MeasurementUnit.none)
 
   /*
    * General markers

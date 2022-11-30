@@ -181,7 +181,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
   private val logScheduler: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0.seconds, 1.seconds) { () =>
     MetricEmitter.emitGaugeMetric(
-      LoggingMarkers.SCHEDULER_QUEUE_WAITING_ACTIVATION(invocationNamespace, action.asString, action.toStringWithoutVersion),
+      LoggingMarkers
+        .SCHEDULER_QUEUE_WAITING_ACTIVATION(invocationNamespace, action.asString, action.toStringWithoutVersion),
       queue.size)
 
     MetricEmitter.emitGaugeMetric(
@@ -195,7 +196,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       LoggingMarkers.SCHEDULER_ACTION_CONTAINER(invocationNamespace, action.asString, action.toStringWithoutVersion),
       containers.size)
     MetricEmitter.emitGaugeMetric(
-      LoggingMarkers.SCHEDULER_ACTION_INPROGRESS_CONTAINER(invocationNamespace, action.asString, action.toStringWithoutVersion),
+      LoggingMarkers
+        .SCHEDULER_ACTION_INPROGRESS_CONTAINER(invocationNamespace, action.asString, action.toStringWithoutVersion),
       creationIds.size)
   }
 
