@@ -418,12 +418,13 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
   }
 
   // overridden to retrieve attached code
-  override def get[A >: WhiskAction](
-    db: ArtifactStore[A],
-    doc: DocId,
-    rev: DocRevision = DocRevision.empty,
-    fromCache: Boolean,
-    ignoreMissingAttachment: Boolean = false)(implicit transid: TransactionId, mw: Manifest[WhiskAction]): Future[WhiskAction] = {
+  override def get[A >: WhiskAction](db: ArtifactStore[A],
+                                     doc: DocId,
+                                     rev: DocRevision = DocRevision.empty,
+                                     fromCache: Boolean,
+                                     ignoreMissingAttachment: Boolean = false)(
+    implicit transid: TransactionId,
+    mw: Manifest[WhiskAction]): Future[WhiskAction] = {
 
     implicit val ec = db.executionContext
 

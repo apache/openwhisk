@@ -63,7 +63,11 @@ case class QueueManagerConfig(maxRetriesToGetQueue: Int, maxSchedulingTime: Fini
 
 class QueueManager(
   entityStore: ArtifactStore[WhiskEntity],
-  getWhiskActionMetaData: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean, Boolean) => Future[WhiskActionMetaData],
+  getWhiskActionMetaData: (ArtifactStore[WhiskEntity],
+                           DocId,
+                           DocRevision,
+                           Boolean,
+                           Boolean) => Future[WhiskActionMetaData],
   etcdClient: EtcdClient,
   schedulerEndpoints: SchedulerEndpoints,
   schedulerId: SchedulerInstanceId,
@@ -668,7 +672,11 @@ object QueueManager {
 
   def props(
     entityStore: ArtifactStore[WhiskEntity],
-    getWhiskActionMetaData: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean, Boolean) => Future[WhiskActionMetaData],
+    getWhiskActionMetaData: (ArtifactStore[WhiskEntity],
+                             DocId,
+                             DocRevision,
+                             Boolean,
+                             Boolean) => Future[WhiskActionMetaData],
     etcdClient: EtcdClient,
     schedulerEndpoints: SchedulerEndpoints,
     schedulerId: SchedulerInstanceId,
