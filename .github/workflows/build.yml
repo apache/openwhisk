@@ -43,12 +43,6 @@ jobs:
           distribution: adopt-openj9
           java-version: 11
           cache: 'gradle'
-      - run: true || ./tools/github/debugAction.sh
-      - run: ./tools/github/waitIfDebug.sh
-      - run: false || ./tools/github/debugAction.sh
-      - run: ./tools/github/waitIfDebug.sh
-      - run: false || ./tools/github/debugAction.sh
-      - run: ./tools/github/waitIfDebug.sh
       - name: "Setup"
         run: ./tools/github/setup.sh
       - name: "Scala 2.13 compilation"
@@ -90,5 +84,3 @@ jobs:
       - run: OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation     
       #- name: upload logs
       #  run: ./tools/github/checkAndUploadLogs.sh perf
-      
-  
