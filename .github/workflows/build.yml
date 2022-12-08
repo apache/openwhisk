@@ -40,6 +40,9 @@ jobs:
         run: ./tools/github/setup.sh
       - name: "Scala 2.13 compilation"
         run: TERM=dumb OW_SCALA_VERSION=2.13 ./gradlew :tests:compileTestScala
+
+      - name: echo "localhost" >ansible/environments/local/hosts
+      
       # this section is to debug the action with ngrok
       # you need to add the relevant secrets 
       # and enable it with touch .github/debug and push it

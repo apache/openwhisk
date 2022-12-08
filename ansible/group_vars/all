@@ -551,5 +551,3 @@ scheduler:
     throttlingFraction: "{{ scheduler_queue_throttlingFraction | default(0.9) }}"
     durationBufferSize: "{{ scheduler_queue_durationBufferSize | default(10) }}"
   deployment_ignore_error: "{{ scheduler_deployment_ignore_error | default('False') }}"
-  dataManagementService:
-    retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"
