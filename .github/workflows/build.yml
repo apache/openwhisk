@@ -16,6 +16,8 @@
 # under the License.
 #
 name: OpenWhisk
+on:
+  push:
 
 env:
   ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
