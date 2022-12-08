@@ -43,7 +43,7 @@ python -m pip install --user pydocumentdb
 python -m pip install --user humanize requests
 
 # Scan code before compiling the code
-./scan.sh
+tools/github/scan.sh
 
 # Basic check that all code compiles and depdendencies are downloaded correctly.
 # Compiling the tests will compile all components as well.

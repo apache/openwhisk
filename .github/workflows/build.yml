@@ -36,6 +36,10 @@ jobs:
           distribution: adopt-openj9
           java-version: 11
           cache: 'gradle'
+      - name: "Setup"
+        run: ./tools/github/setup.sh
+      - name: "Scala 2.13 compilation"
+        run: TERM=dumb OW_SCALA_VERSION=2.13 ./gradlew :tests:compileTestScala
       # this section is to debug the action with ngrok
       # you need to add the relevant secrets 
       # and enable it with touch .github/debug and push it
@@ -54,4 +58,6 @@ jobs:
              if test -e .github/debug 
              then bash tools/github/waitIfDebug.sh
              fi
+  
+
    
