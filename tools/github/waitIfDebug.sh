@@ -10,8 +10,9 @@ for i in $(seq 1 60)
 do
    if test -e /tmp/continue ; then EXIT=0 ; break ; fi
    if test -e /tmp/abort ; then EXIT=1 ; break ; fi
-   sleep 60; echo "$i/60 still waiting..."
+   echo "$i/60 still waiting..."
+   sleep 60; 
 done
 killall ngrok
-rm .ngrok.log
+rm -f .ngrok.log /tmp/continue /tmp/abort
 exit $EXIT
