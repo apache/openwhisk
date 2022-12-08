@@ -44,30 +44,38 @@ jobs:
           java-version: 11
           cache: 'gradle'
       - run: true || ./tools/github/debugAction.sh
+      - run: ./tools/github/waitIfDebug.sh
       - run: false || ./tools/github/debugAction.sh
+      - run: ./tools/github/waitIfDebug.sh
       - run: false || ./tools/github/debugAction.sh
+      - run: ./tools/github/waitIfDebug.sh
       - name: "Setup"
         run: ./tools/github/setup.sh
       - name: "Scala 2.13 compilation"
         run: TERM=dumb OW_SCALA_VERSION=2.13 ./gradlew :tests:compileTestScala
       - name: Run Unit Tests
         run: ./tools/github/runUnitTests.sh || ./tools/github/debugAction.sh
+      - run: ./tools/github/waitIfDebug.sh
       #- name: upload logs
       #  run: ./tools/github/checkAndUploadLogs.sh unit db
       - name: Run System Tests
         run: ./tools/travis/runSystemTests.sh || ./tools/github/debugAction.sh
+      - run: ./tools/github/waitIfDebug.sh
       #- name: upload logs
       #  run: ./tools/github/checkAndUploadLogs.sh system
       - name: Run MultiSystem Tests
         run: ./tools/travis/runMultiRuntimeTests.sh || ./tools/github/debugAction.sh
+      - run: ./tools/github/waitIfDebug.sh
       #- name: upload logs
       #  run: ./tools/github/checkAndUploadLogs.sh multi-runtime
       - name: Run Standalone
         run: ./tools/travis/runStandaloneTests.sh || ./tools/github/debugAction.sh
+      - run: ./tools/github/waitIfDebug.sh
       #- name: upload logs
       #  run: ./tools/github/checkAndUploadLogs.sh standalone
       - name: Performance tests
         run: ./tests/performance/preparation/deploy.sh || ./tools/github/debugAction.sh
+      - run: ./tools/github/waitIfDebug.sh
       - run: TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 2m
       - run: TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 2m
       - run: TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 4 1 2 2m

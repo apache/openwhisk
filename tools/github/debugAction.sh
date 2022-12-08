@@ -43,14 +43,3 @@ else
   echo "$HAS_ERRORS"
   exit 4
 fi
-
-#!/bin/bash
-echo "You have an hour to debug this build."
-echo "Do touch /tmp/continue to continue."
-echo "Do touch /tmp/abort to abort."
-for i in $(seq 1 12) 
-do 
-   if test -e /tmp/continue ; then exit 0 ; fi
-   if test -e /tmp/abort ; then exit 1 ; fi
-   sleep 300; echo "$i/12 still waiting..."
-done
