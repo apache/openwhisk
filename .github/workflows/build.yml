@@ -17,21 +17,24 @@
 #
 name: OpenWhisk
 
+env:
+  ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
+  GRADLE_PROJS_SKIP: ""
+
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Set up environment variables
-        env:
-          ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
-          GRADLE_PROJS_SKIP: ""
       - name: Checkout
         uses: actions/checkout@v2
       - name: Add java
         uses: actions/setup-java@v1
         with:
           java-version: 11
+      # this section is to debug the action with ngrok
+      # you need to add the relevant secrets 
+      # and enable it with touch .github/debug and push it
       - name: NgrokDebug
         run: |-
              if test -e .github/debug 
@@ -40,6 +43,8 @@ jobs:
         env:
           NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
           NGROK_PASSWORD: ${{ secrets.NGROK_PASSWORD }}
+      # if ngrok debuggins is enabled this will wait for an hour to let debug
+      # you can sto the waiting and resume execution with rm .github/debug
       - name: WaitForNgrokDebug
         run: |-
              if test -e .github/debug 
