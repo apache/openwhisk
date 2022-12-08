@@ -26,7 +26,6 @@ jobs:
         env:
           ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
           GRADLE_PROJS_SKIP: ""
-
       - name: Checkout
         uses: actions/checkout@v2
       - name: Add java
@@ -34,7 +33,7 @@ jobs:
         with:
           java-version: 11
       - name: NgrokDebug
-        run: |- 
+        run: |-
              if test -e .github/debug 
              then bash tools/github/debugAction.sh 
              fi
