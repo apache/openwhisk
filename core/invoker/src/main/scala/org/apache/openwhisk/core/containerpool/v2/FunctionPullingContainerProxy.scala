@@ -188,7 +188,7 @@ class FunctionPullingContainerProxy(
             Option[ExecutableWhiskAction]) => Future[Container],
   entityStore: ArtifactStore[WhiskEntity],
   namespaceBlacklist: NamespaceBlacklist,
-  get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean) => Future[WhiskAction],
+  get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean, Boolean) => Future[WhiskAction],
   dataManagementService: ActorRef,
   clientProxyFactory: (ActorRefFactory,
                        String,
@@ -786,7 +786,7 @@ class FunctionPullingContainerProxy(
   whenUnhandled {
     case Event(PingCache, data: WarmData) =>
       val actionId = data.action.fullyQualifiedName(false).toDocId.asDocInfo(data.revision)
-      get(entityStore, actionId.id, actionId.rev, true).map(_ => {
+      get(entityStore, actionId.id, actionId.rev, true, false).map(_ => {
         logging.debug(
           this,
           s"Refreshed function cache for action ${data.action} from container ${data.container.containerId}.")
@@ -913,7 +913,7 @@ class FunctionPullingContainerProxy(
       if (actionid.rev == DocRevision.empty)
         logging.warn(this, s"revision was not provided for ${actionid.id}")
 
-      get(entityStore, actionid.id, actionid.rev, actionid.rev != DocRevision.empty)
+      get(entityStore, actionid.id, actionid.rev, actionid.rev != DocRevision.empty, false)
         .flatMap { action =>
           action.toExecutableWhiskAction match {
             case Some(executable) =>
@@ -1264,7 +1264,7 @@ object FunctionPullingContainerProxy {
                       Option[ExecutableWhiskAction]) => Future[Container],
             entityStore: ArtifactStore[WhiskEntity],
             namespaceBlacklist: NamespaceBlacklist,
-            get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean) => Future[WhiskAction],
+            get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean, Boolean) => Future[WhiskAction],
             dataManagementService: ActorRef,
             clientProxyFactory: (ActorRefFactory,
                                  String,
