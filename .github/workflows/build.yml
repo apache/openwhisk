@@ -22,7 +22,7 @@ on:
 env:
   # uncomment this to enable an ngrok access to the vm on test failure
   # enabling this you will get an ssh command to access the vm, active for one hour
-  NGROK_DEBUG: yes
+  #NGROK_DEBUG: yes
   # you need to add as secrets an ngrok token and a password to access the terminal 
   NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
   NGROK_PASSWORD: ${{ secrets.NGROK_PASSWORD }}
