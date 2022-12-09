@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+name: System Tests
+on:
+  push:
+
+env:
+  # uncomment this to enable an ngrok access to the vm on test failure
+  # enabling this you will get an ssh command to access the vm, active for one hour
+  #NGROK_DEBUG: yes
+  # you need to add as secrets an ngrok token and a password to access the terminal 
+  NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
+  NGROK_PASSWORD: ${{ secrets.NGROK_PASSWORD }}
+  # openwhisk env
+  ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
+  GRADLE_PROJS_SKIP: ""
+  # put a slack incoming webook secret to be notified
+  SLACK_WEBHOOK_URL: ${{secrets.SLACK_WEBHOOK}}
+  SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+ 
+jobs:
+   
+  system:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Add java
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt-openj9
+          java-version: 11
+          cache: 'gradle'
+      - name: "Setup"
+        run: ./tools/travis/setup.sh
+      - name: "Scala 2.13 compilation"
+        run: TERM=dumb OW_SCALA_VERSION=2.13 ./gradlew :tests:compileTestScala
+      - name: Run System Tests
+        run: ./tools/travis/runSystemTests.sh || ./tools/github/debugAction.sh
+      - run: ./tools/github/waitIfDebug.sh
+      #- name: upload logs
+      #  run: ./tools/github/checkAndUploadLogs.sh system
+      - uses: slackapi/slack-github-action@v1.23.0
+        with:
+          slack-message: "GitHub Action build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+
+  
