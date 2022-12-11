@@ -1,0 +1,70 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+name: Unit Tests
+
+on:
+  # build on tagged
+  push:
+    tags: '*'
+  # build on pull requests
+  pull_request:
+
+env:
+  # openwhisk env
+  TEST_SUITE: Unit
+  JAVA_DISTRO: adopt-openj9
+  ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
+  GRADLE_PROJS_SKIP: ""
+
+  ## secrets
+  # (optional) slack incoming wehbook for notifications
+  SLACK_WEBHOOK: ${{secrets.SLACK_WEBHOOK}}
+
+  # (optional) s3 log upload
+  S3_LOG_BUCKET: ${{ secrets.S3_LOG_BUCKET }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  # github
+  GH_BUILD: ${{ github.run_id }}-${{ github.event_name }} 
+  GH_BRANCH: ${{ github.head_ref || github.ref_name }} 
+
+jobs:
+  openwhisk:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: "Setup"
+        run: ./tools/github/setup.sh
+      - id: tests
+        name: Run Tests
+        run: "./tools/github/run${{ env.TEST_SUITE }}Tests.sh"
+        continue-on-error: true
+      - id: logs
+        name: Upload Logs
+        run: ./tools/github/checkAndUploadLogs.sh ${{ env.TEST_SUITE }}
+      - name: Slack Notification
+        run: > 
+             ./tools/github/writeOnSlack.sh "[$TEST_SUITE]"
+             $GH_BUILD: ${{ steps.tests.outcome }}
+             $'\nbranch:' $GH_BRANCH  
+             $'\nlogurl:' ${{ steps.logs.outputs.logurl }}
+      - name: Results
+        run: test "${{ steps.tests.outcome }}" ==  "success"

@@ -16,56 +16,66 @@
 # under the License.
 #
 name: Performance Tests
+
 on:
+  # build on tagged
   push:
+    tags: '*'
+  # build on pull requests
+  pull_request:
 
 env:
-  # uncomment this to enable an ngrok access to the vm on test failure
-  # enabling this you will get an ssh command to access the vm, active for one hour
-  #NGROK_DEBUG: yes
-  # you need to add as secrets an ngrok token and a password to access the terminal 
-  NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
-  NGROK_PASSWORD: ${{ secrets.NGROK_PASSWORD }}
   # openwhisk env
+  TEST_SUITE: Performance
+  JAVA_DISTRO: adopt-openj9
   ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
   GRADLE_PROJS_SKIP: ""
-  # put a slack incoming webook secret to be notified
-  SLACK_WEBHOOK_URL: ${{secrets.SLACK_WEBHOOK}}
-  SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
- 
+
+  ## secrets
+  # (optional) slack incoming wehbook for notifications
+  SLACK_WEBHOOK: ${{secrets.SLACK_WEBHOOK}}
+
+  # (optional) s3 log upload
+  S3_LOG_BUCKET: ${{ secrets.S3_LOG_BUCKET }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  # github
+  GH_BUILD: ${{ github.run_id }}-${{ github.event_name }} 
+  GH_BRANCH: ${{ github.head_ref || github.ref_name }} 
+
 jobs:
-   
-  performance:
+  openwhisk:
     runs-on: ubuntu-22.04
-    steps:      
+    steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Add java
-        uses: actions/setup-java@v2
-        with:
-          distribution: adopt-openj9
-          java-version: 11
-          cache: 'gradle'
+        uses: actions/checkout@v3
       - name: "Setup"
-        run: ./tools/travis/setup.sh
-      - name: "Scala 2.13 compilation"
-        run: TERM=dumb OW_SCALA_VERSION=2.13 ./gradlew :tests:compileTestScala
-      - name: Performance tests
-        run: ./tests/performance/preparation/deploy.sh
+        run: ./tools/github/setup.sh
+      - run: ./tests/performance/preparation/deploy.sh
       - run: TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 2m
+        continue-on-error: true
       - run: TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 2m
+        continue-on-error: true
       - run: TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 4 1 2 2m
+        continue-on-error: true
       - run: TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 4 1 2 2m
+        continue-on-error: true
       - run: TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 100 110 2 2m
+        continue-on-error: true
       - run: TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 100 110 2 2m
+        continue-on-error: true
       - run: OPENWHISK_HOST="172.17.0.1" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ApiV1Simulation
+        continue-on-error: true
       - run: OPENWHISK_HOST="172.17.0.1" MEAN_RESPONSE_TIME="1000" API_KEY="$(cat ansible/files/auth.guest)" EXCLUDED_KINDS="python:default,java:default,swift:default" PAUSE_BETWEEN_INVOKES="100" ./gradlew gatlingRun-org.apache.openwhisk.LatencySimulation
+        continue-on-error: true
       - run: OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
+        continue-on-error: true
       - run: OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ASYNC="true" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
-      # The following configuration does not make much sense. But we do not have enough users. But it's good to verify, that the test is still working.
-      - run: OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation     
-      #- name: upload logs
-      #  run: ./tools/github/checkAndUploadLogs.sh perf
-      - uses: slackapi/slack-github-action@v1.23.0
-        with:
-          slack-message: "GitHub Action build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+        continue-on-error: true
+      - name: Slack Notification
+        run: > 
+             ./tools/github/writeOnSlack.sh "[$TEST_SUITE]"
+             $'\nbranch:' $GH_BRANCH
+             $'\nCheck GitHub logs for results'

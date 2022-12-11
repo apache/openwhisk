@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,22 +16,11 @@
 # limitations under the License.
 #
 
-if ! test -e .ngrok.log
-then exit 0
-fi
-echo "You have an hour to debug this build."
-echo "Do touch /tmp/continue to continue."
-echo "Do touch /tmp/abort to abort."
+set -e
 
-EXIT=0
-for i in $(seq 1 60)
-do
-   if test -e /tmp/continue ; then EXIT=0 ; break ; fi
-   if test -e /tmp/abort ; then EXIT=1 ; break ; fi
-   echo "$i/60 still waiting..."
-   sleep 60
-done
+SCRIPTDIR=$(cd $(dirname "$0") && pwd)
+ROOTDIR="$SCRIPTDIR/../.."
 
-killall ngrok
-rm -f .ngrok.log /tmp/continue /tmp/abort
-exit $EXIT
+mkdir $ROOTDIR/logs
+echo "<h1>$(date)</h1>" >$ROOTDIR/logs/now.html
+exit 0

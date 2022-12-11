@@ -16,18 +16,18 @@
 # limitations under the License.
 #
 
-if [[ -z "$NGROK_DEBUG" ]]; then
-   exit 1
+if [[ -z "$NGROK_DEBUG" ]] || [[ "$NGROK_DEBUG" == "false" ]]
+then exit 0
 fi
 
-if [[ -z "$NGROK_TOKEN" ]]; then
-  echo "Please set 'NGROK_TOKEN'"
-  exit 2
+if [[ -z "$NGROK_TOKEN" ]]
+then echo "Please set 'NGROK_TOKEN'"
+     exit 1
 fi
 
-if [[ -z "$NGROK_PASSWORD" ]]; then
-  echo "Please set 'NGROK_PASSWORD'"
-  exit 3
+if [[ -z "$NGROK_PASSWORD" ]]
+then echo "Please set 'NGROK_PASSWORD'"
+     exit 1
 fi
 
 echo "### Install ngrok ###"
@@ -57,5 +57,5 @@ if [[ -z "$HAS_ERRORS" ]]; then
   echo "=========================================="
 else
   echo "$HAS_ERRORS"
-  exit 4
+  exit 1
 fi
