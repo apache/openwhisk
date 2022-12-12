@@ -19,7 +19,7 @@
 # check variables
 for i in S3_LOG_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION
 do
-  if test -z "${!i}" 
+  if test -z "${!i}"
   then echo "Required Environment Variable Missing: $i" ; exit 1
   fi
 done
