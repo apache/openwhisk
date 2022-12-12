@@ -34,6 +34,14 @@ function retry() {
   fi
 }
 
+# installing right version of jdk
+JDK=https://github.com/ibmruntimes/semeru11-binaries/releases/download/jdk-11.0.12%2B7_openj9-0.27.0/ibm-semeru-open-jdk_x64_linux_11.0.12_7_openj9-0.27.0.tar.gz
+curl -sL $JDK | tar xzvf - -C /usr/local
+JAVA="$(which java)"
+mv "$JAVA" "$JAVA".old
+ln -sf /usr/local/jdk*/bin/java $JAVA
+java -version
+
 # Python
 python -m pip install --user couchdb
 

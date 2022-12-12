@@ -51,10 +51,18 @@ sleep 10
 HAS_ERRORS=$(grep "command failed" < .ngrok.log)
 
 if [[ -z "$HAS_ERRORS" ]]; then
+  MSG="To connect: $(grep -o -E "tcp://(.+)" < .ngrok.log | sed "s/tcp:\/\//ssh $USER@/" | sed "s/:/ -p /")"
   echo ""
   echo "=========================================="
-  echo "To connect: $(grep -o -E "tcp://(.+)" < .ngrok.log | sed "s/tcp:\/\//ssh $USER@/" | sed "s/:/ -p /")"
+  echo "$MSG"
   echo "=========================================="
+  if test -n "$SLACK_WEBHOOK"
+  then
+      echo -n '{"text":' >/tmp/msg$$
+      echo -n "$MSG" | jq -Rsa . >>/tmp/msg$$
+      echo -n '}' >>/tmp/msg$$
+      curl -X POST -H 'Content-type: application/json' --data "@/tmp/msg$$" "$SLACK_WEBHOOK"
+  fi
 else
   echo "$HAS_ERRORS"
   exit 1

@@ -27,7 +27,6 @@ on:
 env:
   # openwhisk env
   TEST_SUITE: MultiRuntime
-  JAVA_DISTRO: adopt-openj9
   ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
   GRADLE_PROJS_SKIP: ""
 
@@ -36,7 +35,7 @@ env:
   SLACK_WEBHOOK: ${{secrets.SLACK_WEBHOOK}}
 
   # (optional) s3 log upload
-  S3_LOG_BUCKET: ${{ secrets.S3_LOG_BUCKET }}
+  AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ secrets.AWS_REGION }}

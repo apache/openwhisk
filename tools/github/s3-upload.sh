@@ -17,7 +17,7 @@
 #
 
 # check variables
-for i in S3_LOG_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+for i in AWS_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 do
   if test -z "${!i}"
   then echo "Please set $i" ; exit 1
@@ -32,7 +32,7 @@ FROM="$1"
 TO="$2"
 
 BROWSER="https://raw.githubusercontent.com/qoomon/aws-s3-bucket-browser/master/index.html"
-BUCKET_URL="https://$S3_LOG_BUCKET.s3.$AWS_REGION.amazonaws.com/"
+BUCKET_URL="https://$AWS_BUCKET.s3.$AWS_REGION.amazonaws.com/"
 
 # install rclone
 if ! which rclone
@@ -48,9 +48,9 @@ RCLONE="rclone --config /dev/null \
 
 curl -s "$BROWSER" |\
   sed -e 's!bucketUrl: undefined!bucketUrl: "'$BUCKET_URL'"!' |\
-  $RCLONE rcat ":s3:$S3_LOG_BUCKET/index.html"
+  $RCLONE rcat ":s3:$AWS_BUCKET/index.html"
 
-$RCLONE copyto "$FROM" ":s3:$S3_LOG_BUCKET/$TO/"
+$RCLONE copyto "$FROM" ":s3:$AWS_BUCKET/$TO/"
 echo "logurl=${BUCKET_URL}index.html#$TO" >>"${GITHUB_OUTPUT:-/dev/stdout}"
 
 

@@ -35,16 +35,16 @@ The build uploads the logs to an s3 bucket allowing to inspect them with a brows
 You need to create the bucket with the following commands:
 
 ```
-S3_LOG_BUCKET=<name-of-your-bucket>
+AWS_BUCKET=<name-of-your-bucket>
 AWS_REGION=<the-region-you-use>
-aws s3 mb s3://$S3_LOG_BUCKET --region $AWS_REGION
-aws s3 website s3://$S3_LOG_BUCKET/ --index-document index.html
-aws s3api put-bucket-acl --acl public-read --bucket $S3_LOG_BUCKET
+aws s3 mb s3://$AWS_BUCKET --region $AWS_REGION
+aws s3 website s3://$AWS_BUCKET/ --index-document index.html
+aws s3api put-bucket-acl --acl public-read --bucket $AWS_BUCKET
 ```
 
 To enable upload to the created bucket you need to set the following secrets:
 
-- `S3_LOG_BUCKET`: name of your bucket in s3 (just the name, without `s3://`); create it before.
+- `AWS_BUCKET`: name of your bucket in s3 (just the name, without `s3://`); create it before.
 - `AWS_ACCESS_KEY_ID`: your aws access key.
 - `AWS_SECRET_ACCESS_KEY`: your aws secret key.
 - `AWS_REGION`: important: the region where your bucket is.
