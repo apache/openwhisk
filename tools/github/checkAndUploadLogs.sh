@@ -42,13 +42,11 @@ TAGS=""
 [[ "$2" == "Unit" ]] && TAGS="db"
 
 LOG_DIR="$(date +%Y-%m-%d)/${LOG_NAME}-${GH_BUILD}-${GH_BRANCH}"
+BUCKET_URL="https://$AWS_BUCKET.s3.$AWS_REGION.amazonaws.com"
 
-# Perf logs are typically about 20MB and thus rapidly fill our box account.
-# Disable upload to reduce the interval at which we need to manually clean logs from box.
-if [ "$LOG_NAME" == "Performance" ]; then
-    echo "Skipping upload of perf logs to conserve space"
-    exit 0
-fi
+echo "logs=${BUCKET_URL}/index.html#${LOG_DIR}" >>${GITHUB_OUTPUT:-/dev/stdin}
+echo "report=${BUCKET_URL}/${LOG_DIR}/test-reports/reports/tests/testCoverageLean/index.html" >>${GITHUB_OUTPUT:-/dev/stdin}
+
 
 ansible-playbook -i ansible/environments/local ansible/logs.yml
 

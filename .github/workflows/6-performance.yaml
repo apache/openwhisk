@@ -20,7 +20,7 @@ name: Performance Tests
 on:
   # build on tagged
   push:
-    tags: 'xtest-*'
+    tags: '*-test*'
   # build on pull requests
   pull_request:
 
@@ -72,6 +72,9 @@ jobs:
       - run: OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
         continue-on-error: true
       - run: OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ASYNC="true" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
+        continue-on-error: true
+      # The following configuration does not make much sense. But we do not have enough users. But it's good to verify, that the test is still working.
+      - run: OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
         continue-on-error: true
       - name: Slack Notification
         run: > 

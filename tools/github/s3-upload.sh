@@ -51,7 +51,3 @@ curl -s "$BROWSER" |\
   $RCLONE rcat ":s3:$AWS_BUCKET/index.html"
 
 $RCLONE copyto "$FROM" ":s3:$AWS_BUCKET/$TO/"
-echo "logurl=${BUCKET_URL}index.html#$TO" >>"${GITHUB_OUTPUT:-/dev/stdout}"
-
-
-

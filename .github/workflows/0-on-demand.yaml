@@ -28,7 +28,7 @@ on:
       test_suite:
         description: Select Test Suite to run
         type: choice
-        options: 
+        options:
         - Unit
         - System
         - MultiRuntime
@@ -36,7 +36,7 @@ on:
         - Scheduler
         - Performance
         ## Uncomment those to debug the build
-        #- Dummy
+        - Dummy
         #- DummyKO
 
 env:
@@ -45,7 +45,6 @@ env:
   ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
   GRADLE_PROJS_SKIP: ""
 
-  ## secrets
   # (optional) slack incoming wehbook for notifications
   SLACK_WEBHOOK: ${{secrets.SLACK_WEBHOOK}}
 
@@ -55,14 +54,14 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
 
+  # github
+  GH_BUILD: ${{ github.run_id }}-${{ github.event_name }}
+  GH_BRANCH: ${{ github.head_ref || github.ref_name }}
+
   # (optional) you need to add as secrets an ngrok token and a password to debug a build on demand
   NGROK_DEBUG: ${{ inputs.enable_ngrok_debug }}
   NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
   NGROK_PASSWORD: ${{ secrets.NGROK_PASSWORD }}
-
-  # github
-  GH_BUILD: ${{ github.run_id }}-${{ github.event_name }} 
-  GH_BRANCH: ${{ github.head_ref || github.ref_name }} 
 
 jobs:
   openwhisk:
@@ -80,11 +79,12 @@ jobs:
         name: Upload Logs
         run: ./tools/github/checkAndUploadLogs.sh ${{ env.TEST_SUITE }}
       - name: Slack Notification
-        run: > 
+        run: >
              ./tools/github/writeOnSlack.sh "[$TEST_SUITE]"
              $GH_BUILD: ${{ steps.tests.outcome }}
-             $'\nbranch:' $GH_BRANCH  
-             $'\nlogurl:' ${{ steps.logs.outputs.logurl }}
+             $'\nbranch:' $GH_BRANCH
+             $'\nlogs:' ${{ steps.logs.outputs.logs }}
+             $'\nreport:' ${{ steps.logs.outputs.report }}
       - name: Debug Action (if requested)
         run:  ./tools/github/debugAction.sh
       - name: Wait for Debug (if requested)

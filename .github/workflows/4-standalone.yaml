@@ -20,7 +20,7 @@ name: Standalone Tests
 on:
   # build on tagged
   push:
-    tags: 'test-*'
+    tags: '*-test*'
   # build on pull requests
   pull_request:
 
@@ -64,6 +64,7 @@ jobs:
              ./tools/github/writeOnSlack.sh "[$TEST_SUITE]"
              $GH_BUILD: ${{ steps.tests.outcome }}
              $'\nbranch:' $GH_BRANCH  
-             $'\nlogurl:' ${{ steps.logs.outputs.logurl }}
+             $'\nlogs:' ${{ steps.logs.outputs.logs }}
+             $'\nreport:' ${{ steps.logs.outputs.report }}
       - name: Results
         run: test "${{ steps.tests.outcome }}" ==  "success"

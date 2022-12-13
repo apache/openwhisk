@@ -16,9 +16,9 @@
 # limitations under the License.
 #
 
-if [[ $TEST_SUITE =~ Dummy ]]
-then echo skiping setup ; exit 0
-fi
+#if [[ $TEST_SUITE =~ Dummy ]]
+#then echo skipping setup ; exit 0
+#fi
 
 # retries a command for five times and exits with the non-zero exit if even after
 # the retries the command did not succeed.
@@ -34,12 +34,18 @@ function retry() {
   fi
 }
 
+# setup docker to listen in port 4243
+sudo systemctl stop docker
+sudo sed -i -e 's!/usr/bin/dockerd -H fd://!/usr/bin/dockerd -H tcp://0.0.0.0:4243 -H fd://!' /lib/systemd/system/docker.service
+sudo systemctl daemon-reload
+sudo systemctl start docker
+
 # installing right version of jdk
 JDK=https://github.com/ibmruntimes/semeru11-binaries/releases/download/jdk-11.0.12%2B7_openj9-0.27.0/ibm-semeru-open-jdk_x64_linux_11.0.12_7_openj9-0.27.0.tar.gz
-curl -sL $JDK | tar xzvf - -C /usr/local
+curl -sL $JDK | sudo tar xzvf - -C /usr/local
 JAVA="$(which java)"
-mv "$JAVA" "$JAVA"."$(date +%s)"
-ln -sf /usr/local/jdk*/bin/java $JAVA
+sudo mv "$JAVA" "$JAVA"."$(date +%s)"
+sudo ln -sf /usr/local/jdk*/bin/java $JAVA
 java -version
 
 # Python
@@ -60,10 +66,14 @@ tools/github/scan.sh
 # Preload alpine 3.5 to avoid issues with depending images
 retry docker pull alpine:3.5
 
-# Basic check that all code compiles and depdendencies are downloaded correctly.
+# exit if dummy test suite skipping the long compilation when debugging
+if [[ $TEST_SUITE =~ Dummy ]]
+then echo skiping setup ; exit 0
+fi
+
+# Basic check that all code compiles and dependencies are downloaded correctly.
 # Compiling the tests will compile all components as well.
 #
 # Downloads the gradle wrapper, dependencies and tries to compile the code.
 # Retried 5 times in case there are network hiccups.
 TERM=dumb retry ./gradlew :tests:compileTestScala
-
