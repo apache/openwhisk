@@ -38,7 +38,7 @@ function retry() {
 JDK=https://github.com/ibmruntimes/semeru11-binaries/releases/download/jdk-11.0.12%2B7_openj9-0.27.0/ibm-semeru-open-jdk_x64_linux_11.0.12_7_openj9-0.27.0.tar.gz
 curl -sL $JDK | tar xzvf - -C /usr/local
 JAVA="$(which java)"
-mv "$JAVA" "$JAVA".old
+mv "$JAVA" "$JAVA"."$(date +%s)"
 ln -sf /usr/local/jdk*/bin/java $JAVA
 java -version
 

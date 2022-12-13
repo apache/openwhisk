@@ -31,12 +31,12 @@ $ANSIBLE_CMD properties.yml -e manifest_file="/ansible/files/runtimes-nodeonly.j
 $ANSIBLE_CMD downloadcli-github.yml
 
 # Install kubectl
-curl -Lo ./kubectl https://storage.googleapis.com/kubernetes-release/release/v1.16.1/bin/linux/amd64/kubectl
+curl -Lo ./kubectl https://storage.googleapis.com/kubernetes-release/release/v1.25.3/bin/linux/amd64/kubectl
 chmod +x kubectl
 sudo cp kubectl /usr/local/bin/kubectl
 
 # Install kind
-curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.5.1/kind-linux-amd64
+curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.17.0/kind-linux-amd64
 chmod +x kind
 sudo cp kind /usr/local/bin/kind
 

@@ -20,7 +20,7 @@ name: Performance Tests
 on:
   # build on tagged
   push:
-    tags: '*'
+    tags: 'xtest-*'
   # build on pull requests
   pull_request:
 

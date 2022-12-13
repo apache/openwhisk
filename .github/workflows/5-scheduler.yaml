@@ -20,7 +20,7 @@ name: Scheduler Tests
 on:
   # build on tagged
   push:
-    tags: '*'
+    tags: 'test-all-*'
   # build on pull requests
   pull_request:
 

@@ -34,11 +34,10 @@ on:
         - MultiRuntime
         - Standalone
         - Scheduler
-        ## TODO
-        #- Performance
+        - Performance
         ## Uncomment those to debug the build
-        - Dummy
-        - DummyKO
+        #- Dummy
+        #- DummyKO
 
 env:
   # openwhisk env

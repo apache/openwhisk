@@ -20,7 +20,7 @@ name: Unit Tests
 on:
   # build on tagged
   push:
-    tags: '*'
+    tags: 'test-*'
   # build on pull requests
   pull_request:
 
