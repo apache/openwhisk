@@ -83,7 +83,7 @@ jobs:
              ./tools/github/writeOnSlack.sh
              "[$TEST_SUITE]" ${GH_BUILD}: ${{ steps.tests.outcome }}
              $'\nbranch:' $GH_BRANCH
-             $'\nmessage:' "$(git log -1 --pretty '%s')"
+             $'\nmessage:' "$(git log -1 --oneline | cat)"
              $'\nlogs:' ${{ steps.logs.outputs.logs }}
              $'\nreport:' ${{ steps.logs.outputs.report }}
       - name: Debug Action (if requested)

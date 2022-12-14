@@ -19,7 +19,7 @@ name: Performance Tests
 
 on:
   # build on push
-  #push:
+  push:
   # build on pull requests
   pull_request:
 
@@ -40,7 +40,7 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
 
   # github
-  GH_BUILD: ${{ github.run_id }}-${{ github.event_name }} 
+  GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
   GH_BRANCH: ${{ github.head_ref || github.ref_name }} 
 
 jobs:
@@ -77,6 +77,8 @@ jobs:
         continue-on-error: true
       - name: Slack Notification
         run: > 
-             ./tools/github/writeOnSlack.sh "[$TEST_SUITE]"
+             ./tools/github/writeOnSlack.sh
+             "[$TEST_SUITE]" ${GH_BUILD}: ${{ steps.tests.outcome }}
              $'\nbranch:' $GH_BRANCH
+             $'\nmessage:' "$(git log -1 --oneline | cat)"
              $'\nCheck GitHub logs for results'

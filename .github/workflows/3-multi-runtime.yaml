@@ -19,7 +19,7 @@ name: MultiRuntime Tests
 
 on:
   # build on push
-  #push:
+  push:
   # build on pull requests
   pull_request:
 
@@ -40,7 +40,7 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
 
   # github
-  GH_BUILD: ${{ github.run_id }}-${{ github.event_name }} 
+  GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
   GH_BRANCH: ${{ github.head_ref || github.ref_name }} 
 
 jobs:
@@ -60,9 +60,10 @@ jobs:
         run: ./tools/github/checkAndUploadLogs.sh ${{ env.TEST_SUITE }}
       - name: Slack Notification
         run: > 
-             ./tools/github/writeOnSlack.sh "[$TEST_SUITE]"
-             $GH_BUILD: ${{ steps.tests.outcome }}
-             $'\nbranch:' $GH_BRANCH  
+             ./tools/github/writeOnSlack.sh
+             "[$TEST_SUITE]" ${GH_BUILD}: ${{ steps.tests.outcome }}
+             $'\nbranch:' $GH_BRANCH
+             $'\nmessage:' "$(git log -1 --oneline | cat)"
              $'\nlogs:' ${{ steps.logs.outputs.logs }}
              $'\nreport:' ${{ steps.logs.outputs.report }}
       - name: Results
