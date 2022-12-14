@@ -55,7 +55,7 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
 
   # github
-  GH_BUILD: ${{ github.run_id }}-${{ github.event_name }}
+  GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
   GH_BRANCH: ${{ github.head_ref || github.ref_name }}
 
   # (optional) you need to add as secrets an ngrok token and a password to debug a build on demand
@@ -80,9 +80,9 @@ jobs:
         run: ./tools/github/checkAndUploadLogs.sh ${{ env.TEST_SUITE }}
       - name: Slack Notification
         run: >
-             ./tools/github/writeOnSlack.sh "[$TEST_SUITE]"
-             $GH_BUILD: ${{ steps.tests.outcome }}
-             $'\nbranch:' $GH_BRANCH
+             ./tools/github/writeOnSlack.sh
+             "[$TEST_SUITE]" ${GH_BUILD}: ${{ steps.tests.outcome }}
+             $'\nbranch:' $GH_BRANCH ($(git log -1 --pretty '%s'))
              $'\nlogs:' ${{ steps.logs.outputs.logs }}
              $'\nreport:' ${{ steps.logs.outputs.report }}
       - name: Debug Action (if requested)
