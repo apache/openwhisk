@@ -51,6 +51,12 @@ whisk:
   feature_flags:
     require_api_key_annotation: "{{ require_api_key_annotation | default(true) | lower }}"
     require_response_payload: "{{ require_response_payload | default(true) | lower }}"
+  cluster_name: "{{ whisk_cluster_name | default('whisk') }}"
+  containerProxy:
+    timeouts:
+      idleContainer: "{{ containerProxy_timeouts_idleContainer | default('10 minutes') }}"
+      pauseGrace: "{{ containerProxy_timeouts_pauseGrace | default('10 seconds') }}"
+      keepingDuration: "{{ containerProxy_timeouts_keepingDuration | default('10 minutes') }}"
 
 ##
 # configuration parameters related to support runtimes (see org.apache.openwhisk.core.entity.ExecManifest for schema of the manifest).
@@ -106,6 +112,8 @@ controller:
   authentication:
     spi: "{{ controller_authentication_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  username: "{{ controller_username | default('controller.user') }}"
+  password: "{{ controller_password | default('controller.pass') }}"
   entitlement:
     spi: "{{ controller_entitlement_spi | default('') }}"
   protocol: "{{ controller_protocol | default('https') }}"
@@ -120,12 +128,18 @@ controller:
       password: "openwhisk"
       name: "{{ __controller_ssl_keyPrefix }}openwhisk-keystore.p12"
   extraEnv: "{{ controller_extraEnv | default({}) }}"
+  deployment:
+    ignore_error: "{{ controller_deployment_ignore_error | default('False') }}"
+    retries: "{{ controller_deployment_retries | default(180) }}"
+    delay: "{{ controller_deployment_delay | default(5) }}"
 
 jmx:
   basePortController: 15000
   rmiBasePortController: 16000
   basePortInvoker: 17000
   rmiBasePortInvoker: 18000
+  basePortScheduler: 21000
+  rmiBasePortScheduler: 22000
   user: "{{ jmxuser | default('jmxuser') }}"
   pass: "{{ jmxuser | default('jmxpass') }}"
   jvmCommonArgs: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/home/owuser/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/home/owuser/jmxremote.access"
@@ -138,6 +152,8 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
+  topicsPrefix: "{{ kafka_topics_prefix | default('') }}"
+  topicsUserEventPrefix: "{{ kafka_topics_userEvent_prefix | default(kafka_topics_prefix) | default('') }}"
   ssl:
     client_authentication: required
     keystore:
@@ -150,7 +166,7 @@ kafka:
     protocols:
     - TLSv1.2
   protocol: "{{ kafka_protocol_for_setup }}"
-  version: 2.12-2.3.1
+  version: "{{ kafka_version | default('2.13-2.7.0') }}"
   port: 9072
   advertisedPort: 9093
   ras:
@@ -208,6 +224,8 @@ invoker:
     {% endif %}"
   extraEnv: "{{ invoker_extraEnv | default({}) }}"
   protocol: "{{ invoker_protocol | default('https') }}"
+  username: "{{ invoker_username | default('invoker.user') }}"
+  password: "{{ invoker_password | default('invoker.pass') }}"
   ssl:
     cn: "openwhisk-invokers"
     keyPrefix: "{{ __invoker_ssl_keyPrefix }}"
@@ -218,6 +236,14 @@ invoker:
     keystore:
       password: "{{ invoker_keystore_password | default('openwhisk') }}"
       name: "{{ __invoker_ssl_keyPrefix }}openwhisk-keystore.p12"
+  container:
+    creationMaxPeek: "{{ container_creation_max_peek | default(500) }}"
+  reactiveSpi: "{{ invokerReactive_spi | default('') }}"
+  serverSpi: "{{ invokerServer_spi | default('') }}"
+  deployment:
+    ignore_error: "{{ invoker_deployment_ignore_error | default('False') }}"
+    retries: "{{ invoker_deployment_retries | default(180) }}"
+    delay: "{{ invoker_deployment_delay | default(5) }}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
@@ -227,7 +253,7 @@ nginx:
   htmldir: "{{ ui_path | default(false) }}"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: "{{ nginx_version | default('1.19') }}"
+  version: "{{ nginx_version | default('1.21.1') }}"
   port:
     http: 80
     https: 443
@@ -273,13 +299,18 @@ db:
     invoker:
       user: "{{ db_invoker_user | default(lookup('ini', 'db_username section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
       pass: "{{ db_invoker_pass | default(lookup('ini', 'db_password section=invoker file={{ playbook_dir }}/db_local.ini')) }}"
+    scheduler:
+      user: "{{ db_scheduler_user | default(lookup('ini', 'db_username section=scheduler file={{ playbook_dir }}/db_local.ini')) }}"
+      pass: "{{ db_scheduler_pass | default(lookup('ini', 'db_password section=scheduler file={{ playbook_dir }}/db_local.ini')) }}"
+  artifact_store:
+    backend: "{{ db_artifact_backend | default('CouchDB') }}"
   activation_store:
     backend: "{{ db_activation_backend | default('CouchDB') }}"
   elasticsearch:
     protocol: "{{ elastic_protocol | default('http') }}"
-    port: 9200
+    port: "{{ elastic_port | default(9200) }}"
     index_pattern: "{{ elastic_index_pattern | default('openwhisk-%s') }}"
-    base_transport_port: 9300
+    base_transport_port: "{{ elastic_transport_port_base | default(9300) }}"
     confdir: "{{ config_root_dir }}/elasticsearch"
     dir:
       become: "{{ elastic_dir_become | default(false) }}"
@@ -294,12 +325,17 @@ db:
       admin:
         username: "{{ elastic_username | default('admin') }}"
         password: "{{ elastic_password | default('admin') }}"
+  mongodb:
+    connect_string: "{{ mongodb_connect_string | default('mongodb://172.17.0.1:27017') }}"
+    database: "{{ mongodb_database | default('whisks') }}"
+    data_volume: "{{ mongodb_data_volume | default('mongo-data') }}"
 
 apigateway:
   port:
     api: 9000
     mgmt: 9001
-  version: 1.0.0
+  # Default to 'nightly', which tracks the head revision of the master branch of apigateway's gitrepo
+  version: nightly
 
 redis:
   version: 4.0
@@ -317,9 +353,11 @@ elasticsearch:
 
 elasticsearch_connect_string: "{% set ret = [] %}\
                                {% for host in groups['elasticsearch'] %}\
-                               {{ ret.append( hostvars[host].ansible_host + ':' + ((db.elasticsearch.port+loop.index-1)|string) ) }}\
+                               {{ ret.append( hostvars[host].ansible_host + ':' + ((db.elasticsearch.port|int+loop.index-1)|string) ) }}\
                                {% endfor %}\
                                {{ ret | join(',') }}"
+mongodb:
+  version: 4.4.0
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
@@ -420,3 +458,98 @@ metrics:
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
 
 user_events: "{{ user_events_enabled | default(false) | lower }}"
+
+zeroDowntimeDeployment:
+  enabled: "{{ zerodowntime_deployment_switch | default(false) }}"
+
+etcd:
+  version: "{{ etcd_version | default('v3.4.0') }}"
+  client:
+    port: 2379
+  server:
+    port: 2480
+  cluster:
+    token: "{{ etcd_cluster_token | default('openwhisk-etcd-token') }}"
+  dir:
+    data: "{{ etcd_data_dir | default('') }}"
+  lease:
+    timeout: "{{ etcd_lease_timeout | default(10) }}"
+  loglevel: "{{ etcd_log_level | default('info') }}"
+  quota_backend_bytes: "{{ etcd_quota_backend_bytes | default(2147483648) }}" # 2GB
+  snapshot_count: "{{ etcd_snapshot_count | default(10000) }}"
+  auto_compaction_retention: "{{ etcd_auto_compaction_retention | default('10m') }}"
+  auto_compaction_mode: "{{ etcd_auto_compaction_mode | default('periodic') }}"
+  pool_threads: "{{ etcd_pool_threads | default(10) }}"
+
+etcd_connect_string: "{% set ret = [] %}\
+                      {% for host in groups['etcd'] %}\
+                        {{ ret.append( hostvars[host].ansible_host + ':' + ((etcd.client.port+loop.index-1)|string) ) }}\
+                      {% endfor %}\
+                      {{ ret | join(',') }}"
+
+
+__scheduler_blackbox_fraction: 0.10
+
+watcher:
+    eventNotificationDelayMs: "{{ watcher_notification_delay | default('5000 ms')  }}"
+
+durationChecker:
+    spi: "{{ duration_checker_spi | default('') }}"
+    timeWindow: "{{ duration_checker_time_window | default('1 d') }}"
+
+enable_scheduler: "{{ scheduler_enable | default(false) }}"
+
+scheduler:
+  protocol: "{{ scheduler_protocol | default('http') }}"
+  dir:
+    become: "{{ scheduler_dir_become | default(false) }}"
+  confdir: "{{ config_root_dir }}/scheduler"
+  basePort: 14001
+  grpc:
+    basePort: 13001
+    tls: "{{ scheduler_grpc_tls | default(false) }}"
+  maxPeek: "{{ scheduler_max_peek | default(128) }}"
+  heap: "{{ scheduler_heap | default('2g') }}"
+  arguments: "{{ scheduler_arguments | default('') }}"
+  instances: "{{ groups['schedulers'] | length }}"
+  username: "{{ scheduler_username | default('scheduler.user') }}"
+  password: "{{ scheduler_password | default('scheduler.pass') }}"
+  akka:
+    provider: cluster
+    cluster:
+      basePort: 25520
+      host: "{{ groups['schedulers'] | map('extract', hostvars, 'ansible_host') | list }}"
+      bindPort: 3551
+      # at this moment all schedulers are seed nodes
+      seedNodes: "{{ groups['schedulers'] | map('extract', hostvars, 'ansible_host') | list }}"
+  loglevel: "{{ scheduler_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  extraEnv: "{{ scheduler_extraEnv | default({}) }}"
+  dataManagementService:
+    retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"
+  inProgressJobRetention: "{{ scheduler_inProgressJobRetention | default('20 seconds') }}"
+  blackboxMultiple: "{{ scheduler_blackboxMultiple | default(15) }}"
+  managedFraction: "{{ scheduler_managed_fraction | default(1.0 - (scheduler_blackbox_fraction | default(__scheduler_blackbox_fraction))) }}"
+  blackboxFraction: "{{ scheduler_blackbox_fraction | default(__scheduler_blackbox_fraction) }}"
+  scheduling:
+    staleThreshold: "{{ scheduler_scheduling_staleThreshold | default('100 milliseconds') }}"
+    checkInterval: "{{ scheduler_scheduling_checkInterval | default('100 milliseconds') }}"
+    dropInterval: "{{ scheduler_scheduling_dropInterval | default('10 seconds') }}"
+  queueManager:
+    maxSchedulingTime: "{{ scheduler_maxSchedulingTime | default('20 second') }}"
+    maxRetriesToGetQueue: "{{ scheduler_maxRetriesToGetQueue | default(13) }}"
+  queue:
+    # the queue's state Running timeout, e.g. if have no activation comes into queue when Running, the queue state will be changed from Running to Idle and delete the decision algorithm actor
+    idleGrace: "{{ scheduler_queue_idleGrace | default('10 minutes') }}"
+    # the queue's state Idle timeout, e.g. if have no activation comes into queue when Idle, the queue state will be changed from Idle to Removed
+    stopGrace: "{{ scheduler_queue_stopGrace | default('10 minutes') }}"
+    # the queue's state Paused timeout, e.g. if have no activation comes into queue when Paused, the queue state will be changed from Paused to Removed
+    flushGrace: "{{ scheduler_queue_flushGrace | default('60 seconds') }}"
+    gracefulShutdownTimeout: "{{ scheduler_queue_gracefulShutdownTimeout | default('5 seconds') }}"
+    maxRetentionSize: "{{ scheduler_queue_maxRetentionSize | default(10000) }}"
+    maxRetentionMs: "{{ scheduler_queue_maxRetentionMs | default(60000) }}"
+    maxBlackboxRetentionMs: "{{ scheduler_queue_maxBlackboxRetentionMs | default(300000) }}"
+    throttlingFraction: "{{ scheduler_queue_throttlingFraction | default(0.9) }}"
+    durationBufferSize: "{{ scheduler_queue_durationBufferSize | default(10) }}"
+  deployment_ignore_error: "{{ scheduler_deployment_ignore_error | default('False') }}"
+  dataManagementService:
+    retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"
