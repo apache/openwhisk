@@ -385,7 +385,6 @@ def getIdentitiesFromNamespace(args, props):
         'protocol': protocol,
         'host'    : host,
         'port'    : port,
-        'username': username,
         'database': database,
         'view'    : args.view,
         'ns'      : args.namespace
@@ -478,7 +477,6 @@ def whoisUserCmd(args, props):
         'protocol': protocol,
         'host'    : host,
         'port'    : port,
-        'username': username,
         'database': database,
         'view'    : args.view,
         'uuid'    : uuid,
