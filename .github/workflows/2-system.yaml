@@ -18,9 +18,8 @@
 name: System Tests
 
 on:
-  # build on tagged
+  # build on push
   push:
-    tags: '*-test*'
   # build on pull requests
   pull_request:
 

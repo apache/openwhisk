@@ -75,7 +75,7 @@ Follow instructions in [ansible/README.md](../../ansible/README.md)
 #### Using brew
 
 ```bash
-brew install wsk
+brew install wsk 
 wsk property set --apihost https://localhost
 wsk property set --auth `cat ansible/files/auth.guest`
 ```
@@ -109,9 +109,9 @@ ansible-playbook wipe.yml
 ansible-playbook properties.yml
 ```
 
-To run the unit tests execute the command bellow from the project's root folder:
+To run the unit tests execute the command bellow from the project's root folder: 
 ```bash
 # go back to project's root folder
 cd ../
-./gradlew -PtestSetName="REQUIRE_ONLY_DB" :tests:testCoverageLean
+./gradlew -PtestSetName="REQUIRE_ONLY_DB" :tests:testCoverageLean 
 ```

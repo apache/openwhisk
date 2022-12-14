@@ -18,9 +18,8 @@
 name: Scheduler Tests
 
 on:
-  # build on tagged
+  # build on push
   push:
-    tags: '*-test-all*'
   # build on pull requests
   pull_request:
 

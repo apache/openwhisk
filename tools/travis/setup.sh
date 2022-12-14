@@ -51,4 +51,3 @@ python -m pip install --user humanize requests
 # Downloads the gradle wrapper, dependencies and tries to compile the code.
 # Retried 5 times in case there are network hiccups.
 TERM=dumb retry ./gradlew :tests:compileTestScala
-
