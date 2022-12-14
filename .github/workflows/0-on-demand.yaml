@@ -82,7 +82,8 @@ jobs:
         run: >
              ./tools/github/writeOnSlack.sh
              "[$TEST_SUITE]" ${GH_BUILD}: ${{ steps.tests.outcome }}
-             $'\nbranch:' $GH_BRANCH ($(git log -1 --pretty '%s'))
+             $'\nbranch:' $GH_BRANCH
+             $'\nmessage:' "$(git log -1 --pretty '%s')"
              $'\nlogs:' ${{ steps.logs.outputs.logs }}
              $'\nreport:' ${{ steps.logs.outputs.report }}
       - name: Debug Action (if requested)
