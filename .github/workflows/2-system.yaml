@@ -21,9 +21,6 @@ on:
   # build on push
   push:
   # build on pull requests
-    #tags: '*'
-    #branches-ignore: '*'
-
   pull_request:
 
 env:
