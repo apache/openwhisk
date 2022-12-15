@@ -20,6 +20,9 @@ name: MultiRuntime Tests
 on:
   # build on push
   push:
+    tags: '*'
+    branches-ignore: '*'
+
   # build on pull requests
   pull_request:
 
