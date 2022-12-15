@@ -35,10 +35,10 @@ function retry() {
 }
 
 # setup docker to listen in port 4243
-#sudo systemctl stop docker
-#sudo sed -i -e 's!/usr/bin/dockerd -H fd://!/usr/bin/dockerd -H tcp://0.0.0.0:4243 -H fd://!' /lib/systemd/system/docker.service
-#sudo systemctl daemon-reload
-#sudo systemctl start docker
+sudo systemctl stop docker
+sudo sed -i -e 's!/usr/bin/dockerd -H fd://!/usr/bin/dockerd -H tcp://0.0.0.0:4243 -H fd://!' /lib/systemd/system/docker.service
+sudo systemctl daemon-reload
+sudo systemctl start docker
 
 # installing right version of jdk
 JDK=https://github.com/ibmruntimes/semeru11-binaries/releases/download/jdk-11.0.12%2B7_openj9-0.27.0/ibm-semeru-open-jdk_x64_linux_11.0.12_7_openj9-0.27.0.tar.gz

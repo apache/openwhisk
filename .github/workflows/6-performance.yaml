@@ -81,7 +81,7 @@ jobs:
       - name: Slack Notification
         run: > 
              ./tools/github/writeOnSlack.sh
-             "[$TEST_SUITE]" ${GH_BUILD}: ${{ steps.tests.outcome }}
+             "[$TEST_SUITE]" ${{ steps.tests.outcome }} on ${GH_BUILD}
              $'\nbranch:' $GH_BRANCH
              $'\nmessage:' "$(git log -1 --oneline | cat)"
              $'\nCheck GitHub logs for results'
