@@ -37,7 +37,7 @@ on:
         - Performance
         ## Uncomment those to debug the build
         - Dummy
-        #- DummyKO
+        - DummyKO
 
 env:
   # openwhisk env
