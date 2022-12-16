@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-/*
 package org.apache.openwhisk.core.containerpool.v2.test
 
 import akka.Done
@@ -436,7 +435,7 @@ class ActivationClientProxyTests
     probe expectTerminated machine
   }
 
-  // Registers the transition callback and expects the first message
+  /** Registers the transition callback and expects the first message */
   def registerCallback(c: ActorRef, probe: TestProbe) = {
     c ! SubscribeTransitionCallBack(probe.ref)
     probe.expectMsg(CurrentState(c, ClientProxyUninitialized))
@@ -474,4 +473,3 @@ class ActivationClientProxyTests
     }
   }
 }
-*/
