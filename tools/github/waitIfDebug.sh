@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -14,21 +15,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# if you change version of openjsk, also update tools/github/setup.sh to download the corresponding jdk
-FROM adoptopenjdk/openjdk11-openj9:x86_64-alpine-jdk-11.0.12_7_openj9-0.27.0
 
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+if ! test -e .ngrok.log
+then exit 0
+fi
+echo "You have an hour to debug this build."
+echo "Do touch /tmp/continue to continue."
+echo "Do touch /tmp/abort to abort."
 
-# Switch to the HTTPS endpoint for the apk repositories as per https://github.com/gliderlabs/docker-alpine/issues/184
-RUN sed -i 's/http\:\/\/dl-cdn.alpinelinux.org/https\:\/\/alpine.global.ssl.fastly.net/g' /etc/apk/repositories
-RUN apk add --update sed curl bash && apk update && apk upgrade
+EXIT=0
+for i in $(seq 1 60)
+do
+   if test -e /tmp/continue ; then EXIT=0 ; break ; fi
+   if test -e /tmp/abort ; then EXIT=1 ; break ; fi
+   echo "$i/60 still waiting..."
+   sleep 60
+done
 
-RUN mkdir /logs
-
-COPY transformEnvironment.sh /
-RUN chmod +x transformEnvironment.sh
-
-COPY copyJMXFiles.sh /
-RUN chmod +x copyJMXFiles.sh
+killall ngrok
+rm -f .ngrok.log /tmp/continue /tmp/abort
+exit $EXIT

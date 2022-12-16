@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -14,21 +15,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# if you change version of openjsk, also update tools/github/setup.sh to download the corresponding jdk
-FROM adoptopenjdk/openjdk11-openj9:x86_64-alpine-jdk-11.0.12_7_openj9-0.27.0
 
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+set -e
 
-# Switch to the HTTPS endpoint for the apk repositories as per https://github.com/gliderlabs/docker-alpine/issues/184
-RUN sed -i 's/http\:\/\/dl-cdn.alpinelinux.org/https\:\/\/alpine.global.ssl.fastly.net/g' /etc/apk/repositories
-RUN apk add --update sed curl bash && apk update && apk upgrade
+SCRIPTDIR=$(cd $(dirname "$0") && pwd)
+ROOTDIR="$SCRIPTDIR/../.."
 
-RUN mkdir /logs
+cd $ROOTDIR/tools/travis
+export TESTCONTAINERS_RYUK_DISABLED="true"
+export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
 
-COPY transformEnvironment.sh /
-RUN chmod +x transformEnvironment.sh
+./setupPrereq.sh
 
-COPY copyJMXFiles.sh /
-RUN chmod +x copyJMXFiles.sh
+cat "$ROOTDIR/tests/src/test/resources/application.conf"
+
+./distDocker.sh
+
+./runTests.sh

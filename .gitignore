@@ -96,3 +96,7 @@ core/routemgmt/deleteApi/utils.js
 core/routemgmt/getApi/apigw-utils.js
 core/routemgmt/getApi/package-lock.json
 core/routemgmt/getApi/utils.js
+
+# vscode metals
+.bloop/
+.metals/
