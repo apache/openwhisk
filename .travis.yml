@@ -68,39 +68,39 @@ jobs:
     - script:
         - TERM=dumb OW_SCALA_VERSION=2.13 ./gradlew :tests:compileTestScala
       name: "Scala 2.13 compilation"
-    - script:
-        - ./tools/travis/runUnitTests.sh
-        - ./tools/travis/checkAndUploadLogs.sh unit db
-      name: "Unit Tests"
-    - script:
-      - ./tools/travis/runSystemTests.sh
-      - ./tools/travis/checkAndUploadLogs.sh system
-      name: "System Tests"
-    - script:
-      - ./tools/travis/runMultiRuntimeTests.sh
-      - ./tools/travis/checkAndUploadLogs.sh multi-runtime
-      name: "Multi-Runtime Tests"
-    - script:
-        - ./tools/travis/runStandaloneTests.sh
-        - ./tools/travis/checkAndUploadLogs.sh standalone
-      name: "Standalone Tests"
-    - script:
-        - ./tests/performance/preparation/deploy.sh
-        - TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 2m
-        - TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 4 1 2 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 4 1 2 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 100 110 2 2m
-        - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 100 110 2 2m
-        - OPENWHISK_HOST="172.17.0.1" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ApiV1Simulation
-        - OPENWHISK_HOST="172.17.0.1" MEAN_RESPONSE_TIME="1000" API_KEY="$(cat ansible/files/auth.guest)" EXCLUDED_KINDS="python:default,java:default,swift:default" PAUSE_BETWEEN_INVOKES="100" ./gradlew gatlingRun-org.apache.openwhisk.LatencySimulation
-        - OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
-        - OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ASYNC="true" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
-        # The following configuration does not make much sense. But we do not have enough users. But it's good to verify, that the test is still working.
-        - OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
-        - ./tools/travis/checkAndUploadLogs.sh perf
-      name: "Performance Tests"
-    - script:
-        - ./tools/travis/runSchedulerTests.sh
-        - ./tools/travis/checkAndUploadLogs.sh scheduler
-      name: "Scheduler Tests"
+    # - script:
+    #     - ./tools/travis/runUnitTests.sh
+    #     - ./tools/travis/checkAndUploadLogs.sh unit db
+    #   name: "Unit Tests"
+    # - script:
+    #   - ./tools/travis/runSystemTests.sh
+    #   - ./tools/travis/checkAndUploadLogs.sh system
+    #   name: "System Tests"
+    # - script:
+    #   - ./tools/travis/runMultiRuntimeTests.sh
+    #   - ./tools/travis/checkAndUploadLogs.sh multi-runtime
+    #   name: "Multi-Runtime Tests"
+    # - script:
+    #     - ./tools/travis/runStandaloneTests.sh
+    #     - ./tools/travis/checkAndUploadLogs.sh standalone
+    #   name: "Standalone Tests"
+    # - script:
+    #     - ./tests/performance/preparation/deploy.sh
+    #     - TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 2m
+    #     - TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 2m
+    #     - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 4 1 2 2m
+    #     - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 4 1 2 2m
+    #     - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 100 110 2 2m
+    #     - TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 100 110 2 2m
+    #     - OPENWHISK_HOST="172.17.0.1" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ApiV1Simulation
+    #     - OPENWHISK_HOST="172.17.0.1" MEAN_RESPONSE_TIME="1000" API_KEY="$(cat ansible/files/auth.guest)" EXCLUDED_KINDS="python:default,java:default,swift:default" PAUSE_BETWEEN_INVOKES="100" ./gradlew gatlingRun-org.apache.openwhisk.LatencySimulation
+    #     - OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
+    #     - OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ASYNC="true" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
+    #     # The following configuration does not make much sense. But we do not have enough users. But it's good to verify, that the test is still working.
+    #     - OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
+    #     - ./tools/travis/checkAndUploadLogs.sh perf
+    #   name: "Performance Tests"
+    # - script:
+    #     - ./tools/travis/runSchedulerTests.sh
+    #     - ./tools/travis/checkAndUploadLogs.sh scheduler
+    #   name: "Scheduler Tests"
