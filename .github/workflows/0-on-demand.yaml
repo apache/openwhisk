@@ -35,9 +35,7 @@ on:
         - Standalone
         - Scheduler
         - Performance
-        ## Uncomment those to debug the build
         - Dummy
-        - DummyKO
 
 env:
   # openwhisk env
