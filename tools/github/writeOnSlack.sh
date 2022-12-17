@@ -17,7 +17,7 @@
 #
 
 if test -z "$SLACK_WEBHOOK"
-then echo "Please create an incoming webhook for slack and set SLACK_WEBHOOK"
+then echo "No SLACK_WEBHOOK - skipping notifications"
      exit 0
 fi
 

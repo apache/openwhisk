@@ -20,7 +20,7 @@
 for i in AWS_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION
 do
   if test -z "${!i}"
-  then echo "Required Environment Variable Missing: $i" ; exit 1
+  then echo "Required Environment Variable Missing: $i, skipping log upload" ; exit 0
   fi
 done
 
