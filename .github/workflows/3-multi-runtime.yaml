@@ -56,7 +56,7 @@ jobs:
         run: "./tools/github/run${{ env.TEST_SUITE }}Tests.sh"
         continue-on-error: true
       - id: logs
-        name: Upload Logs
+        name: Show Results and Upload Logs
         run: ./tools/github/checkAndUploadLogs.sh ${{ env.TEST_SUITE }}
       - name: Slack Notification
         run: > 

@@ -60,6 +60,9 @@ python -m pip install --user pydocumentdb
 # Support the revises log upload script
 python -m pip install --user humanize requests
 
+# lynx utility to show test results on the job run
+sudo apt-get -y install lynx
+
 # Scan code before compiling the code
 tools/github/scan.sh
 

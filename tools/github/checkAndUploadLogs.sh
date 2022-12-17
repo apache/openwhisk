@@ -16,11 +16,15 @@
 # limitations under the License.
 #
 
+# showing test results on the CI log
+INDEX="tests/build/reports/tests/testCoverageLean/index.html"
+test -f "$INDEX" && lynx -dump file://$PWD/$INDEX | grep .
+
 # check variables
 for i in AWS_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION
 do
   if test -z "${!i}"
-  then echo "Required Environment Variable Missing: $i" ; exit 1
+  then echo "Required Environment Variable Missing: $i, skipping log upload" ; exit 0
   fi
 done
 
