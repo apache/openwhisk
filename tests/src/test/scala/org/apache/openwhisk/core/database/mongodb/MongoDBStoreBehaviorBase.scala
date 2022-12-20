@@ -23,7 +23,6 @@ import org.apache.openwhisk.core.entity._
 import org.scalatest.FlatSpec
 import org.testcontainers.containers.MongoDBContainer
 import pureconfig.loadConfigOrThrow
-import pureconfig.generic.auto._
 
 import scala.reflect.{classTag, ClassTag}
 
