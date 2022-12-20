@@ -57,13 +57,13 @@ trait S3Aws extends FlatSpec {
 
   override protected def withFixture(test: NoArgTest) = {
     assume(
-      secretAccessKey != null,
+      bucket != "",
       "'Some env not configured. Configure following " +
         "env variables for test to run. 'AWS_BUCKET', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION'")
 
+    require(secretAccessKey != null, "'AWS_SECRET_ACCESS_KEY' env variable not set")
     require(accessKeyId != null, "'AWS_ACCESS_KEY_ID' env variable not set")
     require(region != null, "'AWS_REGION' env variable not set")
-    require(bucket != "", "'AWS_BUCKET' env variable not set or empty")
 
     super.withFixture(test)
   }
