@@ -16,15 +16,20 @@
 # limitations under the License.
 #
 
+test -z "$AWS_BUCKET" && echo "AWS_BUCKET is empty"
+
 # showing test results on the CI log
 INDEX="tests/build/reports/tests/testCoverageLean/index.html"
 test -f "$INDEX" && lynx -dump file://$PWD/$INDEX | grep .
 
 # check variables
-for i in AWS_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION
+for i in AWS_BUCKET_LOG AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION
 do
   if test -z "${!i}"
-  then echo "Required Environment Variable Missing: $i, skipping log upload" ; exit 0
+  then echo "Required Environment Variable Missing: $i, skipping log upload"
+       echo "logs=no logs, missing $i" >>${GITHUB_OUTPUT:-/dev/stdin}
+       echo "report=no reports, missing $i" >>${GITHUB_OUTPUT:-/dev/stdin}
+       exit 0
   fi
 done
 
@@ -46,7 +51,7 @@ TAGS=""
 [[ "$2" == "Unit" ]] && TAGS="db"
 
 LOG_DIR="$(date +%Y-%m-%d)/${LOG_NAME}-${GH_BUILD}-${GH_BRANCH}"
-BUCKET_URL="https://$AWS_BUCKET.s3.$AWS_REGION.amazonaws.com"
+BUCKET_URL="https://$AWS_BUCKET_LOG.s3.$AWS_REGION.amazonaws.com"
 
 echo "Logs: ${BUCKET_URL}/index.html#${LOG_DIR}/"
 echo "Reports: ${BUCKET_URL}/${LOG_DIR}/test-reports/reports/tests/testCoverageLean/index.html"
