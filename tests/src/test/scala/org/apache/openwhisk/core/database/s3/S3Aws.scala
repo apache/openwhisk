@@ -57,7 +57,7 @@ trait S3Aws extends FlatSpec {
 
   override protected def withFixture(test: NoArgTest) = {
     assume(
-      secretAccessKey != null,
+      secretAccessKey != null && secretAccessKey != "",
       "'AWS_SECRET_ACCESS_KEY' env not configured. Configure following " +
         "env variables for test to run. 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION'")
 
