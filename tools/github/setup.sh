@@ -34,6 +34,9 @@ function retry() {
   fi
 }
 
+# lynx utility to show test results on the job run
+sudo apt-get -y install lynx
+
 # setup docker to listen in port 4243
 sudo systemctl stop docker
 sudo sed -i -e 's!/usr/bin/dockerd -H fd://!/usr/bin/dockerd -H tcp://0.0.0.0:4243 -H fd://!' /lib/systemd/system/docker.service

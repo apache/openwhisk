@@ -34,10 +34,10 @@ env:
   SLACK_WEBHOOK: ${{secrets.SLACK_WEBHOOK}}
 
   # (optional) s3 log upload
-  AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_REGION: ${{ secrets.AWS_REGION }}
+  LOG_BUCKET: ${{ secrets.LOG_BUCKET }}
+  LOG_ACCESS_KEY_ID: ${{ secrets.LOG_ACCESS_KEY_ID }}
+  LOG_SECRET_ACCESS_KEY: ${{ secrets.LOG_SECRET_ACCESS_KEY }}
+  LOG_REGION: ${{ secrets.LOG_REGION }}
 
   # github
   GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
@@ -56,7 +56,7 @@ jobs:
         run: "./tools/github/run${{ env.TEST_SUITE }}Tests.sh"
         continue-on-error: true
       - id: logs
-        name: Upload Logs
+        name: Show results and Upload logs
         run: ./tools/github/checkAndUploadLogs.sh ${{ env.TEST_SUITE }}
       - name: Slack Notification
         run: > 

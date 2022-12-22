@@ -16,11 +16,15 @@
 # limitations under the License.
 #
 
+# showing test results on the CI log
+INDEX="tests/build/reports/tests/testCoverageLean/index.html"
+test -f "$INDEX" && lynx -dump file://$PWD/$INDEX | grep .
+
 # check variables
-for i in AWS_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION
+for i in LOG_BUCKET LOG_ACCESS_KEY_ID LOG_SECRET_ACCESS_KEY LOG_REGION
 do
   if test -z "${!i}"
-  then echo "Required Environment Variable Missing: $i" ; exit 1
+  then echo "Required Environment Variable Missing: $i" ; exit 0
   fi
 done
 
@@ -42,7 +46,7 @@ TAGS=""
 [[ "$2" == "Unit" ]] && TAGS="db"
 
 LOG_DIR="$(date +%Y-%m-%d)/${LOG_NAME}-${GH_BUILD}-${GH_BRANCH}"
-BUCKET_URL="https://$AWS_BUCKET.s3.$AWS_REGION.amazonaws.com"
+BUCKET_URL="https://$LOG_BUCKET.s3.$LOG_REGION.amazonaws.com"
 
 echo "Logs: ${BUCKET_URL}/index.html#${LOG_DIR}/"
 echo "Reports: ${BUCKET_URL}/${LOG_DIR}/test-reports/reports/tests/testCoverageLean/index.html"
