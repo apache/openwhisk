@@ -36,7 +36,7 @@ import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.ActivationResponse._
-import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ByteSize}
 import org.apache.openwhisk.core.entity.size.SizeLong
 import pureconfig._
 import pureconfig.generic.auto._
@@ -61,14 +61,11 @@ protected[containerpool] case class RetryableConnectionError(t: Throwable) exten
  *
  * @param hostname the host name
  * @param timeout the timeout in msecs to wait for a response
- * @param maxResponse the maximum size in bytes the connection will accept
  * @param maxConcurrent the maximum number of concurrent requests allowed (Default is 1)
  */
-protected class ApacheBlockingContainerClient(hostname: String,
-                                              timeout: FiniteDuration,
-                                              maxResponse: ByteSize,
-                                              truncation: ByteSize,
-                                              maxConcurrent: Int = 1)(implicit logging: Logging, ec: ExecutionContext)
+protected class ApacheBlockingContainerClient(hostname: String, timeout: FiniteDuration, maxConcurrent: Int = 1)(
+  implicit logging: Logging,
+  ec: ExecutionContext)
     extends ContainerClient {
 
   /**
@@ -88,11 +85,17 @@ protected class ApacheBlockingContainerClient(hostname: String,
    *
    * @param endpoint the path the api call relative to hostname
    * @param body the JSON value to post (this is usually a JSON objecT)
+   * @param maxResponse the maximum size in bytes the connection will accept
    * @param retry whether or not to retry on connection failure
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
-  def post(endpoint: String, body: JsValue, retry: Boolean, reschedule: Boolean = false)(
-    implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]] = {
+  def post(
+    endpoint: String,
+    body: JsValue,
+    maxResponse: ByteSize,
+    truncation: ByteSize,
+    retry: Boolean,
+    reschedule: Boolean = false)(implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]] = {
     val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
     entity.setContentType("application/json")
 
@@ -102,7 +105,7 @@ protected class ApacheBlockingContainerClient(hostname: String,
 
     Future {
       blocking {
-        execute(request, timeout, maxConcurrent, retry, reschedule)
+        execute(request, timeout, maxConcurrent, maxResponse, truncation, retry, reschedule)
       }
     }
   }
@@ -112,6 +115,8 @@ protected class ApacheBlockingContainerClient(hostname: String,
     request: HttpRequestBase,
     timeout: FiniteDuration,
     maxConcurrent: Int,
+    maxResponse: ByteSize,
+    truncation: ByteSize,
     retry: Boolean,
     reschedule: Boolean = false)(implicit tid: TransactionId): Either[ContainerHttpError, ContainerResponse] = {
     val start = Instant.now
@@ -124,13 +129,13 @@ protected class ApacheBlockingContainerClient(hostname: String,
 
           // Negative contentLength means unknown or overflow. We don't want to consume in either case.
           if (contentLength >= 0) {
-            if (contentLength <= maxResponseBytes) {
+            if (contentLength <= maxResponse.toBytes) {
               // optimized route to consume the entire stream into a string
               val str = EntityUtils.toString(entity, StandardCharsets.UTF_8) // consumes and closes the whole stream
               Right(ContainerResponse(statusCode, str, None))
             } else {
               // only consume a bounded number of bytes according to the system limits
-              val str = new String(IOUtils.toByteArray(entity.getContent, truncationBytes), StandardCharsets.UTF_8)
+              val str = new String(IOUtils.toByteArray(entity.getContent, truncation.toBytes), StandardCharsets.UTF_8)
               EntityUtils.consumeQuietly(entity) // consume the rest of the stream to free the connection
               Right(ContainerResponse(statusCode, str, Some(contentLength.B, maxResponse)))
             }
@@ -171,7 +176,7 @@ protected class ApacheBlockingContainerClient(hostname: String,
         if (timeout > Duration.Zero) {
           Thread.sleep(50) // Sleep for 50 milliseconds
           val newTimeout = timeout - (Instant.now.toEpochMilli - start.toEpochMilli).milliseconds
-          execute(request, newTimeout, maxConcurrent, retry = true)
+          execute(request, newTimeout, maxConcurrent, maxResponse, truncation, retry = true)
         } else {
           logging.warn(this, s"POST failed with $t - no retry because timeout exceeded.")
           Left(Timeout(t))
@@ -179,9 +184,6 @@ protected class ApacheBlockingContainerClient(hostname: String,
       case Failure(t: Throwable) => Left(ConnectionError(t))
     }
   }
-
-  private val maxResponseBytes = maxResponse.toBytes
-  private val truncationBytes = truncation.toBytes
 
   private val baseUri = new URIBuilder()
     .setScheme("http")
@@ -229,7 +231,7 @@ object ApacheBlockingContainerClient {
     tid: TransactionId,
     ec: ExecutionContext): (Int, Option[JsObject]) = {
     val timeout = 90.seconds
-    val connection = new ApacheBlockingContainerClient(s"$host:$port", timeout, 1.MB, 1.MB)
+    val connection = new ApacheBlockingContainerClient(s"$host:$port", timeout)
     val response = executeRequest(connection, endPoint, content)
     val result = Await.result(response, timeout)
     connection.close()
@@ -241,7 +243,7 @@ object ApacheBlockingContainerClient {
     implicit logging: Logging,
     tid: TransactionId,
     ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
-    val connection = new ApacheBlockingContainerClient(s"$host:$port", 90.seconds, 1.MB, 1.MB, contents.size)
+    val connection = new ApacheBlockingContainerClient(s"$host:$port", 90.seconds, contents.size)
     val futureResults = contents.map { content =>
       executeRequest(connection, endPoint, content)
     }
@@ -254,7 +256,12 @@ object ApacheBlockingContainerClient {
     implicit logging: Logging,
     tid: TransactionId,
     ec: ExecutionContext): Future[(Int, Option[JsObject])] = {
-    connection.post(endpoint, content, retry = true) map {
+    connection.post(
+      endpoint,
+      content,
+      ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
+      ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
+      retry = true) map {
       case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
       case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
       case Left(Timeout(_))           => throw new java.util.concurrent.TimeoutException()

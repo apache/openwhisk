@@ -15,21 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.openwhisk.core.containerpool
+package org.apache.openwhisk.core.entity
 
-import scala.concurrent.Future
-import spray.json._
-import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.entity.ActivationResponse.ContainerHttpError
-import org.apache.openwhisk.core.entity.ActivationResponse._
-import org.apache.openwhisk.core.entity.ByteSize
+sealed abstract class ActionLimitsException(message: String) extends IllegalArgumentException(message)
 
-trait ContainerClient {
-  def post(endpoint: String,
-           body: JsValue,
-           maxResponse: ByteSize,
-           truncation: ByteSize,
-           retry: Boolean,
-           reschedule: Boolean)(implicit tid: TransactionId): Future[Either[ContainerHttpError, ContainerResponse]]
-  def close(): Future[Unit]
-}
+case class ActionTimeLimitException(message: String) extends ActionLimitsException(message)
+
+case class ActionMemoryLimitException(message: String) extends ActionLimitsException(message)
+
+case class ActionLogLimitException(message: String) extends ActionLimitsException(message)
+
+case class ActionConcurrencyLimitException(message: String) extends ActionLimitsException(message)

@@ -61,6 +61,8 @@ class ContainerMessageConsumerTests
   implicit val transId = TransactionId.testing
   implicit val creationId = CreationId.generate()
 
+  val authStore = WhiskAuthStore.datastore()
+
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
     super.afterAll()
@@ -81,11 +83,20 @@ class ContainerMessageConsumerTests
   private val invokerInstance = InvokerInstanceId(0, userMemory = defaultUserMemory)
   private val schedulerInstanceId = SchedulerInstanceId("0")
 
+  /* Subject document needed for the second test */
   private val invocationNamespace = EntityName("invocationSpace")
+  private val uuid = UUID()
+  private val ak = BasicAuthenticationAuthKey(uuid, Secret())
+  private val ns = Namespace(invocationNamespace, uuid)
+  private val auth = WhiskAuth(Subject(), Set(WhiskNamespace(ns, ak)))
 
   private val schedulerHost = "127.17.0.1"
 
   private val rpcPort = 13001
+
+  override def beforeAll() = {
+    put(authStore, auth)
+  }
 
   override def afterEach(): Unit = {
     cleanup()

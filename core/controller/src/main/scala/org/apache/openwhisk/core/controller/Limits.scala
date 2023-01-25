@@ -24,7 +24,7 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.entitlement.{Collection, Privilege, Resource}
 import org.apache.openwhisk.core.entitlement.Privilege.READ
-import org.apache.openwhisk.core.entity.Identity
+import org.apache.openwhisk.core.entity.{ConcurrencyLimit, Identity, LogLimit, MemoryLimit, TimeLimit}
 
 trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with AuthorizedRouteProvider {
 
@@ -55,7 +55,16 @@ trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with Aut
             val limits = user.limits.copy(
               Some(user.limits.invocationsPerMinute.getOrElse(invocationsPerMinuteSystemDefault)),
               Some(user.limits.concurrentInvocations.getOrElse(concurrentInvocationsSystemDefault)),
-              Some(user.limits.firesPerMinute.getOrElse(firePerMinuteSystemDefault)))
+              Some(user.limits.firesPerMinute.getOrElse(firePerMinuteSystemDefault)),
+              maxActionMemory = Some(MemoryLimit(user.limits.allowedMaxActionMemory)),
+              minActionMemory = Some(MemoryLimit(user.limits.allowedMinActionMemory)),
+              maxActionLogs = Some(LogLimit(user.limits.allowedMaxActionLogs)),
+              minActionLogs = Some(LogLimit(user.limits.allowedMinActionLogs)),
+              maxActionTimeout = Some(TimeLimit(user.limits.allowedMaxActionTimeout)),
+              minActionTimeout = Some(TimeLimit(user.limits.allowedMinActionTimeout)),
+              maxActionConcurrency = Some(ConcurrencyLimit(user.limits.allowedMaxActionConcurrency)),
+              minActionConcurrency = Some(ConcurrencyLimit(user.limits.allowedMinActionConcurrency)),
+              maxParameterSize = Some(user.limits.allowedMaxParameterSize))
             pathEndOrSingleSlash { complete(OK, limits) }
           case _ => reject //should never get here
         }

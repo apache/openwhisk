@@ -24,7 +24,7 @@ import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.time.{Clock, SystemClock}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
-import org.apache.openwhisk.core.connector.ContainerCreationError.ZeroNamespaceLimit
+import org.apache.openwhisk.core.connector.ContainerCreationError.{InvalidActionLimitError, ZeroNamespaceLimit}
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.Interval
 import org.apache.openwhisk.core.database.{NoDocumentException, UserContext}
@@ -342,15 +342,26 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
       goto(Running) using RunningData(schedulerActor, droppingActor)
 
-    // log the failed information
-    case Event(FailedCreationJob(creationId, _, _, _, error, message), data: FlushingData) =>
-      creationIds -= creationId.asString
-      logging.info(
-        this,
-        s"[$invocationNamespace:$action:$stateName][$creationId] Failed to create a container due to $message")
+    case Event(FailedCreationJob(creationId, _, _, _, e, message), data: FlushingData) =>
+      e match {
+        // delete queue when container creation fails with action limit invalid error
+        case InvalidActionLimitError =>
+          logging.info(
+            this,
+            s"[$invocationNamespace:$action:$stateName][$creationId] Clean up because the action limit is invalid")
+          completeAllActivations(data.reason, ContainerCreationError.whiskErrors.contains(data.error))
+          cleanUpActorsAndGotoRemoved(data)
 
-      // keep updating the reason
-      stay using data.copy(error = error, reason = message)
+        case _ =>
+          // log the failed information
+          creationIds -= creationId.asString
+          logging.info(
+            this,
+            s"[$invocationNamespace:$action:$stateName][$creationId] Failed to create a container due to $message")
+
+          // keep updating the reason
+          stay using data.copy(error = e, reason = message)
+      }
 
     // since there is no container, activations cannot be handled.
     case Event(msg: ActivationMessage, data: FlushingData) =>
@@ -1226,6 +1237,7 @@ case class QueueConfig(idleGrace: FiniteDuration,
                        failThrottleAsWhiskError: Boolean)
 
 case class BufferedRequest(containerId: String, promise: Promise[Either[MemoryQueueError, ActivationMessage]])
+
 case object DropOld
 
 case class ContainerKeyMeta(revision: DocRevision, invokerId: Int, containerId: String)

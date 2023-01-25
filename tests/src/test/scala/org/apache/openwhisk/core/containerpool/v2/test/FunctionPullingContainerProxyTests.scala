@@ -2022,6 +2022,8 @@ class FunctionPullingContainerProxyTests
                        environment: JsObject,
                        timeout: FiniteDuration,
                        concurrent: Int,
+                       maxResponse: ByteSize,
+                       truncation: ByteSize,
                        reschedule: Boolean)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         Future.successful((initInterval, ActivationResponse.developerError(("boom"))))
@@ -2095,6 +2097,8 @@ class FunctionPullingContainerProxyTests
                        environment: JsObject,
                        timeout: FiniteDuration,
                        concurrent: Int,
+                       maxResponse: ByteSize,
+                       truncation: ByteSize,
                        reschedule: Boolean)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         //every other run fails
@@ -2703,9 +2707,11 @@ class FunctionPullingContainerProxyTests
                        environment: JsObject,
                        timeout: FiniteDuration,
                        concurrent: Int,
+                       maxResponse: ByteSize,
+                       truncation: ByteSize,
                        reschedule: Boolean)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         Thread.sleep((timeoutConfig.pauseGrace + 1.second).toMillis) // 6 sec actions
-        super.run(parameters, environment, timeout, concurrent)
+        super.run(parameters, environment, timeout, concurrent, maxResponse, truncation)
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -3101,6 +3107,8 @@ class FunctionPullingContainerProxyTests
       environment: JsObject,
       timeout: FiniteDuration,
       concurrent: Int,
+      maxResponse: ByteSize,
+      truncation: ByteSize,
       reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
       val runCount = atomicRunCount.incrementAndGet()
       environment.fields("namespace") shouldBe invocationNamespace.name.toJson
