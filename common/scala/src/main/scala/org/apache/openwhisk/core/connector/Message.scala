@@ -655,6 +655,7 @@ object ContainerCreationError extends Enumeration {
       case BlackBoxError                    => "a blackbox error happens"
       case ZeroNamespaceLimit               => "the namespace has 0 limit configured"
       case TooManyConcurrentRequests        => "too many concurrent requests are in flight."
+      case InvalidActionLimitError          => "a configured action limit is invalid."
     }
   }
 
