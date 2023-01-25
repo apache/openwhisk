@@ -496,7 +496,11 @@ class QueueManagerTests
     val finalFqn = newFqn.copy(version = Some(SemVer(0, 0, 3)))
     val finalRevision = DocRevision("3-test-revision")
     // simulate the case that action is updated again while fetch it from database
-    def newGet(store: ArtifactStore[WhiskEntity], docId: DocId, docRevision: DocRevision, fromCache: Boolean, ignoreMissingAttachment: Boolean) = {
+    def newGet(store: ArtifactStore[WhiskEntity],
+               docId: DocId,
+               docRevision: DocRevision,
+               fromCache: Boolean,
+               ignoreMissingAttachment: Boolean) = {
       if (docRevision == DocRevision.empty) {
         Future(convertToMetaData(action.copy(version = SemVer(0, 0, 3)).toWhiskAction.revision(finalRevision)))
       } else
