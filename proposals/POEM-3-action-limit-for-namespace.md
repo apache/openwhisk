@@ -177,7 +177,7 @@ As the namespace default limit is the same as the system limit, so the administr
 
 ### Namespace limit validation
 
-Previously, system limits were validated when deserializing the `ActionLimits` object from the user request. 
+Previously, system limits were validated when deserializing the `ActionLimits` object from the user request.
 
 However, at the time of deserialization of the user requests, the namespace's action limit cannot be known and the limit value cannot be included in an error message, so the validation must be performed after deserialization.
 Therefore, the code to perform this validation has been added to the controller, scheduler, and invoker.
@@ -211,7 +211,7 @@ If the namespace limits or system limits are exceeded, the namespace limit value
 
 #### 2. Validate action limits when the action is executed in the invoker
 
-When the action is executed, the invoker must checks whether the action limit exceeds the system limit and namespace limits. 
+When the action is executed, the invoker must checks whether the action limit exceeds the system limit and namespace limits.
 If the limit of the action to be executed exceeds the limit, an application error with `Messages.actionLimitExceeded` message is returned and invocation is aborted.
 
 ```scala

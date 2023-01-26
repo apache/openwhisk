@@ -46,7 +46,7 @@ If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for 
 The remote Docker API is required for collecting logs using the Ansible playbook [logs.yml](logs.yml).
 
 ##### Activate docker0 network (local dev only)
- 
+
 The OpenWhisk deployment via Ansible uses the `docker0` network interface to deploy OpenWhisk and it does not exist on Docker for Mac environment.
 
 An expedient workaround is to add alias for `docker0` network to loopback interface.
@@ -72,9 +72,9 @@ In all instructions, replace `<openwhisk_home>` with the base directory of your 
 
 #### Ansible with pyenv (local dev only)
 
-When using [pyenv](https://github.com/pyenv/pyenv) to manage your versions of python, the [ansible python interpreter](https://docs.ansible.com/ansible/latest/reference_appendices/python_3_support.html) will use your system's default python, which may have a different version. 
+When using [pyenv](https://github.com/pyenv/pyenv) to manage your versions of python, the [ansible python interpreter](https://docs.ansible.com/ansible/latest/reference_appendices/python_3_support.html) will use your system's default python, which may have a different version.
 
-To make sure ansible uses the same version of python which you configured, execute: 
+To make sure ansible uses the same version of python which you configured, execute:
 
 ```bash
 echo -e "\nansible_python_interpreter: `which python`\n" >> ./environments/local/group_vars/all
@@ -87,7 +87,7 @@ up again. To avoid this problem, export the `OPENWHISK_TMP_DIR` variable assigni
 directory before deploying OpenWhisk.
 
 #### Setup
- 
+
 This step should be executed once per development environment.
 It will generate the `hosts` configuration file based on your environment settings.
 
@@ -154,7 +154,7 @@ You can enable the new scheduler of OpenWhisk.
 It will run one more component called "scheduler" and ETCD.
 
 #### Configure service providers for the scheduler
-You can update service providers for the scheduler as follows. 
+You can update service providers for the scheduler as follows.
 
 **common/scala/src/main/resources/reference.conf**
 
