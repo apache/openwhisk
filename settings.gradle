@@ -78,5 +78,5 @@ gradle.ext.akka_kafka = [version : '2.0.2']
 gradle.ext.akka_http = [version : '10.2.4']
 gradle.ext.akka_management = [version : '1.0.5']
 
-gradle.ext.curator = [version : '4.0.0']
+gradle.ext.curator = [version : '4.3.0']
 gradle.ext.kube_client = [version: '4.10.3']
