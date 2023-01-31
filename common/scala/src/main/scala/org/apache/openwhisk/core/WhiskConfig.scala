@@ -222,6 +222,15 @@ object ConfigKeys {
   val timeLimit = "whisk.time-limit"
   val logLimit = "whisk.log-limit"
   val concurrencyLimit = "whisk.concurrency-limit"
+  val parameterSizeLimit = "whisk.parameter-size-limit"
+
+  val namespaceMemoryLimit = "whisk.namespace-default-limit.memory"
+  val namespaceTimeLimit = "whisk.namespace-default-limit.time-limit"
+  val namespaceLogLimit = "whisk.namespace-default-limit.log-limit"
+  val namespaceConcurrencyLimit = "whisk.namespace-default-limit.concurrency-limit"
+  val namespaceParameterSizeLimit = "whisk.namespace-default-limit.parameter-size-limit"
+  val namespaceActivationPayloadLimit = "whisk.namespace-default-limit.activation.payload"
+
   val activation = "whisk.activation"
   val userEvents = "whisk.user-events"
 

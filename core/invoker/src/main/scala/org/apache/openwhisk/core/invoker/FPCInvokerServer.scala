@@ -19,11 +19,13 @@ package org.apache.openwhisk.core.invoker
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.StatusCodes.OK
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.http.BasicRasService
+import org.apache.openwhisk.http.CorsSettings.RespondWithServerCorsHeaders
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import pureconfig.loadConfigOrThrow
 import spray.json.PrettyPrinter
@@ -39,42 +41,48 @@ class FPCInvokerServer(val invoker: InvokerCore, systemUsername: String, systemP
   implicit val ec: ExecutionContext,
   val actorSystem: ActorSystem,
   val logger: Logging)
-    extends BasicRasService {
+    extends BasicRasService
+    with RespondWithServerCorsHeaders {
 
   /** Pretty print JSON response. */
   implicit val jsonPrettyResponsePrinter = PrettyPrinter
 
   override def routes(implicit transid: TransactionId): Route = {
-    super.routes ~ extractCredentials {
-      case Some(BasicHttpCredentials(username, password)) if username == systemUsername && password == systemPassword =>
-        (path("enable") & post) {
-          complete(invoker.enable())
-        } ~ (path("disable") & post) {
-          complete(invoker.disable())
-        } ~ (path("isEnabled") & get) {
-          complete(invoker.isEnabled())
-        } ~ (pathPrefix("pool") & get) {
-          pathEndOrSingleSlash {
-            complete {
-              invoker.getPoolState().map {
-                case Right(poolState) =>
-                  poolState.serialize()
-                case Left(value) =>
-                  value.serialize()
+    super.routes ~ sendCorsHeaders {
+      options {
+        complete(OK)
+      } ~ extractCredentials {
+        case Some(BasicHttpCredentials(username, password))
+            if username == systemUsername && password == systemPassword =>
+          (path("enable") & post) {
+            complete(invoker.enable())
+          } ~ (path("disable") & post) {
+            complete(invoker.disable())
+          } ~ (path("isEnabled") & get) {
+            complete(invoker.isEnabled())
+          } ~ (pathPrefix("pool") & get) {
+            pathEndOrSingleSlash {
+              complete {
+                invoker.getPoolState().map {
+                  case Right(poolState) =>
+                    poolState.serialize()
+                  case Left(value) =>
+                    value.serialize()
+                }
               }
-            }
-          } ~ (path("count") & get) {
-            complete {
-              invoker.getPoolState().map {
-                case Right(poolState) =>
-                  (poolState.busyPool.total + poolState.pausedPool.total + poolState.inProgressCount).toJson.compactPrint
-                case Left(value) =>
-                  value.serialize()
+            } ~ (path("count") & get) {
+              complete {
+                invoker.getPoolState().map {
+                  case Right(poolState) =>
+                    (poolState.busyPool.total + poolState.pausedPool.total + poolState.inProgressCount).toJson.compactPrint
+                  case Left(value) =>
+                    value.serialize()
+                }
               }
             }
           }
-        }
-      case _ => terminate(StatusCodes.Unauthorized)
+        case _ => terminate(StatusCodes.Unauthorized)
+      }
     }
   }
 }

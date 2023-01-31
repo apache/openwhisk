@@ -339,7 +339,7 @@ curl -u $AUTH https://$APIHOST/api/v1/namespaces/_/activations/f81dfddd7156401a8
 
 ## Limits
 
-To get the limits set for a namespace (i.e. invocationsPerMinute, concurrentInvocations, firesPerMinute)
+To get the limits set for a namespace (i.e. invocationsPerMinute, concurrentInvocations, firesPerMinute, actionMemoryMax, actionLogsMax...)
 ```bash
 curl -u $AUTH https://$APIHOST/api/v1/namespaces/_/limits
 ```

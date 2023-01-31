@@ -1342,6 +1342,8 @@ class ContainerProxyTests
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
+        maxResponse: ByteSize,
+        truncation: ByteSize,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         //every other run fails
@@ -1523,6 +1525,8 @@ class ContainerProxyTests
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
+        maxResponse: ByteSize,
+        truncation: ByteSize,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         Future.successful((initInterval, ActivationResponse.developerError(("boom"))))
@@ -1692,12 +1696,14 @@ class ContainerProxyTests
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
+        maxResponse: ByteSize,
+        truncation: ByteSize,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
 
         if (reschedule) {
           throw ContainerHealthError(transid, "reconnect failed to xyz")
         }
-        super.run(parameters, environment, timeout, concurrent, reschedule)
+        super.run(parameters, environment, timeout, concurrent, maxResponse, truncation, reschedule)
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -1744,12 +1750,14 @@ class ContainerProxyTests
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
+        maxResponse: ByteSize,
+        truncation: ByteSize,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
 
         if (reschedule) {
           throw ContainerHealthError(transid, "reconnect failed to xyz")
         }
-        super.run(parameters, environment, timeout, concurrent, reschedule)
+        super.run(parameters, environment, timeout, concurrent, maxResponse, truncation, reschedule)
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -2164,6 +2172,8 @@ class ContainerProxyTests
       environment: JsObject,
       timeout: FiniteDuration,
       concurrent: Int,
+      maxResponse: ByteSize,
+      truncation: ByteSize,
       reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
 
       // the "init" arguments are not passed on run

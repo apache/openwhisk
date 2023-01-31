@@ -320,7 +320,7 @@ trait WriteOps extends Directives {
     // marker to return an existing doc with status OK rather than conflict if overwrite is false
     case class IdentityPut(self: A) extends Throwable
 
-    onComplete(factory.get(datastore, docid) flatMap { doc =>
+    onComplete(factory.get(datastore, docid, ignoreMissingAttachment = overwrite) flatMap { doc =>
       if (overwrite) {
         logging.debug(this, s"[PUT] entity exists, will try to update '$doc'")
         update(doc).map(updatedDoc => (Some(doc), updatedDoc))
@@ -392,7 +392,7 @@ trait WriteOps extends Directives {
     format: RootJsonFormat[A],
     notifier: Option[CacheChangeNotification],
     ma: Manifest[A]) = {
-    onComplete(factory.get(datastore, docid) flatMap { entity =>
+    onComplete(factory.get(datastore, docid, ignoreMissingAttachment = true) flatMap { entity =>
       confirm(entity) flatMap {
         case _ =>
           factory.del(datastore, entity.docinfo) map { _ =>

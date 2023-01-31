@@ -23,7 +23,10 @@ import akka.http.scaladsl.model.StatusCodes.{BadRequest, MethodNotAllowed, OK}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.core.controller.WhiskLimitsApi
-import org.apache.openwhisk.core.entity.{EntityPath, UserLimits}
+import org.apache.openwhisk.core.entity.{ConcurrencyLimit, EntityPath, LogLimit, MemoryLimit, TimeLimit, UserLimits}
+import org.apache.openwhisk.core.entity.size._
+
+import scala.concurrent.duration._
 
 /**
  * Tests Packages API.
@@ -49,6 +52,15 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
   val testAllowedKinds = Set("java:8")
   val testStoreActivations = false
 
+  val testMemoryMin = MemoryLimit(150.MB)
+  val testMemoryMax = MemoryLimit(200.MB)
+  val testLogMin = LogLimit(3.MB)
+  val testLogMax = LogLimit(6.MB)
+  val testDurationMax = TimeLimit(20.seconds)
+  val testDurationMin = TimeLimit(10.seconds)
+  val testConcurrencyMax = ConcurrencyLimit(20)
+  val testConcurrencyMin = ConcurrencyLimit(10)
+
   val creds = WhiskAuthHelpers.newIdentity()
   val credsWithSetLimits = WhiskAuthHelpers
     .newIdentity()
@@ -58,7 +70,15 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         Some(testConcurrent),
         Some(testFiresPerMinute),
         Some(testAllowedKinds),
-        Some(testStoreActivations)))
+        Some(testStoreActivations),
+        minActionMemory = Some(testMemoryMin),
+        maxActionMemory = Some(testMemoryMax),
+        minActionLogs = Some(testLogMin),
+        maxActionLogs = Some(testLogMax),
+        maxActionTimeout = Some(testDurationMax),
+        minActionTimeout = Some(testDurationMin),
+        maxActionConcurrency = Some(testConcurrencyMax),
+        minActionConcurrency = Some(testConcurrencyMin)))
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
 
@@ -73,6 +93,16 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         responseAs[UserLimits].firesPerMinute shouldBe Some(whiskConfig.triggerFirePerMinuteLimit.toInt)
         responseAs[UserLimits].allowedKinds shouldBe None
         responseAs[UserLimits].storeActivations shouldBe None
+
+        // provide default action limits
+        responseAs[UserLimits].minActionMemory.get.megabytes shouldBe MemoryLimit.MIN_MEMORY_DEFAULT.toMB
+        responseAs[UserLimits].maxActionMemory.get.megabytes shouldBe MemoryLimit.MAX_MEMORY_DEFAULT.toMB
+        responseAs[UserLimits].minActionLogs.get.megabytes shouldBe LogLimit.MIN_LOGSIZE_DEFAULT.toMB
+        responseAs[UserLimits].maxActionLogs.get.megabytes shouldBe LogLimit.MAX_LOGSIZE_DEFAULT.toMB
+        responseAs[UserLimits].minActionTimeout.get.duration shouldBe TimeLimit.MIN_DURATION_DEFAULT
+        responseAs[UserLimits].maxActionTimeout.get.duration shouldBe TimeLimit.MAX_DURATION_DEFAULT
+        responseAs[UserLimits].minActionConcurrency.get.maxConcurrent shouldBe ConcurrencyLimit.MIN_CONCURRENT_DEFAULT
+        responseAs[UserLimits].maxActionConcurrency.get.maxConcurrent shouldBe ConcurrencyLimit.MAX_CONCURRENT_DEFAULT
       }
     }
   }
@@ -87,6 +117,16 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         responseAs[UserLimits].firesPerMinute shouldBe Some(testFiresPerMinute)
         responseAs[UserLimits].allowedKinds shouldBe Some(testAllowedKinds)
         responseAs[UserLimits].storeActivations shouldBe Some(testStoreActivations)
+
+        // provide action limits for namespace
+        responseAs[UserLimits].minActionMemory.get.megabytes shouldBe testMemoryMin.megabytes
+        responseAs[UserLimits].maxActionMemory.get.megabytes shouldBe testMemoryMax.megabytes
+        responseAs[UserLimits].minActionLogs.get.megabytes shouldBe testLogMin.megabytes
+        responseAs[UserLimits].maxActionLogs.get.megabytes shouldBe testLogMax.megabytes
+        responseAs[UserLimits].minActionTimeout.get.duration shouldBe testDurationMin.duration
+        responseAs[UserLimits].maxActionTimeout.get.duration shouldBe testDurationMax.duration
+        responseAs[UserLimits].minActionConcurrency.get.maxConcurrent shouldBe testConcurrencyMin.maxConcurrent
+        responseAs[UserLimits].maxActionConcurrency.get.maxConcurrent shouldBe testConcurrencyMax.maxConcurrent
       }
     }
   }

@@ -1,0 +1,87 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+name: Performance Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+    types: [ opened, synchronize, reopened ]
+  schedule:
+    - cron: '30 6 * * 1,3,5'
+
+env:
+  # openwhisk env
+  TEST_SUITE: Performance
+  ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
+  GRADLE_PROJS_SKIP: ""
+
+  ## secrets
+  # (optional) slack incoming wehbook for notifications
+  SLACK_WEBHOOK: ${{secrets.SLACK_WEBHOOK}}
+
+  # (optional) s3 log upload
+  LOG_BUCKET: ${{ secrets.LOG_BUCKET }}
+  LOG_ACCESS_KEY_ID: ${{ secrets.LOG_ACCESS_KEY_ID }}
+  LOG_SECRET_ACCESS_KEY: ${{ secrets.LOG_SECRET_ACCESS_KEY }}
+  LOG_REGION: ${{ secrets.LOG_REGION }}
+
+  # github
+  GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
+  GH_BRANCH: ${{ github.head_ref || github.ref_name }} 
+
+jobs:
+  openwhisk:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: "Setup"
+        run: ./tools/github/setup.sh
+      - run: ./tests/performance/preparation/deploy.sh
+      - run: TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 2m
+        continue-on-error: true
+      - run: TERM=dumb ./tests/performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 2m
+        continue-on-error: true
+      - run: TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 4 1 2 2m
+        continue-on-error: true
+      - run: TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 4 1 2 2m
+        continue-on-error: true
+      - run: TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/noop.js 100 110 2 2m
+        continue-on-error: true
+      - run: TERM=dumb ./tests/performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" ./tests/performance/preparation/actions/async.js 100 110 2 2m
+        continue-on-error: true
+      - run: OPENWHISK_HOST="172.17.0.1" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ApiV1Simulation
+        continue-on-error: true
+      - run: OPENWHISK_HOST="172.17.0.1" MEAN_RESPONSE_TIME="1000" API_KEY="$(cat ansible/files/auth.guest)" EXCLUDED_KINDS="python:default,java:default,swift:default" PAUSE_BETWEEN_INVOKES="100" ./gradlew gatlingRun-org.apache.openwhisk.LatencySimulation
+        continue-on-error: true
+      - run: OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
+        continue-on-error: true
+      - run: OPENWHISK_HOST="172.17.0.1" API_KEY="$(cat ansible/files/auth.guest)" CONNECTIONS="100" REQUESTS_PER_SEC="1" ASYNC="true" ./gradlew gatlingRun-org.apache.openwhisk.BlockingInvokeOneActionSimulation
+        continue-on-error: true
+      # The following configuration does not make much sense. But we do not have enough users. But it's good to verify, that the test is still working.
+      - run: OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
+        continue-on-error: true
+      - name: Slack Notification
+        run: > 
+             ./tools/github/writeOnSlack.sh
+             "[$TEST_SUITE]" ${{ steps.tests.outcome }} on ${GH_BUILD}
+             $'\nbranch:' $GH_BRANCH
+             $'\nmessage:' "$(git log -1 --oneline | cat)"
+             $'\nCheck GitHub logs for results'

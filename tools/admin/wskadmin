@@ -148,6 +148,17 @@ def parseArgs():
     subcmd.add_argument('--concurrentInvocations', help='concurrent invocations allowed for this namespace', type=int)
     subcmd.add_argument('--allowedKinds', help='list of runtime kinds allowed in this namespace', nargs='+', type=str)
     subcmd.add_argument('--storeActivations', help='enable or disable storing of activations to datastore for this namespace', default=None, type=str_to_bool)
+    subcmd.add_argument('--minActionMemory', help='minimum action memory size for this namespace', default=None, type=int)
+    subcmd.add_argument('--maxActionMemory', help='maximum action memory size for this namespace', default=None, type=int)
+    subcmd.add_argument('--minActionLogs', help='minimum activation log size for this namespace', default=None, type=int)
+    subcmd.add_argument('--maxActionLogs', help='maximum activation log size for this namespace', default=None, type=int)
+    subcmd.add_argument('--minActionTimeout', help='minimum action time limit for this namespace', default=None, type=int)
+    subcmd.add_argument('--maxActionTimeout', help='maximum action time limit for this namespace', default=None, type=int)
+    subcmd.add_argument('--minActionConcurrency', help='minimum action concurrency limit for this namespace', default=None, type=int)
+    subcmd.add_argument('--maxActionConcurrency', help='maximum action concurrency limit for this namespace', default=None, type=int)
+    subcmd.add_argument('--maxParameterSize', help='maximum parameter size for this namespace', default=None, type=str)
+    subcmd.add_argument('--maxPayloadSize', help='maximum payload size for this namespace', default=None, type=str)
+    subcmd.add_argument('--truncationSize', help='activation truncation size for this namespace', default=None, type=str)
 
     subcmd = subparser.add_parser('get', help='get limits for a given namespace (if none exist, system defaults apply)')
     subcmd.add_argument('namespace', help='the namespace to get limits for')
@@ -549,7 +560,24 @@ def setLimitsCmd(args, props):
     (dbDoc, res) = getDocumentFromDb(props, quote_plus(docId), args.verbose)
     doc = dbDoc or {'_id': docId}
 
-    limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations', 'allowedKinds', 'storeActivations']
+    limits = [
+        'invocationsPerMinute',
+        'firesPerMinute',
+        'concurrentInvocations',
+        'allowedKinds',
+        'storeActivations',
+        'minActionMemory',
+        'maxActionMemory',
+        'minActionLogs',
+        'maxActionLogs',
+        'minActionTimeout',
+        'maxActionTimeout',
+        'minActionConcurrency',
+        'maxActionConcurrency',
+        'maxParameterSize',
+        'maxPayloadSize',
+        'truncationSize'
+        ]
     for limit in limits:
         givenLimit = argsDict.get(limit)
         toSet = givenLimit if givenLimit != None else doc.get(limit)
@@ -568,7 +596,24 @@ def getLimitsCmd(args, props):
     (dbDoc, res) = getDocumentFromDb(props, quote_plus(docId), args.verbose)
 
     if dbDoc is not None:
-        limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations', 'allowedKinds', 'storeActivations']
+        limits = [
+            'invocationsPerMinute',
+            'firesPerMinute',
+            'concurrentInvocations',
+            'allowedKinds',
+            'storeActivations',
+            'minActionMemory',
+            'maxActionMemory',
+            'minActionLogs',
+            'maxActionLogs',
+            'minActionTimeout',
+            'maxActionTimeout',
+            'minActionConcurrency',
+            'maxActionConcurrency',
+            'maxParameterSize',
+            'maxPayloadSize',
+            'truncationSize'
+            ]
         for limit in limits:
             givenLimit = dbDoc.get(limit)
             if givenLimit != None:

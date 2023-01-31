@@ -188,7 +188,7 @@ class FunctionPullingContainerProxy(
             Option[ExecutableWhiskAction]) => Future[Container],
   entityStore: ArtifactStore[WhiskEntity],
   namespaceBlacklist: NamespaceBlacklist,
-  get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean) => Future[WhiskAction],
+  get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean, Boolean) => Future[WhiskAction],
   dataManagementService: ActorRef,
   clientProxyFactory: (ActorRefFactory,
                        String,
@@ -786,7 +786,7 @@ class FunctionPullingContainerProxy(
   whenUnhandled {
     case Event(PingCache, data: WarmData) =>
       val actionId = data.action.fullyQualifiedName(false).toDocId.asDocInfo(data.revision)
-      get(entityStore, actionId.id, actionId.rev, true).map(_ => {
+      get(entityStore, actionId.id, actionId.rev, true, false).map(_ => {
         logging.debug(
           this,
           s"Refreshed function cache for action ${data.action} from container ${data.container.containerId}.")
@@ -913,15 +913,19 @@ class FunctionPullingContainerProxy(
       if (actionid.rev == DocRevision.empty)
         logging.warn(this, s"revision was not provided for ${actionid.id}")
 
-      get(entityStore, actionid.id, actionid.rev, actionid.rev != DocRevision.empty)
+      get(entityStore, actionid.id, actionid.rev, actionid.rev != DocRevision.empty, false)
         .flatMap { action =>
-          action.toExecutableWhiskAction match {
-            case Some(executable) =>
-              Future.successful(RunActivation(executable, msg))
-            case None =>
-              logging
-                .error(this, s"non-executable action reached the invoker ${action.fullyQualifiedName(false)}")
-              Future.failed(new IllegalStateException("non-executable action reached the invoker"))
+          {
+            // action that exceed the limit cannot be executed
+            action.limits.checkLimits(msg.user)
+            action.toExecutableWhiskAction match {
+              case Some(executable) =>
+                Future.successful(RunActivation(executable, msg))
+              case None =>
+                logging
+                  .error(this, s"non-executable action reached the invoker ${action.fullyQualifiedName(false)}")
+                Future.failed(new IllegalStateException("non-executable action reached the invoker"))
+            }
           }
         }
         .recoverWith {
@@ -939,6 +943,8 @@ class FunctionPullingContainerProxy(
             val response = t match {
               case _: NoDocumentException =>
                 ExecutionResponse.applicationError(Messages.actionRemovedWhileInvoking)
+              case e: ActionLimitsException =>
+                ExecutionResponse.applicationError(e.getMessage) // return generated failed message
               case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
                 ExecutionResponse.whiskError(Messages.actionMismatchWhileInvoking)
               case e: Throwable =>
@@ -1093,6 +1099,8 @@ class FunctionPullingContainerProxy(
             env.toJson.asJsObject,
             actionTimeout,
             action.limits.concurrency.maxConcurrent,
+            msg.user.limits.allowedMaxPayloadSize,
+            msg.user.limits.allowedTruncationSize,
             resumeRun.isDefined)(msg.transid)
           .map {
             case (runInterval, response) =>
@@ -1264,7 +1272,7 @@ object FunctionPullingContainerProxy {
                       Option[ExecutableWhiskAction]) => Future[Container],
             entityStore: ArtifactStore[WhiskEntity],
             namespaceBlacklist: NamespaceBlacklist,
-            get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean) => Future[WhiskAction],
+            get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean, Boolean) => Future[WhiskAction],
             dataManagementService: ActorRef,
             clientProxyFactory: (ActorRefFactory,
                                  String,

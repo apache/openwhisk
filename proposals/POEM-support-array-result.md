@@ -61,7 +61,7 @@ All runtime images should support an array result. e.g.
 * ruby
 * dotnet
 * rust
-* swift 
+* swift
 * deno
 * ballerina
 

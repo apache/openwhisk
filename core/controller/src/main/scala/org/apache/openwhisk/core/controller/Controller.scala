@@ -37,6 +37,7 @@ import org.apache.openwhisk.core.entity.ActivationId.ActivationIdGenerator
 import org.apache.openwhisk.core.entity.ExecManifest.Runtimes
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.loadBalancer.LoadBalancerProvider
+import org.apache.openwhisk.http.CorsSettings.RespondWithServerCorsHeaders
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.SpiLoader
@@ -78,7 +79,8 @@ class Controller(val instance: ControllerInstanceId,
                  implicit val whiskConfig: WhiskConfig,
                  implicit val actorSystem: ActorSystem,
                  implicit val logging: Logging)
-    extends BasicRasService {
+    extends BasicRasService
+    with RespondWithServerCorsHeaders {
 
   TransactionId.controller.mark(
     this,
@@ -98,7 +100,7 @@ class Controller(val instance: ControllerInstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth ~ activationStatus ~ disable
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ adminRoutes
   }
 
   // initialize datastores
@@ -217,6 +219,14 @@ class Controller(val instance: ControllerInstanceId,
       }
     }
   }
+
+  private def adminRoutes(implicit transid: TransactionId) = {
+    sendCorsHeaders {
+      options {
+        complete(OK)
+      } ~ internalInvokerHealth ~ activationStatus ~ disable
+    }
+  }
 }
 
 /**
@@ -257,6 +267,12 @@ object Controller {
         "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
         "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson,
         "sequence_length" -> config.actionSequenceLimit.toInt.toJson,
+        "default_min_action_duration" -> TimeLimit.namespaceDefaultConfig.min.toMillis.toJson,
+        "default_max_action_duration" -> TimeLimit.namespaceDefaultConfig.max.toMillis.toJson,
+        "default_min_action_memory" -> MemoryLimit.namespaceDefaultConfig.min.toBytes.toJson,
+        "default_max_action_memory" -> MemoryLimit.namespaceDefaultConfig.max.toBytes.toJson,
+        "default_min_action_logs" -> LogLimit.namespaceDefaultConfig.min.toBytes.toJson,
+        "default_max_action_logs" -> LogLimit.namespaceDefaultConfig.max.toBytes.toJson,
         "min_action_duration" -> timeLimit.min.toMillis.toJson,
         "max_action_duration" -> timeLimit.max.toMillis.toJson,
         "min_action_memory" -> memLimit.min.toBytes.toJson,

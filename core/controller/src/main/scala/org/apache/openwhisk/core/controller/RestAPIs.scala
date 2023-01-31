@@ -36,7 +36,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.types._
 import org.apache.openwhisk.core.loadBalancer.LoadBalancer
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
-import org.apache.openwhisk.http.Messages
+import org.apache.openwhisk.http.{CorsSettings, Messages}
 import org.apache.openwhisk.spi.{Spi, SpiLoader}
 
 import scala.concurrent.{ExecutionContext, Future}

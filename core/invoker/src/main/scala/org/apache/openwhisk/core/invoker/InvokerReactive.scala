@@ -52,7 +52,6 @@ object InvokerReactive extends InvokerProvider {
     poolConfig: ContainerPoolConfig,
     limitsConfig: ConcurrencyLimitConfig)(implicit actorSystem: ActorSystem, logging: Logging): InvokerCore =
     new InvokerReactive(config, instance, producer, poolConfig, limitsConfig)
-
 }
 
 class InvokerReactive(
@@ -178,6 +177,8 @@ class InvokerReactive(
     WhiskAction
       .get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty)
       .flatMap(action => {
+        // action that exceed the limit cannot be executed.
+        action.limits.checkLimits(msg.user)
         action.toExecutableWhiskAction match {
           case Some(executable) =>
             pool ! Run(executable, msg)
@@ -196,6 +197,8 @@ class InvokerReactive(
           val response = t match {
             case _: NoDocumentException =>
               ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
+            case e: ActionLimitsException =>
+              ActivationResponse.applicationError(e.getMessage) // return generated failed message
             case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
               ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
             case _ =>
@@ -334,5 +337,4 @@ class InvokerReactive(
   override def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]] = {
     Future.successful(Left(NotSupportedPoolState()))
   }
-
 }
