@@ -21,13 +21,15 @@ import scala.collection.JavaConverters._
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpResponse
-import com.atlassian.oai.validator.OpenApiInteractionValidator
 import com.atlassian.oai.validator.model.SimpleRequest
 import com.atlassian.oai.validator.model.SimpleResponse
 import com.atlassian.oai.validator.report.ValidationReport
 import com.atlassian.oai.validator.whitelist.ValidationErrorsWhitelist
 import com.atlassian.oai.validator.whitelist.rule.WhitelistRules
 
+import scala.annotation.nowarn
+
+@nowarn("cat=deprecation")
 trait SwaggerValidator {
   private val specWhitelist = ValidationErrorsWhitelist
     .create()
@@ -54,7 +56,7 @@ trait SwaggerValidator {
         WhitelistRules.messageContainsSubstring("DELETE operation not allowed on path '/api/v1/namespaces/_/actions/'"),
         WhitelistRules.messageContainsSubstring("PUT operation not allowed on path '/api/v1/namespaces/_/actions/'")))
 
-  private val specValidator = OpenApiInteractionValidator
+  private val specValidator = com.atlassian.oai.validator.SwaggerRequestResponseValidator
     .createFor("apiv1swagger.json")
     .withWhitelist(specWhitelist)
     .build()
