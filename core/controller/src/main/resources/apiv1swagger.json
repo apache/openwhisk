@@ -1735,6 +1735,7 @@
           "type": "string"
         },
         "value": {
+          "type": "AnyValue",
           "description": "Any JSON value"
         }
       }
