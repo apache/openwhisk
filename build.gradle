@@ -33,7 +33,7 @@ subprojects {
     scalafmt.configFilePath = gradle.scalafmt.config
 
     group 'org.apache.openwhisk'
-    version '1.0.1-SNAPSHOT'
+    version '1.0.0-SNAPSHOT'
 
     pluginManager.withPlugin('scala') {
         // Constraint all transitive akka-* dependencies to the one we want to use to avoid issues.

@@ -18,11 +18,10 @@
 package common.rest
 
 import scala.collection.JavaConverters._
-
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpResponse
-import com.atlassian.oai.validator.SwaggerRequestResponseValidator
+import com.atlassian.oai.validator.OpenApiInteractionValidator
 import com.atlassian.oai.validator.model.SimpleRequest
 import com.atlassian.oai.validator.model.SimpleResponse
 import com.atlassian.oai.validator.report.ValidationReport
@@ -35,27 +34,27 @@ trait SwaggerValidator {
     .withRule(
       "Ignore action and trigger payloads",
       WhitelistRules.allOf(
-        WhitelistRules.messageContains("Object instance has properties which are not allowed by the schema"),
+        WhitelistRules.messageContainsSubstring("Object instance has properties which are not allowed by the schema"),
         WhitelistRules.anyOf(
-          WhitelistRules.pathContains("/web/"),
-          WhitelistRules.pathContains("/actions/"),
-          WhitelistRules.pathContains("/triggers/")),
-        WhitelistRules.methodIs(io.swagger.models.HttpMethod.POST)))
+          WhitelistRules.pathContainsSubstring("/web/"),
+          WhitelistRules.pathContainsSubstring("/actions/"),
+          WhitelistRules.pathContainsSubstring("/triggers/")),
+        WhitelistRules.methodIs(io.swagger.v3.oas.models.PathItem.HttpMethod.POST)))
     .withRule(
       "Ignore invalid action kinds",
       WhitelistRules.allOf(
-        WhitelistRules.messageContains("kind"),
-        WhitelistRules.messageContains("Instance value"),
-        WhitelistRules.messageContains("not found"),
-        WhitelistRules.pathContains("/actions/"),
-        WhitelistRules.methodIs(io.swagger.models.HttpMethod.PUT)))
+        WhitelistRules.messageContainsSubstring("kind"),
+        WhitelistRules.messageContainsSubstring("Instance value"),
+        WhitelistRules.messageContainsSubstring("not found"),
+        WhitelistRules.pathContainsSubstring("/actions/"),
+        WhitelistRules.methodIs(io.swagger.v3.oas.models.PathItem.HttpMethod.PUT)))
     .withRule(
       "Ignore tests that check for invalid DELETEs and PUTs on actions",
       WhitelistRules.anyOf(
-        WhitelistRules.messageContains("DELETE operation not allowed on path '/api/v1/namespaces/_/actions/'"),
-        WhitelistRules.messageContains("PUT operation not allowed on path '/api/v1/namespaces/_/actions/'")))
+        WhitelistRules.messageContainsSubstring("DELETE operation not allowed on path '/api/v1/namespaces/_/actions/'"),
+        WhitelistRules.messageContainsSubstring("PUT operation not allowed on path '/api/v1/namespaces/_/actions/'")))
 
-  private val specValidator = SwaggerRequestResponseValidator
+  private val specValidator = OpenApiInteractionValidator
     .createFor("apiv1swagger.json")
     .withWhitelist(specWhitelist)
     .build()
