@@ -76,7 +76,7 @@ object FullyQualifiedNames {
  * @param status a string used to indicate the status of the action
  * @param success a boolean value used to indicate whether the action is executed successfully or not
  */
-case class ActivationResponse(result: Option[JsObject], status: String, success: Boolean)
+case class ActivationResponse(result: Option[JsValue], status: String, success: Boolean)
 
 object ActivationResponse extends DefaultJsonProtocol {
   implicit val serdes = jsonFormat3(ActivationResponse.apply)
@@ -95,6 +95,7 @@ object ActivationResponse extends DefaultJsonProtocol {
  * @param annotations a list of JSON objects to save the annotations of the activation
  */
 case class ActivationResult(activationId: String,
+                            namespace: String,
                             logs: Option[List[String]],
                             response: ActivationResponse,
                             start: Instant,
@@ -123,14 +124,14 @@ object ActivationResult extends DefaultJsonProtocol {
   }
 
   implicit val serdes = new RootJsonFormat[ActivationResult] {
-    private val format = jsonFormat8(ActivationResult.apply)
+    private val format = jsonFormat9(ActivationResult.apply)
 
     def write(result: ActivationResult) = format.write(result)
 
     def read(value: JsValue) = {
       val obj = value.asJsObject
-      obj.getFields("activationId", "response", "start") match {
-        case Seq(JsString(activationId), response, start) =>
+      obj.getFields("activationId", "namespace", "response", "start") match {
+        case Seq(JsString(activationId), JsString(namespace), response, start) =>
           Try {
             val logs = obj.fields.get("logs").map(_.convertTo[List[String]])
             val end = obj.fields.get("end").map(_.convertTo[Instant]).getOrElse(Instant.EPOCH)
@@ -139,6 +140,7 @@ object ActivationResult extends DefaultJsonProtocol {
             val annotations = obj.fields.get("annotations").map(_.convertTo[List[JsObject]])
             new ActivationResult(
               activationId,
+              namespace,
               logs,
               response.convertTo[ActivationResponse],
               start.convertTo[Instant],
@@ -243,7 +245,7 @@ trait WskTestHelpers extends Matchers {
     run: RunResult,
     initialWait: Duration = 1.second,
     pollPeriod: Duration = 1.second,
-    totalWait: Duration = 60.seconds)(check: ActivationResult => Unit)(implicit wskprops: WskProps): Unit = {
+    totalWait: Duration = 120.seconds)(check: ActivationResult => Unit)(implicit wskprops: WskProps): Unit = {
     val activationId = wsk.extractActivationId(run)
 
     withClue(s"did not find an activation id in '$run'") {
@@ -275,7 +277,7 @@ trait WskTestHelpers extends Matchers {
   }
   def withActivation(wsk: ActivationOperations, activationId: String)(check: ActivationResult => Unit)(
     implicit wskprops: WskProps): Unit = {
-    withActivation(wsk, activationId, 1.second, 1.second, 60.seconds)(check)
+    withActivation(wsk, activationId, 1.second, 1.second, 120.seconds)(check)
   }
 
   /**

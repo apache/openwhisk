@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.database.test
 
 import akka.http.scaladsl.model.Uri
 import akka.stream.scaladsl.Source
-import akka.stream.{ActorMaterializer, Materializer}
 import akka.util.CompactByteString
 import common.WskActorSystem
 import org.junit.runner.RunWith
@@ -36,8 +35,6 @@ class AttachmentSupportTests extends FlatSpec with Matchers with ScalaFutures wi
 
   behavior of "Attachment inlining"
 
-  implicit val materializer: Materializer = ActorMaterializer()
-
   it should "not inline if maxInlineSize set to zero" in {
     val inliner = new AttachmentSupportTestMock(InliningConfig(maxInlineSize = 0.KB))
     val bs = CompactByteString("hello world")
@@ -49,7 +46,6 @@ class AttachmentSupportTests extends FlatSpec with Matchers with ScalaFutures wi
   }
 
   class AttachmentSupportTestMock(val inliningConfig: InliningConfig) extends AttachmentSupport[WhiskEntity] {
-    override protected[core] implicit val materializer: Materializer = ActorMaterializer()
     override protected def attachmentScheme: String = "test"
     override protected def executionContext = actorSystem.dispatcher
     override protected[database] def put(d: WhiskEntity)(implicit transid: TransactionId) = ???

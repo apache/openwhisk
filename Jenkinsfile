@@ -49,7 +49,7 @@ timeout(time: 12, unit: 'HOURS') {
                         sh "docker run -d --restart=always --name registry -v \"$HOME\"/certs:/certs \
                                 -e REGISTRY_HTTP_ADDR=0.0.0.0:${port} -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/${cert} \
                                 -e REGISTRY_HTTP_TLS_KEY=/certs/${key} -p ${port}:${port} registry:2"
-                        // Build the controller and invoker images.
+                        // Build the controller, scheduler, and invoker images.
                         sh "./gradlew distDocker -PdockerRegistry=${domainName}:${port}"
                         //Install the various modules like standalone
                         sh "./gradlew install"

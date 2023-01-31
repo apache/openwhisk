@@ -107,7 +107,7 @@ object StandaloneDockerSupport {
 
   /**
    * Returns the hostname to access the playground.
-   * It defaults to localhost but it can be overriden
+   * It defaults to localhost but it can be overridden
    * and it is useful when the standalone is run in a container.
    */
   def getExternalHostName(): String = {
@@ -148,9 +148,9 @@ object StandaloneDockerSupport {
   }
 
   def prePullImage(imageName: String)(implicit logging: Logging): Unit = {
-    //docker images openwhisk/action-nodejs-v10:nightly
+    //docker images openwhisk/action-nodejs-v14:nightly
     //REPOSITORY                    TAG                 IMAGE ID            CREATED             SIZE
-    //openwhisk/action-nodejs-v10   nightly             dbb0f8e1a050        5 days ago          967MB
+    //openwhisk/action-nodejs-v14   nightly             dbb0f8e1a050        5 days ago          967MB
     val imageResult = s"$dockerCmd images $imageName".!!
     val imageExist = imageResult.linesIterator.toList.size > 1
     if (!imageExist || imageName.contains(":nightly")) {
@@ -211,8 +211,9 @@ class StandaloneDockerClient(pullDisabled: Boolean)(implicit log: Logging, as: A
     if (pullDisabled) Future.successful(()) else super.pull(image)
   }
 
-  override def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] =
-    super.runCmd(args, timeout)
+  override def runCmd(args: Seq[String], timeout: Duration, maskedArgs: Option[Seq[String]] = None)(
+    implicit transid: TransactionId): Future[String] =
+    super.runCmd(args, timeout, maskedArgs)
 
   val clientConfig: DockerClientConfig = loadConfigOrThrow[DockerClientConfig](ConfigKeys.dockerClient)
 
@@ -221,7 +222,7 @@ class StandaloneDockerClient(pullDisabled: Boolean)(implicit log: Logging, as: A
     for {
       _ <- if (shouldPull) pull(image) else Future.successful(())
       id <- run(image, args).recoverWith {
-        case t @ BrokenDockerContainer(brokenId, _) =>
+        case t @ BrokenDockerContainer(brokenId, _, _) =>
           // Remove the broken container - but don't wait or check for the result.
           // If the removal fails, there is nothing we could do to recover from the recovery.
           rm(brokenId)

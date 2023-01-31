@@ -307,7 +307,7 @@ class ShootInvokerTests extends TestHelpers with WskTestHelpers with JsHelpers w
     val run = wsk.action.invoke(name, Map("payload" -> "google.com".toJson))
     withActivation(wsk.activation, run) { activation =>
       val result = activation.response.result.get
-      result.getFields("stdout", "code") match {
+      result.asJsObject.getFields("stdout", "code") match {
         case Seq(JsString(stdout), JsNumber(code)) =>
           stdout should not include "bytes from"
           code.intValue should not be 0

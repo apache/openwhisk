@@ -40,6 +40,7 @@ def leanExcludes = [
 def projectsWithCoverage = [
     ':common:scala',
     ':core:controller',
+    ':core:scheduler',
     ':core:invoker',
     ':tools:admin',
     ':core:cosmosdb:cache-invalidator'
@@ -70,10 +71,14 @@ ext.testSets = [
             "org/apache/openwhisk/standalone/**",
             "org/apache/openwhisk/core/cli/test/**",
             "org/apache/openwhisk/core/limits/**",
+            "org/apache/openwhisk/core/scheduler/**",
+            "org/apache/openwhisk/core/invoker/test/*InvokerBootUpTests*",
+            "org/apache/openwhisk/core/loadBalancer/test/*FPCPoolBalancerTests*",
+            "org/apache/openwhisk/common/etcd/**",
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
             "org/apache/openwhisk/testEntities/**",
-            'invokerShoot/**'
+            "invokerShoot/**"
         ]
     ],
     "REQUIRE_SYSTEM" : [
@@ -81,6 +86,16 @@ ext.testSets = [
         "excludes": [
             "system/basic/WskMultiRuntimeTests*",
             'invokerShoot/**'
+        ]
+    ],
+    "REQUIRE_SCHEDULER" : [
+        "includes" : [
+            "org/apache/openwhisk/common/etcd/**",
+            "org/apache/openwhisk/core/containerpool/v2/test/**",
+            "org/apache/openwhisk/core/scheduler/**",
+            "org/apache/openwhisk/core/invoker/test/*InvokerBootUpTests*",
+            "org/apache/openwhisk/core/loadBalancer/test/*FPCPoolBalancerTests*",
+            "org/apache/openwhisk/core/service/**",
         ]
     ],
     "REQUIRE_MULTI_RUNTIME" : [
@@ -195,36 +210,40 @@ task testUnit(type: Test) {
 }
 
 dependencies {
-    compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile "org.apache.commons:commons-lang3:3.3.2"
-    compile "org.apache.httpcomponents:httpclient:4.5.2:tests"
-    compile "org.apache.httpcomponents:httpmime:4.3.6"
-    compile "junit:junit:4.11"
-    compile "io.rest-assured:rest-assured:4.0.0"
-    compile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
-    compile "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
-    compile "com.google.code.gson:gson:2.3.1"
-    compile "org.scalamock:scalamock_${gradle.scala.depVersion}:4.4.0"
-    compile "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
-    compile "com.github.java-json-tools:json-schema-validator:2.2.8"
-    compile "org.mockito:mockito-core:2.27.0"
-    compile "io.opentracing:opentracing-mock:0.31.0"
-    compile "org.apache.curator:curator-test:${gradle.curator.version}"
-    compile "com.atlassian.oai:swagger-request-validator-core:1.4.5"
-    compile "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
-    compile "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
-    compile "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
-    compile "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
+    implementation "org.scala-lang:scala-library:${gradle.scala.version}"
+    implementation "org.apache.commons:commons-lang3:3.3.2"
+    implementation "org.apache.httpcomponents:httpclient:4.5.2:tests"
+    implementation "org.apache.httpcomponents:httpmime:4.3.6"
+    implementation "junit:junit:4.11"
+    implementation "io.rest-assured:rest-assured:4.0.0"
+    implementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
+    implementation "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    implementation "com.google.code.gson:gson:2.3.1"
+    implementation "org.scalamock:scalamock_${gradle.scala.depVersion}:4.4.0"
+    implementation "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+    implementation "com.github.java-json-tools:json-schema-validator:2.2.8"
+    implementation "org.mockito:mockito-core:2.27.0"
+    implementation "io.opentracing:opentracing-mock:0.31.0"
+    implementation "org.apache.curator:curator-test:${gradle.curator.version}"
+    implementation "com.atlassian.oai:swagger-request-validator-core:1.4.5"
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
+    implementation "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
+    implementation "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    implementation "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
+    implementation "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 
-    compile "com.amazonaws:aws-java-sdk-s3:1.11.295"
-    compile "org.testcontainers:elasticsearch:1.12.3"
+    implementation "com.amazonaws:aws-java-sdk-s3:1.11.295"
+    implementation "com.microsoft.azure:azure-cosmos:3.5.0"
+    implementation 'org.testcontainers:elasticsearch:1.17.1'
+    implementation 'org.testcontainers:mongodb:1.17.1'
 
-    compile project(':common:scala')
-    compile project(':core:controller')
-    compile project(':core:invoker')
-    compile project(':core:cosmosdb:cache-invalidator')
-    compile project(':core:monitoring:user-events')
-    compile project(':tools:admin')
+    implementation project(':common:scala')
+    implementation project(':core:controller')
+    implementation project(':core:scheduler')
+    implementation project(':core:invoker')
+    implementation project(':core:cosmosdb:cache-invalidator')
+    implementation project(':core:monitoring:user-events')
+    implementation project(':tools:admin')
 
     swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.9'
 }
@@ -300,7 +319,9 @@ gradle.projectsEvaluated {
         projectsWithCoverage.forEach {
             dependentTasks << it + ':reportScoverage'
         }
+        dependentTasks << 'compileScoverageScala'
         dependsOn(dependentTasks)
+
         //Need to recreate the logic from
         //https://github.com/scoverage/gradle-scoverage/blob/924bf49a8f981f119d0604b44a782f3f8eecb359/src/main/groovy/org/scoverage/ScoveragePlugin.groovy#L137
         //default tasks retrigger the tests. As ours is a multi module integration
@@ -321,6 +342,7 @@ task copyMeasurementFiles() {
     doLast{
         Project common = project(":common:scala")
         Project controller = project(":core:controller")
+        Project scheduler = project(":core:scheduler")
         Project invoker = project(":core:invoker")
 
         Properties wskProps = loadWhiskProps()
@@ -331,6 +353,8 @@ task copyMeasurementFiles() {
 
         copyAndRenameMeasurementFile(covLogs, 'controller', "common", common)
         copyAndRenameMeasurementFile(covLogs, 'controller', "controller", controller)
+        copyAndRenameMeasurementFile(covLogs, 'scheduler', "common", common)
+        copyAndRenameMeasurementFile(covLogs, 'scheduler', "scheduler", scheduler)
         copyAndRenameMeasurementFile(covLogs, 'invoker', "common", common)
         copyAndRenameMeasurementFile(covLogs, 'invoker', "invoker", invoker)
     }
@@ -382,6 +406,7 @@ swaggerSources {
         code {
             language = 'java'
             configFile = file('src/test/resources/swagger-config.json')
+            templateDir = file('src/test/resources/templates')
             dependsOn validation
         }
     }

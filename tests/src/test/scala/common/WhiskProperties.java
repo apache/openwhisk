@@ -270,6 +270,10 @@ public class WhiskProperties {
         return getBaseControllerHost() + ":" + getControllerBasePort();
     }
 
+    public static String getBaseInvokerAddress(){
+        return getInvokerHosts()[0] + ":" + whiskProperties.getProperty("invoker.hosts.basePort");
+    }
+
     public static int getMaxActionInvokesPerMinute() {
         String valStr = whiskProperties.getProperty("limits.actions.invokes.perMinute");
         return Integer.parseInt(valStr);

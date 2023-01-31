@@ -31,6 +31,8 @@ $ANSIBLE_CMD prereq.yml
 $ANSIBLE_CMD couchdb.yml
 $ANSIBLE_CMD initdb.yml
 $ANSIBLE_CMD wipe.yml
+$ANSIBLE_CMD elasticsearch.yml
+$ANSIBLE_CMD etcd.yml
 
 $ANSIBLE_CMD properties.yml -e manifest_file="$RUNTIMES_MANIFEST"
 echo "Time taken for ${0##*/} is $SECONDS secs"

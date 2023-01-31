@@ -47,14 +47,21 @@ case class ContainerArgsConfig(network: String,
 case class ContainerPoolConfig(userMemory: ByteSize,
                                concurrentPeekFactor: Double,
                                akkaClient: Boolean,
+                               prewarmExpirationCheckInitDelay: FiniteDuration,
                                prewarmExpirationCheckInterval: FiniteDuration,
                                prewarmExpirationCheckIntervalVariance: Option[FiniteDuration],
-                               prewarmExpirationLimit: Int) {
+                               prewarmExpirationLimit: Int,
+                               prewarmMaxRetryLimit: Int,
+                               prewarmPromotion: Boolean,
+                               memorySyncInterval: FiniteDuration,
+                               batchDeletionSize: Int,
+                               prewarmContainerCreationConfig: Option[PrewarmContainerCreationConfig] = None) {
   require(
     concurrentPeekFactor > 0 && concurrentPeekFactor <= 1.0,
     s"concurrentPeekFactor must be > 0 and <= 1.0; was $concurrentPeekFactor")
 
   require(prewarmExpirationCheckInterval.toSeconds > 0, "prewarmExpirationCheckInterval must be > 0")
+  require(batchDeletionSize > 0, "batch deletion size must be > 0")
 
   /**
    * The shareFactor indicates the number of containers that would share a single core, on average.
@@ -66,6 +73,11 @@ case class ContainerPoolConfig(userMemory: ByteSize,
   // Grant more CPU to a container if it allocates more memory.
   def cpuShare(reservedMemory: ByteSize) =
     max((totalShare / (userMemory.toBytes / reservedMemory.toBytes)).toInt, 2) // The minimum allowed cpu-shares is 2
+}
+
+case class PrewarmContainerCreationConfig(maxConcurrent: Int, creationDelay: FiniteDuration) {
+  require(maxConcurrent > 0, "maxConcurrent for per invoker must be > 0")
+  require(creationDelay.toSeconds > 0, "creationDelay must be > 0")
 }
 
 case class RuntimesRegistryCredentials(user: String, password: String)

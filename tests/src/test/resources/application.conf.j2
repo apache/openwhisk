@@ -15,6 +15,9 @@ akka.http.host-connection-pool.client.idle-timeout = 90 s
 # Avoid system exit for test runs
 akka.jvm-exit-on-fatal-error = off
 
+# Each ActorSystem binds to a free port
+akka.remote.artery.canonical.port=0
+
 whisk {
     feature-flags {
       require-api-key-annotation = {{ whisk.feature_flags.require_api_key_annotation | default(true) }}
@@ -28,6 +31,10 @@ whisk {
                 segment-bytes   =  536870912
                 retention-bytes = 1073741824
                 retention-ms    = 3600000
+            }
+            prefix = "{{ kafka.topicsPrefix }}"
+            user-event {
+                prefix = "{{ kafka.topicsUserEventPrefix }}"
             }
         }
         common {
@@ -61,6 +68,10 @@ whisk {
         key        = ${?COSMOSDB_KEY}
         db         = ${?COSMOSDB_NAME}
         throughput = 400
+    }
+
+    mongodb {
+        docker-image = "{{ 'mongo:' ~ mongodb.version }}"
     }
 
     controller {
@@ -97,19 +108,75 @@ whisk {
     parameter-storage {
         current = "off"
     }
-    
+
     elasticsearch {
         docker-image = "{{ elasticsearch.docker_image | default('docker.elastic.co/elasticsearch/elasticsearch:' ~ elasticsearch.version ) }}"
     }
 
     helm.release = "release"
     runtime.delete.timeout = "30 seconds"
+
+    duration-checker {
+        time-window = "{{ durationChecker.timeWindow }}"
+    }
+
+    activation-store {
+        elasticsearch {
+            protocol      = "{{ db.elasticsearch.protocol }}"
+            hosts         = "{{ elasticsearch_connect_string }}"
+            index-pattern = "{{ db.elasticsearch.index_pattern }}"
+            username      = "{{ db.elasticsearch.auth.admin.username }}"
+            password      = "{{ db.elasticsearch.auth.admin.password }}"
+        }
+    }
+
+    etcd {
+        hosts = "{{ etcd_connect_string }}"
+        lease {
+            timeout = "{{ etcd.lease.timeout }}"
+        }
+        pool {
+            threads = "{{ etcd.pool_threads }}"
+        }
+    }
+
+    scheduler {
+        protocol = "{{ scheduler.protocol }}"
+        grpc {
+            tls = "{{ scheduler.grpc.tls | default('false') | lower }}"
+        }
+        queue {
+            idle-grace = "{{ scheduler.queue.idleGrace | default('20 seconds') }}"
+            stop-grace = "{{ scheduler.queue.stopGrace | default('20 seconds') }}"
+            flush-grace = "{{ scheduler_queue_flushGrace | default('60 seconds') }}"
+            graceful-shutdown-timeout = "{{ scheduler.queue.gracefulShutdownTimeout | default('5 seconds') }}"
+            max-retention-size = "{{ scheduler.queue.maxRetentionSize | default(10000) }}"
+            max-retention-ms = "{{ scheduler.queue.maxRetentionMs | default(60000) }}"
+            max-blackbox-retention-ms = "{{ scheduler.queue.maxBlackboxRetentionMs}}"
+            throttling-fraction = "{{ scheduler.queue.throttlingFraction | default(0.9) }}"
+            duration-buffer-size = "{{ scheduler.queue.durationBufferSize | default(10) }}"
+        }
+        queue-manager {
+            max-scheduling-time = "{{ scheduler.queueManager.maxSchedulingTime }}"
+            max-retries-to-get-queue = "{{ scheduler.queueManager.maxRetriesToGetQueue }}"
+        }
+        max-peek = "{{ scheduler.maxPeek }}"
+        in-progress-job-retention = "{{ scheduler.inProgressJobRetention | default('20 seconds') }}"
+        data-management-service {
+            retry-interval = "{{ scheduler.dataManagementService.retryInterval | default('1 second') }}"
+        }
+        blackbox-multiple = "{{ scheduler.blackboxMultiple }}"
+    }
 }
 
 #test-only overrides so that tests can override defaults in application.conf (todo: move all defaults to reference.conf)
 test {
   whisk {
     concurrency-limit {
+      max = 200
+    }
+    namespace-default-limit.concurrency-limit {
+      min = 1
       max = 200
     }
   }

@@ -34,7 +34,6 @@ import akka.io.Tcp.Connected
 import akka.pattern.pipe
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
-import akka.stream.ActorMaterializer
 import java.net.InetSocketAddress
 import java.net.SocketException
 
@@ -267,7 +266,6 @@ class ContainerProxy(factory: (TransactionId,
   implicit val ec = context.system.dispatcher
   implicit val logging = new AkkaLogging(context.system.log)
   implicit val ac = context.system
-  implicit val materializer = ActorMaterializer()
   var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
   var runBuffer = immutable.Queue.empty[Run] //does not retain order, but does manage jobs that would have pushed past action concurrency limit
   //track buffer processing state to avoid extra transitions near end of buffer - this provides a pseudo-state between Running and Ready
@@ -555,7 +553,7 @@ class ContainerProxy(factory: (TransactionId,
 
     // container is reclaimed by the pool or it has become too old
     case Event(StateTimeout | Remove, data: WarmedData) =>
-      rescheduleJob = true // to supress sending message to the pool and not double count
+      rescheduleJob = true // to suppress sending message to the pool and not double count
       destroyContainer(data, true)
   }
 
@@ -832,6 +830,8 @@ class ContainerProxy(factory: (TransactionId,
             env.toJson.asJsObject,
             actionTimeout,
             job.action.limits.concurrency.maxConcurrent,
+            job.msg.user.limits.allowedMaxPayloadSize,
+            job.msg.user.limits.allowedTruncationSize,
             reschedule)(job.msg.transid)
           .map {
             case (runInterval, response) =>
@@ -963,7 +963,9 @@ class ContainerProxy(factory: (TransactionId,
   }
 }
 
-final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
+final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration,
+                                             pauseGrace: FiniteDuration,
+                                             keepingDuration: FiniteDuration)
 final case class ContainerProxyHealthCheckConfig(enabled: Boolean, checkPeriod: FiniteDuration, maxFails: Int)
 final case class ContainerProxyActivationErrorLogConfig(applicationErrors: Boolean,
                                                         developerErrors: Boolean,
@@ -1082,25 +1084,28 @@ object ContainerProxy {
    * @param initArgs set of parameters to treat as initialization arguments
    * @return A partition of the arguments into an environment variables map and the JsObject argument to the action
    */
-  def partitionArguments(content: Option[JsObject], initArgs: Set[String]): (Map[String, JsValue], JsObject) = {
+  def partitionArguments(content: Option[JsValue], initArgs: Set[String]): (Map[String, JsValue], JsValue) = {
     content match {
-      case None                         => (Map.empty, JsObject.empty)
-      case Some(js) if initArgs.isEmpty => (Map.empty, js)
-      case Some(js) =>
-        val (env, args) = js.fields.partition(k => initArgs.contains(k._1))
+      case None                                       => (Map.empty, JsObject.empty)
+      case Some(JsArray(elements))                    => (Map.empty, JsArray(elements))
+      case Some(JsObject(fields)) if initArgs.isEmpty => (Map.empty, JsObject(fields))
+      case Some(JsObject(fields)) =>
+        val (env, args) = fields.partition(k => initArgs.contains(k._1))
         (env, JsObject(args))
     }
   }
 
-  def unlockArguments(content: Option[JsObject],
+  def unlockArguments(content: Option[JsValue],
                       lockedArgs: Map[String, String],
-                      decoder: ParameterEncryption): Option[JsObject] = {
-    content.map {
-      case JsObject(fields) =>
-        JsObject(fields.map {
+                      decoder: ParameterEncryption): Option[JsValue] = {
+    content match {
+      case Some(JsObject(fields)) =>
+        Some(JsObject(fields.map {
           case (k, v: JsString) if lockedArgs.contains(k) => (k -> decoder.encryptor(lockedArgs(k)).decrypt(v))
           case p                                          => p
-        })
+        }))
+      // keep the original for other type(e.g. JsArray)
+      case contentValue => contentValue
     }
   }
 }
@@ -1128,7 +1133,7 @@ class TCPPingClient(tcp: ActorRef,
   private def restartPing() = {
     cancelPing() //just in case restart is called twice
     scheduledPing = Some(
-      context.system.scheduler.schedule(config.checkPeriod, config.checkPeriod, self, HealthPingSend))
+      context.system.scheduler.scheduleAtFixedRate(config.checkPeriod, config.checkPeriod, self, HealthPingSend))
   }
   private def cancelPing() = {
     scheduledPing.foreach(_.cancel())

@@ -203,20 +203,34 @@ object WhiskConfig {
 object ConfigKeys {
   val cluster = "whisk.cluster"
   val loadbalancer = "whisk.loadbalancer"
+  val fpcLoadBalancer = "whisk.loadbalancer.fpc"
+  val fraction = "whisk.fraction"
   val buildInformation = "whisk.info"
 
   val couchdb = "whisk.couchdb"
   val cosmosdb = "whisk.cosmosdb"
+  val mongodb = "whisk.mongodb"
   val kafka = "whisk.kafka"
   val kafkaCommon = s"$kafka.common"
   val kafkaProducer = s"$kafka.producer"
   val kafkaConsumer = s"$kafka.consumer"
   val kafkaTopics = s"$kafka.topics"
+  val kafkaTopicsPrefix = s"$kafkaTopics.prefix"
+  val kafkaTopicsUserEventPrefix = s"$kafkaTopics.user-event.prefix"
 
   val memory = "whisk.memory"
   val timeLimit = "whisk.time-limit"
   val logLimit = "whisk.log-limit"
   val concurrencyLimit = "whisk.concurrency-limit"
+  val parameterSizeLimit = "whisk.parameter-size-limit"
+
+  val namespaceMemoryLimit = "whisk.namespace-default-limit.memory"
+  val namespaceTimeLimit = "whisk.namespace-default-limit.time-limit"
+  val namespaceLogLimit = "whisk.namespace-default-limit.log-limit"
+  val namespaceConcurrencyLimit = "whisk.namespace-default-limit.concurrency-limit"
+  val namespaceParameterSizeLimit = "whisk.namespace-default-limit.parameter-size-limit"
+  val namespaceActivationPayloadLimit = "whisk.namespace-default-limit.activation.payload"
+
   val activation = "whisk.activation"
   val userEvents = "whisk.user-events"
 
@@ -239,6 +253,7 @@ object ConfigKeys {
   val runtimesRegistry = s"$containerFactory.runtimes-registry"
   val userImagesRegistry = s"$containerFactory.user-images-registry"
   val containerPool = "whisk.container-pool"
+  val containerCreationMaxPeek = "whisk.invoker.container-creation.max-peek"
   val blacklist = "whisk.blacklist"
 
   val kubernetes = "whisk.kubernetes"
@@ -250,7 +265,6 @@ object ConfigKeys {
   val splunk = s"$logStore.splunk"
   val logStoreElasticSearch = s"$logStore.elasticsearch"
 
-  val mesos = "whisk.mesos"
   val yarn = "whisk.yarn"
 
   val containerProxy = "whisk.container-proxy"
@@ -265,6 +279,10 @@ object ConfigKeys {
   val controller = s"whisk.controller"
   val controllerActivation = s"$controller.activation"
 
+  val etcd = "whisk.etcd"
+  val etcdLeaseTimeout = "whisk.etcd.lease.timeout"
+  val etcdPoolThreads = "whisk.etcd.pool.threads"
+
   val activationStore = "whisk.activation-store"
   val elasticSearchActivationStore = s"$activationStore.elasticsearch"
   val activationStoreWithFileStorage = s"$activationStore.with-file-storage"
@@ -272,11 +290,16 @@ object ConfigKeys {
   val metrics = "whisk.metrics"
   val featureFlags = "whisk.feature-flags"
 
+  val durationChecker = s"whisk.duration-checker"
+
   val whiskConfig = "whisk.config"
   val sharedPackageExecuteOnly = s"whisk.shared-packages-execute-only"
   val swaggerUi = "whisk.swagger-ui"
 
+  /* DEPRECATED: disableStoreResult is deprecated for storeBlockingResultLevel */
   val disableStoreResult = s"$activation.disable-store-result"
+  val storeBlockingResultLevel = s"$activation.store-blocking-result-level"
+  val storeNonBlockingResultLevel = s"$activation.store-non-blocking-result-level"
   val unstoredLogsEnabled = s"$activation.unstored-logs-enabled"
 
   val apacheClientConfig = "whisk.apache-client"
@@ -284,4 +307,29 @@ object ConfigKeys {
   val parameterStorage = "whisk.parameter-storage"
 
   val azBlob = "whisk.azure-blob"
+
+  val schedulerGrpcService = "whisk.scheduler.grpc"
+  val schedulerMaxPeek = "whisk.scheduler.max-peek"
+  val schedulerScheduling = "whisk.scheduler.scheduling"
+  val schedulerQueue = "whisk.scheduler.queue"
+  val schedulerQueueManager = "whisk.scheduler.queue-manager"
+  val schedulerInProgressJobRetention = "whisk.scheduler.in-progress-job-retention"
+  val schedulerBlackboxMultiple = "whisk.scheduler.blackbox-multiple"
+  val schedulerStaleThreshold = "whisk.scheduler.stale-threshold"
+
+  val whiskClusterName = "whisk.cluster.name"
+
+  val dataManagementServiceRetryInterval = "whisk.scheduler.data-management-service.retry-interval"
+
+  val whiskControllerUsername = "whisk.controller.username"
+  val whiskControllerPassword = "whisk.controller.password"
+
+  val whiskSchedulerUsername = "whisk.scheduler.username"
+  val whiskSchedulerPassword = "whisk.scheduler.password"
+
+  val whiskInvokerUsername = "whisk.invoker.username"
+  val whiskInvokerPassword = "whisk.invoker.password"
+
+  val invokerResourceTags = "whisk.invoker.resource.tags"
+  val invokerDedicatedNamespaces = "whisk.invoker.dedicated.namespaces"
 }

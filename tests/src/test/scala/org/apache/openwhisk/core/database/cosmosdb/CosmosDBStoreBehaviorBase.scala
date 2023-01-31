@@ -50,8 +50,7 @@ trait CosmosDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase 
       WhiskEntityJsonFormat,
       WhiskDocumentReader,
       actorSystem,
-      logging,
-      materializer)
+      logging)
 
   override lazy val activationStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader

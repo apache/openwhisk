@@ -19,11 +19,17 @@
 
 # OpenWhisk
 
-[![Build Status](https://travis-ci.org/apache/openwhisk.svg?branch=master)](https://travis-ci.org/apache/openwhisk)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 [![Join Slack](https://img.shields.io/badge/join-slack-9B69A0.svg)](https://openwhisk-team.slack.com/)
-[![codecov](https://codecov.io/gh/apache/openwhisk/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/openwhisk)
 [![Twitter](https://img.shields.io/twitter/follow/openwhisk.svg?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=openwhisk)
+
+[![Unit Tests](https://github.com/apache/openwhisk/actions/workflows/1-unit.yaml/badge.svg)](https://github.com/apache/openwhisk/actions/workflows/1-unit.yaml)
+[![System Tests](https://github.com/apache/openwhisk/actions/workflows/2-system.yaml/badge.svg)](https://github.com/apache/openwhisk/actions/workflows/2-system.yaml)
+[![MultiRuntime Tests](https://github.com/apache/openwhisk/actions/workflows/3-multi-runtime.yaml/badge.svg)](https://github.com/apache/openwhisk/actions/workflows/3-multi-runtime.yaml)
+[![Standalone Tests](https://github.com/apache/openwhisk/actions/workflows/4-standalone.yaml/badge.svg)](https://github.com/apache/openwhisk/actions/workflows/4-standalone.yaml)
+[![Scheduler Tests](https://github.com/apache/openwhisk/actions/workflows/5-scheduler.yaml/badge.svg)](https://github.com/apache/openwhisk/actions/workflows/5-scheduler.yaml)
+[![Performance Tests](https://github.com/apache/openwhisk/actions/workflows/6-performance.yaml/badge.svg)](https://github.com/apache/openwhisk/actions/workflows/6-performance.yaml)
+[![codecov](https://codecov.io/gh/apache/openwhisk/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/openwhisk)
 
 OpenWhisk is a serverless functions platform for building cloud applications.
 OpenWhisk offers a rich programming model for creating serverless APIs from functions,
@@ -111,3 +117,9 @@ You can also join the OpenWhisk Team on Slack [https://openwhisk-team.slack.com]
 The OpenWhisk system is built from a [number of components](docs/dev/modules.md).  The picture below groups the components by their GitHub repos. Please open issues for a component against the appropriate repo (if in doubt just open against the main openwhisk repo).
 
 ![component/repo mapping](docs/images/components_to_repos.png)
+
+### What happens on an invocation?
+
+This diagram depicts the steps which take place within Openwhisk when an action is invoked by the user:
+
+![component/repo mapping](docs/images/Openwhisk-flow-diagram.png)

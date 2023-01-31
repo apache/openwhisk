@@ -50,7 +50,7 @@ class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
       "--concurrentInvocations",
       "11",
       "--allowedKinds",
-      "nodejs:10",
+      "nodejs:14",
       "blackbox",
       "--storeActivations",
       "false",
@@ -61,7 +61,7 @@ class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
       invocationsPerMinute = Some(3),
       firesPerMinute = Some(7),
       concurrentInvocations = Some(11),
-      allowedKinds = Some(Set("nodejs:10", "blackbox")),
+      allowedKinds = Some(Set("nodejs:14", "blackbox")),
       storeActivations = Some(false))
 
     resultOk("limits", "set", "--invocationsPerMinute", "13", ns) shouldBe CommandMessages.limitsSuccessfullyUpdated(ns)
@@ -97,10 +97,10 @@ class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
 
   it should "update existing allowedKind limit" in {
     val ns = newNamespace()
-    resultOk("limits", "set", "--allowedKinds", "nodejs:10", ns)
-    resultOk("limits", "get", ns) shouldBe "allowedKinds = nodejs:10"
-    resultOk("limits", "set", "--allowedKinds", "nodejs:10", "blackbox", "python", ns)
-    resultOk("limits", "get", ns) shouldBe "allowedKinds = nodejs:10, blackbox, python"
+    resultOk("limits", "set", "--allowedKinds", "nodejs:14", ns)
+    resultOk("limits", "get", ns) shouldBe "allowedKinds = nodejs:14"
+    resultOk("limits", "set", "--allowedKinds", "nodejs:14", "blackbox", "python", ns)
+    resultOk("limits", "get", ns) shouldBe "allowedKinds = nodejs:14, blackbox, python"
 
     //Delete
     resultOk("limits", "delete", ns) shouldBe CommandMessages.limitsDeleted

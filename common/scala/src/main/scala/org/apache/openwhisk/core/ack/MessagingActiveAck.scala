@@ -19,9 +19,10 @@ package org.apache.openwhisk.core.ack
 
 import org.apache.kafka.common.errors.RecordTooLargeException
 import org.apache.openwhisk.common.{Logging, TransactionId}
+import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, EventMessage, MessageProducer}
 import org.apache.openwhisk.core.entity._
-
+import pureconfig._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -29,6 +30,9 @@ class MessagingActiveAck(producer: MessageProducer, instance: InstanceId, eventS
   implicit logging: Logging,
   ec: ExecutionContext)
     extends ActiveAck {
+
+  private val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
+
   override def apply(tid: TransactionId,
                      activationResult: WhiskActivation,
                      blockingInvoke: Boolean,
@@ -38,7 +42,7 @@ class MessagingActiveAck(producer: MessageProducer, instance: InstanceId, eventS
     implicit val transid: TransactionId = tid
 
     def send(msg: AcknowledegmentMessage, recovery: Boolean = false) = {
-      producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
+      producer.send(topic = topicPrefix + "completed" + controllerInstance.asString, msg).andThen {
         case Success(_) =>
           val info = if (recovery) s"recovery ${msg.messageType}" else msg.messageType
           logging.info(this, s"posted $info of activation ${acknowledegment.activationId}")

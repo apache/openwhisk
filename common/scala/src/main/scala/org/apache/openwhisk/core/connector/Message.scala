@@ -48,6 +48,8 @@ trait Message {
   override def toString = serialize
 }
 
+case class ResultMetadata(topic: String, partition: Int, offset: Long)
+
 case class ActivationMessage(override val transid: TransactionId,
                              action: FullyQualifiedEntityName,
                              revision: DocRevision,
@@ -55,7 +57,7 @@ case class ActivationMessage(override val transid: TransactionId,
                              activationId: ActivationId,
                              rootControllerIndex: ControllerInstanceId,
                              blocking: Boolean,
-                             content: Option[JsObject],
+                             content: Option[JsValue],
                              initArgs: Set[String] = Set.empty,
                              lockedArgs: Map[String, String] = Map.empty,
                              cause: Option[ActivationId] = None,
@@ -78,6 +80,7 @@ case class ActivationMessage(override val transid: TransactionId,
  */
 abstract class AcknowledegmentMessage(private val tid: TransactionId) extends Message {
   override val transid: TransactionId = tid
+
   override def serialize: String = AcknowledegmentMessage.serdes.write(this).compactPrint
 
   /** Pithy descriptor for logging. */
@@ -121,11 +124,17 @@ case class CombinedCompletionAndResultMessage private (override val transid: Tra
                                                        instance: InstanceId)
     extends AcknowledegmentMessage(transid) {
   override def messageType = "combined"
+
   override def result = Some(response)
+
   override def isSlotFree = Some(instance)
+
   override def activationId = response.fold(identity, _.activationId)
+
   override def toJson = CombinedCompletionAndResultMessage.serdes.write(this)
+
   override def shrink = copy(response = response.flatMap(a => Left(a.activationId)))
+
   override def toString = activationId.asString
 }
 
@@ -141,10 +150,15 @@ case class CompletionMessage private (override val transid: TransactionId,
                                       instance: InstanceId)
     extends AcknowledegmentMessage(transid) {
   override def messageType = "completion"
+
   override def result = None
+
   override def isSlotFree = Some(instance)
+
   override def toJson = CompletionMessage.serdes.write(this)
+
   override def shrink = this
+
   override def toString = activationId.asString
 }
 
@@ -159,12 +173,19 @@ case class CompletionMessage private (override val transid: TransactionId,
 case class ResultMessage private (override val transid: TransactionId, response: Either[ActivationId, WhiskActivation])
     extends AcknowledegmentMessage(transid) {
   override def messageType = "result"
+
   override def result = Some(response)
+
   override def isSlotFree = None
+
   override def isSystemError = response.fold(_ => None, a => Some(a.response.isWhiskError))
+
   override def activationId = response.fold(identity, _.activationId)
+
   override def toJson = ResultMessage.serdes.write(this)
+
   override def shrink = copy(response = response.flatMap(a => Left(a.activationId)))
+
   override def toString = activationId.asString
 }
 
@@ -259,13 +280,16 @@ object AcknowledegmentMessage extends DefaultJsonProtocol {
   }
 }
 
-case class PingMessage(instance: InvokerInstanceId) extends Message {
+case class PingMessage(instance: InvokerInstanceId, isEnabled: Option[Boolean] = None) extends Message {
   override def serialize = PingMessage.serdes.write(this).compactPrint
+
+  def invokerEnabled: Boolean = isEnabled.getOrElse(true)
 }
 
 object PingMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(serdes.read(msg.parseJson))
-  implicit val serdes = jsonFormat(PingMessage.apply _, "name")
+
+  implicit val serdes = jsonFormat(PingMessage.apply, "name", "isEnabled")
 }
 
 trait EventMessageBody extends Message {
@@ -303,7 +327,9 @@ case class Activation(name: String,
                       userDefinedStatusCode: Option[Int] = None)
     extends EventMessageBody {
   val typeName = Activation.typeName
+
   override def serialize = toJson.compactPrint
+
   def entityPath: FullyQualifiedEntityName = EntityPath(name).toFullyQualifiedEntityName
 
   def toJson = Activation.activationFormat.write(this)
@@ -352,11 +378,15 @@ object Activation extends DefaultJsonProtocol {
       "size",
       "userDefinedStatusCode")
 
-  /** Get "StatusCode" from result response set by action developer **/
+  /** Get "StatusCode" from result response set by action developer * */
   def userDefinedStatusCode(result: Option[JsValue]): Option[Int] = {
-    val statusCode = JsHelpers
-      .getFieldPath(result.get.asJsObject, ERROR_FIELD, "statusCode")
-      .orElse(JsHelpers.getFieldPath(result.get.asJsObject, "statusCode"))
+    val statusCode: Option[JsValue] = result match {
+      case Some(JsObject(fields)) =>
+        JsHelpers
+          .getFieldPath(JsObject(fields), ERROR_FIELD, "statusCode")
+          .orElse(JsHelpers.getFieldPath(JsObject(fields), "statusCode"))
+      case _ => None
+    }
     statusCode.map {
       case value => Try(value.convertTo[BigInt].intValue).toOption.getOrElse(BadRequest.intValue)
     }
@@ -394,13 +424,17 @@ object Activation extends DefaultJsonProtocol {
 
 case class Metric(metricName: String, metricValue: Long) extends EventMessageBody {
   val typeName = "Metric"
+
   override def serialize = toJson.compactPrint
+
   def toJson = Metric.metricFormat.write(this).asJsObject
 }
 
 object Metric extends DefaultJsonProtocol {
   val typeName = "Metric"
+
   def parse(msg: String) = Try(metricFormat.read(msg.parseJson))
+
   implicit val metricFormat = jsonFormat(Metric.apply _, "metricName", "metricValue")
 }
 
@@ -428,6 +462,59 @@ object EventMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(format.read(msg.parseJson))
 }
 
+case class InvokerResourceMessage(status: String,
+                                  freeMemory: Long,
+                                  busyMemory: Long,
+                                  inProgressMemory: Long,
+                                  tags: Seq[String],
+                                  dedicatedNamespaces: Seq[String])
+    extends Message {
+
+  /**
+   * Serializes message to string. Must be idempotent.
+   */
+  override def serialize: String = InvokerResourceMessage.serdes.write(this).compactPrint
+
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: InvokerResourceMessage =>
+        this.status == that.status &&
+          this.freeMemory == that.freeMemory &&
+          this.busyMemory == that.busyMemory &&
+          this.inProgressMemory == that.inProgressMemory &&
+          this.tags.toSet == that.tags.toSet &&
+          this.dedicatedNamespaces.toSet == that.dedicatedNamespaces.toSet
+
+      case _ => false
+    }
+
+  override def hashCode: Int = {
+    var result = 1
+    val prime = 31
+    result = prime * result + status.hashCode()
+    result = prime * result + freeMemory.hashCode()
+    result = prime * result + busyMemory.hashCode()
+    result = prime * result + inProgressMemory.hashCode()
+    result = prime * result + tags.hashCode()
+    result = prime * result + dedicatedNamespaces.hashCode()
+    result
+  }
+}
+
+object InvokerResourceMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[InvokerResourceMessage] = Try(serdes.read(msg.parseJson))
+
+  implicit val serdes =
+    jsonFormat(
+      InvokerResourceMessage.apply _,
+      "status",
+      "freeMemory",
+      "busyMemory",
+      "inProgressMemory",
+      "tags",
+      "dedicatedNamespaces")
+}
+
 /**
  * This case class is used when retrieving the snapshot of the queue status from the scheduler at a certain moment.
  * This is useful to figure out the internal status when any issue happens.
@@ -435,25 +522,232 @@ object EventMessage extends DefaultJsonProtocol {
  *
  * [
  * ...
- *    {
- *       "data": "RunningData",
- *       "fqn": "whisk.system/elasticsearch/status-alarm@0.0.2",
- *       "invocationNamespace": "style95",
- *       "status": "Running",
- *       "waitingActivation": 1
- *    },
+ * {
+ * "data": "RunningData",
+ * "fqn": "whisk.system/elasticsearch/status-alarm@0.0.2",
+ * "invocationNamespace": "style95",
+ * "status": "Running",
+ * "waitingActivation": 1
+ * },
  * ...
  * ]
  */
-object StatusQuery
-case class StatusData(invocationNamespace: String, fqn: String, waitingActivation: Int, status: String, data: String)
+object GetState
+
+case class StatusData(invocationNamespace: String,
+                      fqn: String,
+                      waitingActivation: List[ActivationId],
+                      status: String,
+                      data: String)
     extends Message {
 
   override def serialize: String = StatusData.serdes.write(this).compactPrint
 
 }
+
 object StatusData extends DefaultJsonProtocol {
 
   implicit val serdes =
     jsonFormat(StatusData.apply _, "invocationNamespace", "fqn", "waitingActivation", "status", "data")
+}
+
+case class ContainerCreationMessage(override val transid: TransactionId,
+                                    invocationNamespace: String,
+                                    action: FullyQualifiedEntityName,
+                                    revision: DocRevision,
+                                    whiskActionMetaData: WhiskActionMetaData,
+                                    rootSchedulerIndex: SchedulerInstanceId,
+                                    schedulerHost: String,
+                                    rpcPort: Int,
+                                    retryCount: Int = 0,
+                                    creationId: CreationId = CreationId.generate())
+    extends ContainerMessage(transid) {
+
+  override def toJson: JsValue = ContainerCreationMessage.serdes.write(this)
+
+  override def serialize: String = toJson.compactPrint
+}
+
+object ContainerCreationMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[ContainerCreationMessage] = Try(serdes.read(msg.parseJson))
+
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  private implicit val instanceIdSerdes = SchedulerInstanceId.serdes
+  private implicit val byteSizeSerdes = size.serdes
+  implicit val serdes = jsonFormat10(
+    ContainerCreationMessage.apply(
+      _: TransactionId,
+      _: String,
+      _: FullyQualifiedEntityName,
+      _: DocRevision,
+      _: WhiskActionMetaData,
+      _: SchedulerInstanceId,
+      _: String,
+      _: Int,
+      _: Int,
+      _: CreationId))
+}
+
+case class ContainerDeletionMessage(override val transid: TransactionId,
+                                    invocationNamespace: String,
+                                    action: FullyQualifiedEntityName,
+                                    revision: DocRevision,
+                                    whiskActionMetaData: WhiskActionMetaData)
+    extends ContainerMessage(transid) {
+  override def toJson: JsValue = ContainerDeletionMessage.serdes.write(this)
+
+  override def serialize: String = toJson.compactPrint
+}
+
+object ContainerDeletionMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[ContainerDeletionMessage] = Try(serdes.read(msg.parseJson))
+
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  private implicit val instanceIdSerdes = SchedulerInstanceId.serdes
+  private implicit val byteSizeSerdes = size.serdes
+  implicit val serdes = jsonFormat5(
+    ContainerDeletionMessage
+      .apply(_: TransactionId, _: String, _: FullyQualifiedEntityName, _: DocRevision, _: WhiskActionMetaData))
+}
+
+abstract class ContainerMessage(private val tid: TransactionId) extends Message {
+  override val transid: TransactionId = tid
+
+  override def serialize: String = ContainerMessage.serdes.write(this).compactPrint
+
+  /** Serializes the message to JSON. */
+  def toJson: JsValue
+}
+
+object ContainerMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[ContainerMessage] = Try(serdes.read(msg.parseJson))
+
+  implicit val serdes = new RootJsonFormat[ContainerMessage] {
+    override def write(m: ContainerMessage): JsValue = m.toJson
+
+    override def read(json: JsValue): ContainerMessage = {
+      val JsObject(fields) = json
+      val creation = fields.contains("creationId")
+      if (creation) {
+        json.convertTo[ContainerCreationMessage]
+      } else {
+        json.convertTo[ContainerDeletionMessage]
+      }
+    }
+  }
+}
+
+sealed trait ContainerCreationError
+
+object ContainerCreationError extends Enumeration {
+  import scala.language.implicitConversions
+  implicit def containerCreationErrorToString(x: ContainerCreationError): String = {
+    x match {
+      case NoAvailableInvokersError         => "no available invoker is found"
+      case NoAvailableResourceInvokersError => "no available invoker with the resources is found: "
+      case ResourceNotEnoughError           => "invoker(s) have not enough resources"
+      case WhiskError                       => "whisk error(recoverable) happens"
+      case UnknownError                     => "a unknown error happens"
+      case TimeoutError                     => "a timeout error happens"
+      case ShuttingDownError                => "shutting down error happens"
+      case NonExecutableActionError         => "no executable found for the action"
+      case DBFetchError                     => "an error happens while fetching data from DB"
+      case BlackBoxError                    => "a blackbox error happens"
+      case ZeroNamespaceLimit               => "the namespace has 0 limit configured"
+      case TooManyConcurrentRequests        => "too many concurrent requests are in flight."
+      case InvalidActionLimitError          => "a configured action limit is invalid."
+    }
+  }
+
+  case object NoAvailableInvokersError extends ContainerCreationError
+
+  case object NoAvailableResourceInvokersError extends ContainerCreationError
+
+  case object ResourceNotEnoughError extends ContainerCreationError
+
+  case object WhiskError extends ContainerCreationError
+
+  case object UnknownError extends ContainerCreationError
+
+  case object TimeoutError extends ContainerCreationError
+
+  case object ShuttingDownError extends ContainerCreationError
+
+  case object NonExecutableActionError extends ContainerCreationError
+
+  case object DBFetchError extends ContainerCreationError
+
+  case object BlackBoxError extends ContainerCreationError
+
+  case object ZeroNamespaceLimit extends ContainerCreationError
+
+  case object TooManyConcurrentRequests extends ContainerCreationError
+
+  case object InvalidActionLimitError extends ContainerCreationError
+
+  val whiskErrors: Set[ContainerCreationError] =
+    Set(
+      NoAvailableInvokersError,
+      NoAvailableResourceInvokersError,
+      ResourceNotEnoughError,
+      WhiskError,
+      ShuttingDownError,
+      UnknownError,
+      TimeoutError,
+      ZeroNamespaceLimit)
+
+  private def parse(name: String) = name.toUpperCase match {
+    case "NOAVAILABLEINVOKERSERROR"         => NoAvailableInvokersError
+    case "NOAVAILABLERESOURCEINVOKERSERROR" => NoAvailableResourceInvokersError
+    case "RESOURCENOTENOUGHERROR"           => ResourceNotEnoughError
+    case "NONEXECUTBLEACTIONERROR"          => NonExecutableActionError
+    case "DBFETCHERROR"                     => DBFetchError
+    case "WHISKERROR"                       => WhiskError
+    case "BLACKBOXERROR"                    => BlackBoxError
+    case "TIMEOUTERROR"                     => TimeoutError
+    case "ZERONAMESPACELIMIT"               => ZeroNamespaceLimit
+    case "TOOMANYCONCURRENTREQUESTS"        => TooManyConcurrentRequests
+    case "UNKNOWNERROR"                     => UnknownError
+    case "INVALIDACTIONLIMITERROR"          => InvalidActionLimitError
+  }
+
+  implicit val serds = new RootJsonFormat[ContainerCreationError] {
+    override def write(error: ContainerCreationError): JsValue = JsString(error.toString)
+
+    override def read(json: JsValue): ContainerCreationError =
+      Try {
+        val JsString(str) = json
+        ContainerCreationError.parse(str.trim.toUpperCase)
+      } getOrElse {
+        throw deserializationError("ContainerCreationError must be a valid string")
+      }
+  }
+}
+
+case class ContainerCreationAckMessage(override val transid: TransactionId,
+                                       creationId: CreationId,
+                                       invocationNamespace: String,
+                                       action: FullyQualifiedEntityName,
+                                       revision: DocRevision,
+                                       actionMetaData: WhiskActionMetaData,
+                                       rootInvokerIndex: InvokerInstanceId,
+                                       schedulerHost: String,
+                                       rpcPort: Int,
+                                       retryCount: Int = 0,
+                                       error: Option[ContainerCreationError] = None,
+                                       reason: Option[String] = None)
+    extends Message {
+
+  /**
+   * Serializes message to string. Must be idempotent.
+   */
+  override def serialize: String = ContainerCreationAckMessage.serdes.write(this).compactPrint
+}
+
+object ContainerCreationAckMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[ContainerCreationAckMessage] = Try(serdes.read(msg.parseJson))
+
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  private implicit val byteSizeSerdes = size.serdes
+  implicit val serdes = jsonFormat12(ContainerCreationAckMessage.apply)
 }

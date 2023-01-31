@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.controller.test
 
 import java.time.Instant
-
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import org.junit.runner.RunWith
@@ -69,7 +68,13 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   def aname() = MakeName.next("action_tests")
 
   val actionLimit = Exec.sizeLimit
-  val parametersLimit = Parameters.sizeLimit
+  val parametersLimit = Parameters.MAX_SIZE
+
+  val systemPayloadLimit = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT
+  val namespacePayloadLimit = systemPayloadLimit - 100.KB
+
+  val credsWithPayloadLimit =
+    WhiskAuthHelpers.newIdentity().copy(limits = UserLimits(maxPayloadSize = Some(namespacePayloadLimit)))
 
   //// GET /actions
   it should "return empty list when no actions exist" in {
@@ -279,23 +284,23 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     // String: binary: true, main: jsMain
     val jsAction1 = WhiskAction(namespace, aname(), jsDefault("RHViZWU=", Some("jsMain")))
     val jsAction1Content =
-      Map("exec" -> Map("kind" -> NODEJS10, "code" -> "RHViZWU=", "main" -> "jsMain")).toJson.asJsObject
-    val jsAction1ExecMetaData = js10MetaData(Some("jsMain"), true)
+      Map("exec" -> Map("kind" -> NODEJS, "code" -> "RHViZWU=", "main" -> "jsMain")).toJson.asJsObject
+    val jsAction1ExecMetaData = jsMetaData(Some("jsMain"), true)
 
     // String: binary: false, main: jsMain
     val jsAction2 = WhiskAction(namespace, aname(), jsDefault("", Some("jsMain")))
-    val jsAction2Content = Map("exec" -> Map("kind" -> NODEJS10, "code" -> "", "main" -> "jsMain")).toJson.asJsObject
-    val jsAction2ExecMetaData = js10MetaData(Some("jsMain"), false)
+    val jsAction2Content = Map("exec" -> Map("kind" -> NODEJS, "code" -> "", "main" -> "jsMain")).toJson.asJsObject
+    val jsAction2ExecMetaData = jsMetaData(Some("jsMain"), false)
 
     // String: binary: true, no main
     val jsAction3 = WhiskAction(namespace, aname(), jsDefault("RHViZWU="))
-    val jsAction3Content = Map("exec" -> Map("kind" -> NODEJS10, "code" -> "RHViZWU=")).toJson.asJsObject
-    val jsAction3ExecMetaData = js10MetaData(None, true)
+    val jsAction3Content = Map("exec" -> Map("kind" -> NODEJS, "code" -> "RHViZWU=")).toJson.asJsObject
+    val jsAction3ExecMetaData = jsMetaData(None, true)
 
     // String: binary: false, no main
     val jsAction4 = WhiskAction(namespace, aname(), jsDefault(""))
-    val jsAction4Content = Map("exec" -> Map("kind" -> NODEJS10, "code" -> "")).toJson.asJsObject
-    val jsAction4ExecMetaData = js10MetaData(None, false)
+    val jsAction4Content = Map("exec" -> Map("kind" -> NODEJS, "code" -> "")).toJson.asJsObject
+    val jsAction4ExecMetaData = jsMetaData(None, false)
 
     // Sequence
     val component = WhiskAction(namespace, aname(), jsDefault("??"))
@@ -530,6 +535,35 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "allow create with parameters that do not exceed the namespace limit" in {
+    implicit val tid = transid()
+
+    val namespaceLimit = Parameters.sizeLimit - 1.KB
+    val parameters = Parameters("a", "a" * (namespaceLimit.toBytes.toInt - 10))
+    val credsWithLimits = creds.copy(limits = UserLimits(maxParameterSize = Some(namespaceLimit)))
+
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"parameters":$parameters}""".stripMargin
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithLimits)) ~> check {
+      status should be(OK)
+    }
+  }
+
+  it should "reject create with parameters that exceed the namespace limit" in {
+    implicit val tid = transid()
+
+    val namespaceLimit = Parameters.sizeLimit - 1.KB
+    val parameters = Parameters("a", "a" * (namespaceLimit.toBytes.toInt + 10))
+    val credsWithLimits = creds.copy(limits = UserLimits(maxParameterSize = Some(namespaceLimit)))
+
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"parameters":$parameters}""".stripMargin
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithLimits)) ~> check {
+      status should be(PayloadTooLarge)
+      responseAs[String] should include {
+        Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, namespaceLimit))
+      }
+    }
+  }
+
   it should "reject create with annotations which are too big" in {
     implicit val tid = transid()
     val keys: List[Long] =
@@ -546,15 +580,392 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "allow create with annotations that do not exceed the namespace limit" in {
+    implicit val tid = transid()
+
+    val namespaceLimit = Parameters.sizeLimit - 1.KB
+    val annotations = Parameters("a", "a" * (namespaceLimit.toBytes.toInt - 10))
+    val credsWithLimits = creds.copy(limits = UserLimits(maxParameterSize = Some(namespaceLimit)))
+
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"annotations":$annotations}""".stripMargin
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithLimits)) ~> check {
+      status should be(OK)
+    }
+  }
+
+  it should "reject create with annotations that exceed the namespace limit" in {
+    implicit val tid = transid()
+
+    val namespaceLimit = Parameters.sizeLimit - 1.KB
+    val annotations = Parameters("a", "a" * (namespaceLimit.toBytes.toInt + 10))
+    val credsWithLimits = creds.copy(limits = UserLimits(maxParameterSize = Some(namespaceLimit)))
+
+    val content = s"""{"exec":{"kind":"nodejs:default","code":"??"},"annotations":$annotations}""".stripMargin
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithLimits)) ~> check {
+      status should be(PayloadTooLarge)
+      responseAs[String] should include {
+        Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, namespaceLimit))
+      }
+    }
+  }
+
+  it should "reject create when memory is greater than maximum allowed namespace limit" in {
+    implicit val tid = transid()
+
+    val allowed = ByteSize(128, SizeUnits.MB)
+    val is = ByteSize(512, SizeUnits.MB)
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(maxActionMemory = Some(MemoryLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(is)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, is.toMB.toInt, allowed.toMB.toInt)
+      }
+    }
+  }
+
+  it should "reject create if exceeds the system memory limit and indicate namespace limit in message" in {
+    implicit val tid = transid()
+
+    val allowed = MemoryLimit.MAX_MEMORY_DEFAULT - 1.MB // namespace limit
+    val is = MemoryLimit.MAX_MEMORY + 1.MB
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(maxActionMemory = Some(MemoryLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(is)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.sizeExceedsAllowedThreshold(MemoryLimit.memoryLimitFieldName, is.toMB.toInt, allowed.toMB.toInt)
+      }
+    }
+  }
+
+  it should "reject create when memory is less than minimum allowed namespace limit" in {
+    implicit val tid = transid()
+
+    val allowed = ByteSize(512, SizeUnits.MB)
+    val is = ByteSize(128, SizeUnits.MB)
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(minActionMemory = Some(MemoryLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(is)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.sizeBelowAllowedThreshold(MemoryLimit.memoryLimitFieldName, is.toMB.toInt, allowed.toMB.toInt)
+      }
+    }
+  }
+
+  it should "reject create when log size is greater than maximum allowed namespace limit" in {
+    implicit val tid = transid()
+
+    val allowed = ByteSize(5, SizeUnits.MB)
+    val is = ByteSize(7, SizeUnits.MB)
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(maxActionLogs = Some(LogLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(is)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, is.toMB.toInt, allowed.toMB.toInt)
+      }
+    }
+  }
+
+  it should "reject create if exceeds the system log size limit and indicate namespace limit in message" in {
+    implicit val tid = transid()
+
+    val allowed = LogLimit.MAX_LOGSIZE_DEFAULT - 1.MB
+    val is = LogLimit.MAX_LOGSIZE + 1.MB
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(maxActionLogs = Some(LogLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(is)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.sizeExceedsAllowedThreshold(LogLimit.logLimitFieldName, is.toMB.toInt, allowed.toMB.toInt)
+      }
+    }
+  }
+
+  it should "reject create when log size is less than minimum allowed namespace limit" in {
+    implicit val tid = transid()
+
+    val allowed = ByteSize(3, SizeUnits.MB)
+    val is = ByteSize(1, SizeUnits.MB)
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(minActionLogs = Some(LogLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(is)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.sizeBelowAllowedThreshold(LogLimit.logLimitFieldName, is.toMB.toInt, allowed.toMB.toInt)
+      }
+    }
+  }
+
+  it should "reject create when timeout is greater than maximum allowed namespace limit" in {
+    implicit val tid = transid()
+
+    val allowed = TimeLimit.MAX_DURATION.minus(2.second)
+    val is = TimeLimit.MAX_DURATION.minus(1.second)
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(maxActionTimeout = Some(TimeLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(is)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, is, allowed)
+      }
+    }
+  }
+
+  it should "reject create if exceeds the system timeout limit and indicate namespace limit in message" in {
+    implicit val tid = transid()
+
+    val allowed = TimeLimit.MAX_DURATION_DEFAULT.minus(2.second)
+    val is = TimeLimit.MAX_DURATION.plus(1 second)
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(maxActionTimeout = Some(TimeLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(is)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.durationExceedsAllowedThreshold(TimeLimit.timeLimitFieldName, is, allowed)
+      }
+    }
+  }
+
+  it should "reject create when timeout is less than minimum allowed namespace limit" in {
+    implicit val tid = transid()
+
+    val allowed = TimeLimit.MIN_DURATION.plus(2.second)
+    val is = TimeLimit.MIN_DURATION.plus(1.second)
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(minActionTimeout = Some(TimeLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(is)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.durationBelowAllowedThreshold(TimeLimit.timeLimitFieldName, is, allowed)
+      }
+    }
+  }
+
+  it should "reject create when max concurrency is greater than maximum allowed namespace limit" in {
+    implicit val tid = transid()
+
+    val allowed = ConcurrencyLimit.MAX_CONCURRENT - 2
+    val is = ConcurrencyLimit.MAX_CONCURRENT - 1
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(maxActionConcurrency = Some(ConcurrencyLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(is)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.concurrencyExceedsAllowedThreshold(is, allowed)
+      }
+    }
+  }
+
+  it should "reject create if exceeds the system max concurrency limit and indicate namespace limit in message" in {
+    implicit val tid = transid()
+
+    val allowed = ConcurrencyLimit.MAX_CONCURRENT_DEFAULT - 1
+    val is = ConcurrencyLimit.MAX_CONCURRENT + 1
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(maxActionConcurrency = Some(ConcurrencyLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(is)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.concurrencyExceedsAllowedThreshold(is, allowed)
+      }
+    }
+  }
+
+  it should "reject create when max concurrency is less than minimum allowed namespace limit" in {
+    implicit val tid = transid()
+
+    val allowed = ConcurrencyLimit.MIN_CONCURRENT + 2
+    val is = ConcurrencyLimit.MIN_CONCURRENT + 1
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(minActionConcurrency = Some(ConcurrencyLimit(allowed))))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          Some(TimeLimit(TimeLimit.MAX_DURATION)),
+          Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
+          Some(LogLimit(LogLimit.MAX_LOGSIZE)),
+          Some(ConcurrencyLimit(is)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.concurrencyBelowAllowedThreshold(is, allowed)
+      }
+    }
+  }
+
   it should "reject activation with entity which is too big" in {
     implicit val tid = transid()
-    val code = "a" * (allowedActivationEntitySize.toInt + 1)
+    val code = "a" * (systemPayloadLimit.toBytes.toInt + 1)
     val content = s"""{"a":"$code"}""".stripMargin
     Post(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(PayloadTooLarge)
       responseAs[String] should include {
+        Messages.entityTooBig(SizeError(fieldDescriptionForSizeError, (content.length).B, systemPayloadLimit.toBytes.B))
+      }
+    }
+  }
+
+  it should "reject activation with entity size exceeds allowed namespace limit" in {
+    implicit val tid = transid()
+    val code = "a" * (namespacePayloadLimit.toBytes.toInt + 1)
+    val content = s"""{"a":"$code"}""".stripMargin
+    Post(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(credsWithPayloadLimit)) ~> check {
+      status should be(PayloadTooLarge)
+      responseAs[String] should include {
         Messages.entityTooBig(
-          SizeError(fieldDescriptionForSizeError, (content.length).B, allowedActivationEntitySize.B))
+          SizeError(fieldDescriptionForSizeError, (content.length).B, namespacePayloadLimit.toBytes.B))
       }
     }
   }
@@ -578,7 +989,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ systemAnnotations(NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS)))
     }
   }
 
@@ -695,7 +1106,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      response.exec.kind should be(NODEJS10)
+      response.exec.kind should be(NODEJS)
       response.parameters shouldBe Parameters()
     }
   }
@@ -714,7 +1125,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       deleteAction(action.docid)
       status should be(OK)
       val response = responseAs[WhiskAction]
-      response.exec.kind should be(NODEJS10)
+      response.exec.kind should be(NODEJS)
       response.parameters should be(Parameters("a", "A"))
     }
   }
@@ -744,7 +1155,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ systemAnnotations(NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS)))
     }
   }
 
@@ -785,7 +1196,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.limits,
           action.version,
           action.publish,
-          action.annotations ++ systemAnnotations(NODEJS10)))
+          action.annotations ++ systemAnnotations(NODEJS)))
     }
   }
 
@@ -794,7 +1205,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val javaAction =
       WhiskAction(namespace, aname(), javaDefault("ZHViZWU=", Some("hello")), annotations = Parameters("exec", "java"))
     val nodeAction = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
-    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS10))
+    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS))
 
     actions.foreach {
       case (action, kind) =>
@@ -899,7 +1310,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS10), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
+    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS), (swiftAction, SWIFT5), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1076,7 +1487,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((nodeAction, NODEJS10), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
+    val actions = Seq((nodeAction, NODEJS), (swiftAction, SWIFT5), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1126,7 +1537,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "concurrently get an action with attachment that is not cached" in {
     implicit val tid = transid()
     val action = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
-    val kind = NODEJS10
+    val kind = NODEJS
 
     val content = WhiskActionPut(
       Some(action.exec),
@@ -1183,7 +1594,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val nodeAction = WhiskAction(namespace, aname(), jsDefault(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val swiftAction = WhiskAction(namespace, aname(), swift(nonInlinedCode(entityStore)), Parameters("x", "b"))
     val bbAction = WhiskAction(namespace, aname(), bb("bb", nonInlinedCode(entityStore), Some("bbMain")))
-    val actions = Seq((nodeAction, NODEJS10), (swiftAction, SWIFT4), (bbAction, BLACKBOX))
+    val actions = Seq((nodeAction, NODEJS), (swiftAction, SWIFT5), (bbAction, BLACKBOX))
 
     actions.foreach {
       case (action, kind) =>
@@ -1252,7 +1663,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "ensure old and new action schemas are supported" in {
     implicit val tid = transid()
     val code = nonInlinedCode(entityStore)
-    val actionOldSchema = WhiskAction(namespace, aname(), js10Old(code))
+    val actionOldSchema = WhiskAction(namespace, aname(), jsOld(code))
     val actionNewSchema = WhiskAction(namespace, aname(), jsDefault(code))
     val content = WhiskActionPut(
       Some(actionOldSchema.exec),
@@ -1290,7 +1701,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false)))
+          actionOldSchema.annotations ++ systemAnnotations(NODEJS, create = false)))
     }
 
     stream.toString should include regex (expectedPutLog)
@@ -1315,7 +1726,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           actionOldSchema.limits,
           actionOldSchema.version.upPatch,
           actionOldSchema.publish,
-          actionOldSchema.annotations ++ systemAnnotations(NODEJS10, create = false)))
+          actionOldSchema.annotations ++ systemAnnotations(NODEJS, create = false)))
     }
   }
 
@@ -1361,7 +1772,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             content.limits.get.logs.get,
             content.limits.get.concurrency.get),
           version = action.version.upPatch,
-          annotations = action.annotations ++ systemAnnotations(NODEJS10, create = false)))
+          annotations = action.annotations ++ systemAnnotations(NODEJS, create = false)))
     }
   }
 
@@ -1382,7 +1793,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           action.exec,
           content.parameters.get,
           version = action.version.upPatch,
-          annotations = action.annotations ++ systemAnnotations(NODEJS10, false)))
+          annotations = action.annotations ++ systemAnnotations(NODEJS, false)))
     }
   }
 

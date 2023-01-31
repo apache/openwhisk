@@ -30,7 +30,7 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity.ActivationResponse.{ConnectionError, MemoryExhausted}
-import org.apache.openwhisk.core.entity.{ActivationEntityLimit, ByteSize}
+import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
 import akka.stream.scaladsl.{Framing, Source}
 import akka.stream.stage._
@@ -127,11 +127,14 @@ object DockerContainer {
     for {
       pullSuccessful <- pulled
       id <- docker.run(imageToUse, args).recoverWith {
-        case BrokenDockerContainer(brokenId, _) =>
+        case BrokenDockerContainer(brokenId, _, exitStatus) if exitStatus.isEmpty || exitStatus.contains(125) =>
           // Remove the broken container - but don't wait or check for the result.
           // If the removal fails, there is nothing we could do to recover from the recovery.
           docker.rm(brokenId)
           Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
+        case BrokenDockerContainer(brokenId, _, exitStatus) if exitStatus.contains(127) =>
+          docker.rm(brokenId)
+          Future.failed(BlackboxStartupError(s"${Messages.commandNotFoundError} in image ${imageToUse}"))
         case _ =>
           // Iff the pull was successful, we assume that the error is not due to an image pull error, otherwise
           // the docker run was a backup measure to try and start the container anyway. If it fails again, we assume
@@ -215,32 +218,23 @@ class DockerContainer(protected val id: ContainerId,
     body: JsObject,
     timeout: FiniteDuration,
     maxConcurrent: Int,
+    maxResponse: ByteSize,
+    truncation: ByteSize,
     retry: Boolean = false,
     reschedule: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
       val conn = if (Container.config.akkaClient) {
-        new AkkaContainerClient(
-          addr.host,
-          addr.port,
-          timeout,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
-          1024)
+        new AkkaContainerClient(addr.host, addr.port, timeout, 1024)
       } else {
-        new ApacheBlockingContainerClient(
-          s"${addr.host}:${addr.port}",
-          timeout,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT,
-          ActivationEntityLimit.MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT,
-          maxConcurrent)
+        new ApacheBlockingContainerClient(s"${addr.host}:${addr.port}", timeout, maxConcurrent)
       }
       httpConnection = Some(conn)
       conn
     }
 
     http
-      .post(path, body, retry, reschedule)
+      .post(path, body, maxResponse, truncation, retry, reschedule)
       .flatMap { response =>
         val finished = Instant.now()
 

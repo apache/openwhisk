@@ -23,12 +23,13 @@ The process of creating PHP actions is similar to that of [other actions](action
 The following sections guide you through creating and invoking a single PHP action,
 and demonstrate how to bundle multiple PHP files and third party dependencies.
 
-PHP actions are executed using PHP 7.4 or 7.3. The specific
+PHP actions are executed using PHP 8.0, 7.4 or 7.3. The specific
 version of PHP is listed in the CHANGELOG files in the [PHP runtime repository](https://github.com/apache/openwhisk-runtime-php).
 
 To use a PHP runtime, specify the `wsk` CLI parameter `--kind` when creating or
 updating an action. The available PHP kinds are:
 
+* PHP 8.0: `--kind php:8.0`
 * PHP 7.4: `--kind php:7.4`
 * PHP 7.3: `--kind php:7.3`
 
@@ -43,6 +44,32 @@ function main(array $args) : array
     $greeting = "Hello $name!";
     echo $greeting;
     return ["greeting" => $greeting];
+}
+```
+
+An action supports not only a JSON object but also a JSON arary as a return value.
+
+It would be a simple example that uses an array as a return value:
+
+```php
+<?php
+function main(array $args) : array
+{
+    $arr=array("a","b","c");
+    return $arr;
+}
+```
+
+You can also create a sequence action with actions accepting an array param and returning an array result.
+
+You can easily figure out the parameters with the following example:
+
+```php
+<?php
+function main(array $args) : array
+{
+    $result = array_reverse($args);
+    return $result;
 }
 ```
 

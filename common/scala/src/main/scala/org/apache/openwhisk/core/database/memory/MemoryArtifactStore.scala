@@ -21,7 +21,6 @@ import java.nio.charset.StandardCharsets.UTF_8
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, Uri}
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
@@ -47,8 +46,7 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D] = {
+    logging: Logging): ArtifactStore[D] = {
     makeArtifactStore(MemoryAttachmentStoreProvider.makeStore())
   }
 
@@ -56,8 +54,7 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D] = {
+    logging: Logging): ArtifactStore[D] = {
 
     val classTag = implicitly[ClassTag[D]]
     val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
@@ -70,8 +67,7 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(
     implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): (String, DocumentHandler, MemoryViewMapper) = {
+    logging: Logging): (String, DocumentHandler, MemoryViewMapper) = {
     entityType.runtimeClass match {
       case x if x == classOf[WhiskEntity] =>
         ("whisks", WhisksHandler, WhisksViewMapper)
@@ -96,7 +92,6 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
-  val materializer: ActorMaterializer,
   docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol

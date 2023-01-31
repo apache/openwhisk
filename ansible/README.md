@@ -27,15 +27,15 @@ If you want to deploy OpenWhisk locally using Ansible, you first need to install
 #### Ubuntu users
 ```shell script
 sudo apt-get install python-pip
-sudo pip install ansible==2.5.2
-sudo pip install jinja2==2.9.6
+sudo pip install ansible==4.1.0
+sudo pip install jinja2==3.0.1
 ```
 
 #### Docker for Mac users
 ```shell script
 sudo easy_install pip
-sudo pip install ansible==2.5.2
-pip install jinja2==2.9.6
+sudo pip install ansible==4.1.0
+pip install jinja2==3.0.1
 ```
 Docker for Mac does not provide any official ways to meet some requirements for OpenWhisk.
 You need to depend on the workarounds until Docker provides official methods.
@@ -45,8 +45,8 @@ If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for 
 ##### Enable Docker remote API
 The remote Docker API is required for collecting logs using the Ansible playbook [logs.yml](logs.yml).
 
-##### Activate docker0 network
-This is an optional step for local deployment.
+##### Activate docker0 network (local dev only)
+
 The OpenWhisk deployment via Ansible uses the `docker0` network interface to deploy OpenWhisk and it does not exist on Docker for Mac environment.
 
 An expedient workaround is to add alias for `docker0` network to loopback interface.
@@ -70,6 +70,16 @@ use `-i environments/docker-machine`.
 
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
 
+#### Ansible with pyenv (local dev only)
+
+When using [pyenv](https://github.com/pyenv/pyenv) to manage your versions of python, the [ansible python interpreter](https://docs.ansible.com/ansible/latest/reference_appendices/python_3_support.html) will use your system's default python, which may have a different version.
+
+To make sure ansible uses the same version of python which you configured, execute:
+
+```bash
+echo -e "\nansible_python_interpreter: `which python`\n" >> ./environments/local/group_vars/all
+```
+
 #### Preserving configuration and log directories on reboot
 When using the local Ansible environment, configuration and log data is stored in `/tmp` by default. However, operating
 system such as Linux and Mac clean the `/tmp` directory on reboot, resulting in failures when OpenWhisk tries to start
@@ -78,8 +88,10 @@ directory before deploying OpenWhisk.
 
 #### Setup
 
-The following step must be executed once per development environment.
+This step should be executed once per development environment.
 It will generate the `hosts` configuration file based on your environment settings.
+
+> This file is generated automatically for an ephemeral CouchDB instance during `setup.yml`.
 
 The default configuration does not run multiple instances of core components (e.g., controller, invoker, kafka).
 You may elect to enable high-availability (HA) mode by passing tne Ansible option `-e mode=HA` when executing this playbook.
@@ -98,7 +110,6 @@ db_host=
 db_port=
 ```
 
-This file is generated automatically for an ephemeral CouchDB instance during `setup.yml`. If you want to use Cloudant, you have to modify the file.
 For convenience, you can use shell environment variables that are read by the playbook to generate the required `db_local.ini` file as shown below.
 
 ```shell script
@@ -112,7 +123,7 @@ export OW_DB_PORT=<your couchdb port>
 ansible-playbook -i environments/$ENVIRONMENT setup.yml
 ```
 
-Alternatively, if you want to use Cloudant as your datastore:
+##### Use Cloudant as a datastore
 
 ```shell script
 export OW_DB=Cloudant
@@ -126,7 +137,8 @@ ansible-playbook -i environments/$ENVIRONMENT setup.yml
 ```
 
 #### Install Prerequisites
-This step is not required for local environments since all prerequisites are already installed, and therefore may be skipped.`
+
+> This step is not required for local environments since all prerequisites are already installed, and therefore may be skipped.
 
 This step needs to be done only once per target environment. It will install necessary prerequisites on all target hosts in the environment.
 
@@ -136,6 +148,77 @@ ansible-playbook -i environments/$ENVIRONMENT prereq.yml
 
 **Hint:** During playbook execution the `TASK [prereq : check for pip]` can show as failed. This is normal if no pip is installed. The playbook will then move on and install pip on the target machines.
 
+### [Optional] Enable the new scheduler
+
+You can enable the new scheduler of OpenWhisk.
+It will run one more component called "scheduler" and ETCD.
+
+#### Configure service providers for the scheduler
+You can update service providers for the scheduler as follows.
+
+**common/scala/src/main/resources/reference.conf**
+
+If you are using ElasticSearch (recommended) then replace ```NoopDurationCheckerProvider``` with ```ElasticSearchDurationCheckerProvider``` below.
+```
+whisk.spi {
+  ArtifactStoreProvider = org.apache.openwhisk.core.database.CouchDbStoreProvider
+  ActivationStoreProvider = org.apache.openwhisk.core.database.ArtifactActivationStoreProvider
+  MessagingProvider = org.apache.openwhisk.connector.kafka.KafkaMessagingProvider
+  ContainerFactoryProvider = org.apache.openwhisk.core.containerpool.docker.DockerContainerFactoryProvider
+  LogStoreProvider = org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStoreProvider
+  LoadBalancerProvider = org.apache.openwhisk.core.loadBalancer.FPCPoolBalancer
+  EntitlementSpiProvider = org.apache.openwhisk.core.entitlement.FPCEntitlementProvider
+  AuthenticationDirectiveProvider = org.apache.openwhisk.core.controller.BasicAuthenticationDirective
+  InvokerProvider = org.apache.openwhisk.core.invoker.FPCInvokerReactive
+  InvokerServerProvider = org.apache.openwhisk.core.invoker.FPCInvokerServer
+  DurationCheckerProvider = org.apache.openwhisk.core.scheduler.queue.NoopDurationCheckerProvider
+}
+.
+.
+.
+```
+#### Configure pause grace for the scheduler
+Set the value of pause-grace to 10s by default
+
+**core/invoker/src/main/resources/application.conf**
+```
+  container-proxy {
+    timeouts {
+      # The "unusedTimeout" in the ContainerProxy,
+      #aka 'How long should a container sit idle until we kill it?'
+      idle-container = 10 minutes
+      pause-grace = 10 seconds
+      keeping-duration = 10 minutes
+    }
+  .
+  .
+  .
+```
+
+#### Enable the scheduler
+- Make sure you enable the scheduler by configuring `scheduler_enable`.
+
+**ansible/environments/local/group_vars/all**
+```yaml
+scheduler_enable: true
+```
+
+#### [Optional] Enable ElasticSearch Activation Store
+When you use the new scheduler, it is recommended to use ElasticSearch as an activation store.
+
+**ansible/environments/local/group_vars**
+```yaml
+db_activation_backend: ElasticSearch
+elastic_cluster_name: <your elasticsearch cluster name>
+elastic_protocol: <your elasticsearch protocol>
+elastic_index_pattern: <your elasticsearch index pattern>
+elastic_base_volume: <your elasticsearch volume directory>
+elastic_username: <your elasticsearch username>
+elastic_password: <your elasticsearch username>
+```
+
+You can also refer to this guide to [deploy OpenWhisk using ElasticSearch](https://github.com/apache/openwhisk/blob/master/ansible/README.md#using-elasticsearch-to-store-activations).
+
 ### Deploying Using CouchDB
 -   Make sure your `db_local.ini` file is [setup for](#setup) CouchDB then execute:
 
@@ -143,7 +226,7 @@ ansible-playbook -i environments/$ENVIRONMENT prereq.yml
 cd <openwhisk_home>
 ./gradlew distDocker
 cd ansible
-ansible-playbook -i couchdb.yml
+ansible-playbook -i environments/$ENVIRONMENT couchdb.yml
 ansible-playbook -i environments/$ENVIRONMENT initdb.yml
 ansible-playbook -i environments/$ENVIRONMENT wipe.yml
 ansible-playbook -i environments/$ENVIRONMENT openwhisk.yml
@@ -195,6 +278,43 @@ ansible-playbook -i environments/$ENVIRONMENT routemgmt.yml
 - Run `postdeploy.yml` after deployment to install a catalog of useful packages.
 - To use the API Gateway, you'll need to run `apigateway.yml` and `routemgmt.yml`.
 - Use `ansible-playbook -i environments/$ENVIRONMENT openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
+
+### Deploying Using MongoDB
+
+You can choose MongoDB instead of CouchDB as the database backend to store entities.
+
+- Deploy a mongodb server(Optional, for test and develop only, use an external MongoDB server in production).
+  You need to execute `pip install pymongo` first
+
+```
+ansible-playbook -i environments/<environment> mongodb.yml -e mongodb_data_volume="/tmp/mongo-data"
+```
+
+- Then execute
+
+```
+cd <openwhisk_home>
+./gradlew distDocker
+cd ansible
+ansible-playbook -i environments/<environment> initMongodb.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017"
+ansible-playbook -i environments/<environment> apigateway.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017"
+ansible-playbook -i environments/<environment> openwhisk.yml -e mongodb_connect_string="mongodb://172.17.0.1:27017" -e db_artifact_backend="MongoDB"
+
+# installs a catalog of public packages and actions
+ansible-playbook -i environments/<environment> postdeploy.yml
+
+# to use the API gateway
+ansible-playbook -i environments/<environment> apigateway.yml
+ansible-playbook -i environments/<environment> routemgmt.yml
+```
+
+Available parameters for ansible are
+```
+  mongodb:
+    connect_string: "{{ mongodb_connect_string }}"
+    database: "{{ mongodb_database | default('whisks') }}"
+    data_volume: "{{ mongodb_data_volume | default('mongo-data') }}"
+```
 
 ### Using ElasticSearch to Store Activations
 
@@ -283,7 +403,7 @@ The playbook structure allows you to clean, deploy or re-deploy a single compone
 
 ```shell script
 cd <openwhisk_home>
-gradle :core:invoker:distDocker -PdockerImageTag=myNewInvoker
+./gradlew :core:invoker:distDocker -PdockerImageTag=myNewInvoker
 ```
 Then all you need to do is re-deploy the invoker using the new image:
 

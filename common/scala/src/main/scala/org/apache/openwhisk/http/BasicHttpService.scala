@@ -19,12 +19,12 @@ package org.apache.openwhisk.http
 
 import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.http.scaladsl.{Http, HttpConnectionContext}
+import akka.http.scaladsl.{Http, ServerBuilder}
 import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.http.scaladsl.server.RouteResult.Rejected
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives._
-import akka.stream.ActorMaterializer
+
 import kamon.metric.MeasurementUnit
 import spray.json._
 import org.apache.openwhisk.common.Https.HttpsConfig
@@ -169,15 +169,18 @@ object BasicHttpService {
    * Starts an HTTP(S) route handler on given port and registers a shutdown hook.
    */
   def startHttpService(route: Route, port: Int, config: Option[HttpsConfig] = None, interface: String = "0.0.0.0")(
-    implicit actorSystem: ActorSystem,
-    materializer: ActorMaterializer): Unit = {
-    val connectionContext = config.map(Https.connectionContext(_)).getOrElse(HttpConnectionContext)
-    val httpBinding = Http().bindAndHandle(route, interface, port, connectionContext = connectionContext)
+    implicit
+    actorSystem: ActorSystem): Unit = {
+    val httpsContext = config.map(Https.connectionContextServer(_))
+    var httpBindingBuilder: ServerBuilder = Http().newServerAt(interface, port)
+    if (httpsContext.isDefined) {
+      httpBindingBuilder = httpBindingBuilder.enableHttps(httpsContext.get)
+    }
+    val httpBinding = httpBindingBuilder.bindFlow(route)
     addShutdownHook(httpBinding)
   }
 
-  def addShutdownHook(binding: Future[Http.ServerBinding])(implicit actorSystem: ActorSystem,
-                                                           materializer: ActorMaterializer): Unit = {
+  def addShutdownHook(binding: Future[Http.ServerBinding])(implicit actorSystem: ActorSystem): Unit = {
     implicit val executionContext = actorSystem.dispatcher
     sys.addShutdownHook {
       Await.result(binding.map(_.unbind()), 30.seconds)
@@ -190,7 +193,7 @@ object BasicHttpService {
     RejectionHandler.default.mapRejectionResponse {
       case res @ HttpResponse(_, _, ent: HttpEntity.Strict, _) =>
         val error = ErrorResponse(ent.data.utf8String, transid).toJson
-        res.copy(entity = HttpEntity(ContentTypes.`application/json`, error.compactPrint))
+        res.withEntity(HttpEntity(ContentTypes.`application/json`, error.compactPrint))
       case x => x
     }
   }

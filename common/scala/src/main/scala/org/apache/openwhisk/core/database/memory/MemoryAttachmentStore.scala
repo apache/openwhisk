@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.database.memory
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.ContentType
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.util.{ByteString, ByteStringBuilder}
 import org.apache.openwhisk.common.LoggingMarkers.{
@@ -39,18 +38,14 @@ import scala.reflect.ClassTag
 
 object MemoryAttachmentStoreProvider extends AttachmentStoreProvider {
   override def makeStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
-                                                              logging: Logging,
-                                                              materializer: ActorMaterializer): AttachmentStore =
+                                                              logging: Logging): AttachmentStore =
     new MemoryAttachmentStore(implicitly[ClassTag[D]].runtimeClass.getSimpleName.toLowerCase)
 }
 
 /**
  * Basic in-memory AttachmentStore implementation. Useful for testing.
  */
-class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
-                                            logging: Logging,
-                                            materializer: ActorMaterializer)
-    extends AttachmentStore {
+class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem, logging: Logging) extends AttachmentStore {
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 

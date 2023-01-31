@@ -177,7 +177,7 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
         |	"version": "0.0.2",
         |	"entityType": "action",
         |	"exec": {
-        |		"kind": "nodejs:10",
+        |		"kind": "nodejs:14",
         |		"code": "foo",
         |		"binary": false
         |	},
@@ -205,7 +205,7 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
         |  "annotations": [],
         |  "version": "0.0.1",
         |  "exec": {
-        |	   "kind": "nodejs:10",
+        |	   "kind": "nodejs:14",
         |    "code": "foo",
         |    "binary": false
         |  },

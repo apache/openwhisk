@@ -26,8 +26,7 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.management.scaladsl.AkkaManagement
 import akka.management.cluster.bootstrap.ClusterBootstrap
-import akka.stream.ActorMaterializer
-import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.common._
@@ -36,7 +35,7 @@ import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeLong
 import org.apache.openwhisk.common.LoggingMarkers._
-import org.apache.openwhisk.core.loadBalancer.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
+import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.spi.SpiLoader
 
@@ -114,7 +113,7 @@ import scala.concurrent.duration.FiniteDuration
  * no ping is seen for a defined amount of time, the invoker is considered "Offline".
  *
  * Moreover, results from all activations are inspected. If more than 3 out of the last 10 activations contained system
- * errors, the invoker is considered "Unhealthy". If an invoker is unhealty, no user workload is sent to it, but
+ * errors, the invoker is considered "Unhealthy". If an invoker is unhealthy, no user workload is sent to it, but
  * test-actions are sent by the loadbalancer to check if system errors are still happening. If the
  * system-error-threshold-count in the last 10 activations falls below 3, the invoker is considered "Healthy" again.
  *
@@ -151,8 +150,7 @@ class ShardingContainerPoolBalancer(
   val invokerPoolFactory: InvokerPoolFactory,
   implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
   implicit actorSystem: ActorSystem,
-  logging: Logging,
-  materializer: ActorMaterializer)
+  logging: Logging)
     extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
 
   /** Build a cluster of all loadbalancers */
@@ -333,17 +331,15 @@ class ShardingContainerPoolBalancer(
 
 object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
-  override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
-    implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): LoadBalancer = {
+  override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
+                                                                                  logging: Logging): LoadBalancer = {
 
     val invokerPoolFactory = new InvokerPoolFactory {
       override def createInvokerPool(
         actorRefFactory: ActorRefFactory,
         messagingProvider: MessagingProvider,
         messagingProducer: MessageProducer,
-        sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
+        sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[ResultMetadata],
         monitor: Option[ActorRef]): ActorRef = {
 
         InvokerPool.prepare(instance, WhiskEntityStore.datastore())
@@ -352,7 +348,11 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
           InvokerPool.props(
             (f, i) => f.actorOf(InvokerActor.props(i, instance)),
             (m, i) => sendActivationToInvoker(messagingProducer, m, i),
-            messagingProvider.getConsumer(whiskConfig, s"health${instance.asString}", "health", maxPeek = 128),
+            messagingProvider.getConsumer(
+              whiskConfig,
+              s"${Controller.topicPrefix}health${instance.asString}",
+              s"${Controller.topicPrefix}health",
+              maxPeek = 128),
             monitor))
       }
 
@@ -616,6 +616,7 @@ case class ShardingContainerPoolBalancerConfig(managedFraction: Double,
  * @param timeoutHandler times out completion of this activation, should be canceled on good paths
  * @param isBlackbox true if the invoked action is a blackbox action, otherwise false (managed action)
  * @param isBlocking true if the action is invoked in a blocking fashion, i.e. "somebody" waits for the result
+ * @param controllerId id of the controller that this activation comes from
  */
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
@@ -626,4 +627,5 @@ case class ActivationEntry(id: ActivationId,
                            fullyQualifiedEntityName: FullyQualifiedEntityName,
                            timeoutHandler: Cancellable,
                            isBlackbox: Boolean,
-                           isBlocking: Boolean)
+                           isBlocking: Boolean,
+                           controllerId: ControllerInstanceId = ControllerInstanceId("0"))

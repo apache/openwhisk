@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.entity.test
 
 import java.util.Base64
 
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Try
@@ -493,18 +492,18 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   it should "initialize exec manifest" in {
     val runtimes = ExecManifest.runtimesManifest
     val kind = runtimes.resolveDefaultRuntime("nodejs:default").get.kind
-    Some(kind) should contain oneOf ("nodejs:10", "nodejs:12")
+    Some(kind) should contain oneOf ("nodejs:12", "nodejs:14")
   }
 
   it should "properly deserialize and reserialize JSON" in {
     val b64Body = """ZnVuY3Rpb24gbWFpbihhcmdzKSB7IHJldHVybiBhcmdzOyB9Cg=="""
 
     val json = Seq[JsObject](
-      JsObject("kind" -> "nodejs:10".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
-      JsObject("kind" -> "nodejs:10".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
-      JsObject("kind" -> "swift:4.2".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
-      JsObject("kind" -> "swift:4.2".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson),
-      JsObject("kind" -> "nodejs:10".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
+      JsObject("kind" -> "nodejs:14".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
+      JsObject("kind" -> "nodejs:14".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
+      JsObject("kind" -> "swift:5.3".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
+      JsObject("kind" -> "swift:5.3".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson),
+      JsObject("kind" -> "nodejs:14".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
 
     val execs = json.map { e =>
       Exec.serdes.read(e)
@@ -637,8 +636,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       JsObject.empty,
       JsNull,
       JsObject("init" -> "zipfile".toJson),
-      JsObject("kind" -> "nodejs:10".toJson, "code" -> JsNumber(42)),
-      JsObject("kind" -> "nodejs:10".toJson, "init" -> "zipfile".toJson),
+      JsObject("kind" -> "nodejs:14".toJson, "code" -> JsNumber(42)),
+      JsObject("kind" -> "nodejs:14".toJson, "init" -> "zipfile".toJson),
       JsObject("kind" -> "turbopascal".toJson, "code" -> "BEGIN1".toJson),
       JsObject("kind" -> "blackbox".toJson, "code" -> "js".toJson),
       JsObject("kind" -> "swift".toJson, "swiftcode" -> "swift".toJson))
@@ -666,9 +665,9 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   it should "serialize to json" in {
     val execs = Seq(bb("container"), jsDefault("js"), jsDefault("js"), swift("swift")).map { _.asJson }
     assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson, "binary" -> false.toJson))
-    assert(execs(1) == JsObject("kind" -> "nodejs:10".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
-    assert(execs(2) == JsObject("kind" -> "nodejs:10".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
-    assert(execs(3) == JsObject("kind" -> "swift:4.2".toJson, "code" -> "swift".toJson, "binary" -> false.toJson))
+    assert(execs(1) == JsObject("kind" -> "nodejs:14".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
+    assert(execs(2) == JsObject("kind" -> "nodejs:14".toJson, "code" -> "js".toJson, "binary" -> false.toJson))
+    assert(execs(3) == JsObject("kind" -> "swift:5.3".toJson, "code" -> "swift".toJson, "binary" -> false.toJson))
   }
 
   behavior of "Parameter"
@@ -826,59 +825,14 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
     serdes foreach { s =>
       withClue(s"serializer $s") {
-        if (s != LogLimit.serdes) {
-          val lb = the[DeserializationException] thrownBy s.read(JsNumber(0))
-          lb.getMessage should include("below allowed threshold")
-        } else {
+        if (s == LogLimit.serdes) {
           val lb = the[DeserializationException] thrownBy s.read(JsNumber(-1))
           lb.getMessage should include("a negative size of an object is not allowed")
         }
-
-        val ub = the[DeserializationException] thrownBy s.read(JsNumber(Int.MaxValue))
-        ub.getMessage should include("exceeds allowed threshold")
-
         val int = the[DeserializationException] thrownBy s.read(JsNumber(2.5))
         int.getMessage should include("limit must be whole number")
       }
     }
-  }
-
-  it should "reject bad limit values" in {
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(TimeLimit.MIN_DURATION - 1.millisecond),
-      MemoryLimit(),
-      LogLimit())
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(MemoryLimit.MIN_MEMORY - 1.B),
-      LogLimit())
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(),
-      LogLimit(LogLimit.MIN_LOGSIZE - 1.B))
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(),
-      LogLimit(),
-      ConcurrencyLimit(ConcurrencyLimit.MIN_CONCURRENT - 1))
-
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(TimeLimit.MAX_DURATION + 1.millisecond),
-      MemoryLimit(),
-      LogLimit())
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(MemoryLimit.MAX_MEMORY + 1.B),
-      LogLimit())
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(),
-      LogLimit(LogLimit.MAX_LOGSIZE + 1.B))
-    an[IllegalArgumentException] should be thrownBy ActionLimits(
-      TimeLimit(),
-      MemoryLimit(),
-      LogLimit(),
-      ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT + 1))
   }
 
   it should "parse activation id as uuid" in {

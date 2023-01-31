@@ -28,9 +28,11 @@ object UserEvents {
 
   val enabled = loadConfigOrThrow[UserEventsConfig](ConfigKeys.userEvents).enabled
 
+  val userEventTopicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsUserEventPrefix)
+
   def send(producer: MessageProducer, em: => EventMessage) = {
     if (enabled) {
-      producer.send("events", em)
+      producer.send(userEventTopicPrefix + "events", em)
     }
   }
 }

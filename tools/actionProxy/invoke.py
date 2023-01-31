@@ -101,7 +101,7 @@ def init(args):
             contents = fp.read()
         contents = str(base64.b64encode(contents), 'utf-8')
         binary = True
-    elif artifact is not '':
+    elif artifact != '':
         with(codecs.open(artifact, 'r', 'utf-8')) as fp:
             contents = fp.read()
         binary = False
@@ -122,7 +122,7 @@ def init(args):
 
     print(r.text)
 
-    if r.status_code == 200 and args.run is not None:
+    if r.status_code == 200 and args.run != None:
         runArgs = objectify({})
         runArgs.__dict__ = args.__dict__.copy()
         runArgs.payload = args.run

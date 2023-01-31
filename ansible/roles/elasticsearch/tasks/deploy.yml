@@ -37,7 +37,7 @@
     mode: 0755
   become: "{{ db.elasticsearch.dir.become }}"
 
-# create volume direcotry if it's a directory path(not a named volume)
+# create volume directory if it's a directory path(not a named volume)
 - name: ensure elasticserach volume directory is created with permissions
   file:
     path: "{{ volume_name }}"

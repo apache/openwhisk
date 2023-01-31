@@ -35,7 +35,7 @@
   get_url:
     url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
     dest: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
-    headers: "{{ openwhisk_cli.remote.headers | default('') }}"
+    headers: "{{ openwhisk_cli.remote.headers | default('{}') }}"
   when: openwhisk_cli.installation_mode == "remote"
 
 - name: "... or Copy release archive to build directory"

@@ -19,13 +19,13 @@ package org.apache.openwhisk.core.invoker
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.WhiskConfig._
 import org.apache.openwhisk.core.connector.{MessageProducer, MessagingProvider}
+import org.apache.openwhisk.core.containerpool.v2.{NotSupportedPoolState, TotalContainerPoolState}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerPoolConfig}
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
@@ -35,6 +35,7 @@ import org.apache.openwhisk.spi.{Spi, SpiLoader}
 import org.apache.openwhisk.utils.ExecutionContextFactory
 import pureconfig._
 import pureconfig.generic.auto._
+import spray.json._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -72,6 +73,17 @@ object Invoker {
 
   protected val protocol = loadConfigOrThrow[String]("whisk.invoker.protocol")
 
+  val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
+
+  object InvokerEnabled extends DefaultJsonProtocol {
+    def parseJson(string: String) = Try(serdes.read(string.parseJson))
+    implicit val serdes = jsonFormat(InvokerEnabled.apply _, "enabled")
+  }
+
+  case class InvokerEnabled(isEnabled: Boolean) {
+    def serialize(): String = InvokerEnabled.serdes.write(this).compactPrint
+  }
+
   /**
    * An object which records the environment variables required for this component to run.
    */
@@ -97,7 +109,18 @@ object Invoker {
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
     val poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
     val limitConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit)
+    val tags: Seq[String] = Some(loadConfigOrThrow[String](ConfigKeys.invokerResourceTags))
+      .map(_.trim())
+      .filter(_ != "")
+      .map(_.split(",").toSeq)
+      .getOrElse(Seq.empty[String])
+    val dedicatedNamespaces: Seq[String] = Some(loadConfigOrThrow[String](ConfigKeys.invokerDedicatedNamespaces))
+      .map(_.trim())
+      .filter(_ != "")
+      .map(_.split(",").toSeq)
+      .getOrElse(Seq.empty[String])
 
+    logger.info(this, s"invoker tags: (${tags.mkString(", ")})")
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
       logger.info(this, s"Shutting down Kamon with coordinated shutdown")
@@ -174,11 +197,18 @@ object Invoker {
     initKamon(assignedInvokerId)
 
     val topicBaseName = "invoker"
-    val topicName = topicBaseName + assignedInvokerId
+    val topicName = topicPrefix + topicBaseName + assignedInvokerId
 
     val maxMessageBytes = Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)
     val invokerInstance =
-      InvokerInstanceId(assignedInvokerId, cmdLineArgs.uniqueName, cmdLineArgs.displayedName, poolConfig.userMemory)
+      InvokerInstanceId(
+        assignedInvokerId,
+        cmdLineArgs.uniqueName,
+        cmdLineArgs.displayedName,
+        poolConfig.userMemory,
+        None,
+        tags,
+        dedicatedNamespaces)
 
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider
@@ -199,9 +229,7 @@ object Invoker {
       if (Invoker.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.invoker.https")) else None
 
     val invokerServer = SpiLoader.get[InvokerServerProvider].instance(invoker)
-    BasicHttpService.startHttpService(invokerServer.route, port, httpsConfig)(
-      actorSystem,
-      ActorMaterializer.create(actorSystem))
+    BasicHttpService.startHttpService(invokerServer.route, port, httpsConfig)(actorSystem)
   }
 }
 
@@ -217,7 +245,13 @@ trait InvokerProvider extends Spi {
 }
 
 // this trait can be used to add common implementation
-trait InvokerCore {}
+trait InvokerCore {
+  def enable(): String
+  def disable(): String
+  def isEnabled(): String
+  def backfillPrewarm(): String
+  def getPoolState(): Future[Either[NotSupportedPoolState, TotalContainerPoolState]]
+}
 
 /**
  * An Spi for providing RestAPI implementation for invoker.
@@ -226,10 +260,4 @@ trait InvokerCore {}
 trait InvokerServerProvider extends Spi {
   def instance(
     invoker: InvokerCore)(implicit ec: ExecutionContext, actorSystem: ActorSystem, logger: Logging): BasicRasService
-}
-
-object DefaultInvokerServer extends InvokerServerProvider {
-  override def instance(
-    invoker: InvokerCore)(implicit ec: ExecutionContext, actorSystem: ActorSystem, logger: Logging): BasicRasService =
-    new BasicRasService {}
 }

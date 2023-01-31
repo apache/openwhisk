@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.monitoring.metrics
 
 import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
-import akka.stream.ActorMaterializer
 import net.manub.embeddedkafka.EmbeddedKafka
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
@@ -36,7 +35,6 @@ abstract class KafkaSpecBase
     with Eventually
     with EventsTestHelper { this: Suite =>
   implicit val timeoutConfig: PatienceConfig = PatienceConfig(1.minute)
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   override val sleepAfterProduce: FiniteDuration = 10.seconds
   override protected val topicCreationTimeout = 60.seconds
 }

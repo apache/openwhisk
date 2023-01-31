@@ -25,15 +25,7 @@ buildscript {
 }
 
 plugins {
-    id "com.gradle.build-scan" version "2.3"
-    id "org.scoverage" version "4.0.1" apply false
-}
-
-
-buildScan {
-    termsOfServiceUrl = 'https://gradle.com/terms-of-service'
-    termsOfServiceAgree = 'yes'
-    publishAlwaysIf(System.getenv('CI') != null)
+    id "org.scoverage" version "7.0.0" apply false
 }
 
 subprojects {
@@ -50,9 +42,9 @@ subprojects {
         def cons = project.getDependencies().getConstraints()
         def akka = ['akka-actor', 'akka-cluster', 'akka-cluster-metrics', 'akka-cluster-tools', 'akka-coordination',
                     'akka-discovery', 'akka-distributed-data', 'akka-protobuf', 'akka-remote', 'akka-slf4j',
-                    'akka-stream', 'akka-stream-testkit', 'akka-testkit']
+                    'akka-stream', 'akka-stream-testkit', 'akka-testkit', 'akka-persistence', 'akka-cluster-sharding']
         def akkaHttp = ['akka-http', 'akka-http-core', 'akka-http-spray-json', 'akka-http-testkit', 'akka-http-xml',
-                        'akka-parsing']
+                        'akka-parsing', 'akka-http2-support']
 
         akka.forEach {
             cons.add('compile', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka.version}")

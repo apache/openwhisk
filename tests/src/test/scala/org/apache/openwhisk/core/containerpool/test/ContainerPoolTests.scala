@@ -134,7 +134,7 @@ class ContainerPoolTests
   }
 
   def poolConfig(userMemory: ByteSize) =
-    ContainerPoolConfig(userMemory, 0.5, false, 1.minute, None, 100)
+    ContainerPoolConfig(userMemory, 0.5, false, 2.second, 1.minute, None, 100, 3, false, 1.second, 10)
 
   behavior of "ContainerPool"
 
@@ -310,6 +310,19 @@ class ContainerPoolTests
     feed.expectMsg(MessageFeed.Processed)
   }
 
+  it should "not create prewarm container when used memory reaches the limit" in within(timeout) {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    val pool =
+      system.actorOf(ContainerPool
+        .props(factory, poolConfig(MemoryLimit.STD_MEMORY * 1), feed.ref, List(PrewarmingConfig(2, exec, memoryLimit))))
+    containers(0).expectMsg(Start(exec, memoryLimit))
+    containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
+
+    containers(1).expectNoMessage(100.milliseconds)
+  }
+
   /*
    * CONTAINER PREWARMING
    */
@@ -320,7 +333,7 @@ class ContainerPoolTests
     val pool =
       system.actorOf(
         ContainerPool
-          .props(factory, poolConfig(0.MB), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
+          .props(factory, poolConfig(MemoryLimit.STD_MEMORY), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
     containers(0).expectMsg(Start(exec, memoryLimit))
   }
 
@@ -329,9 +342,8 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     val pool =
-      system.actorOf(
-        ContainerPool
-          .props(factory, poolConfig(MemoryLimit.STD_MEMORY), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
+      system.actorOf(ContainerPool
+        .props(factory, poolConfig(MemoryLimit.STD_MEMORY * 2), feed.ref, List(PrewarmingConfig(1, exec, memoryLimit))))
     containers(0).expectMsg(Start(exec, memoryLimit))
     containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
     pool ! runMessage
@@ -365,7 +377,7 @@ class ContainerPoolTests
       ContainerPool
         .props(
           factory,
-          poolConfig(MemoryLimit.STD_MEMORY),
+          poolConfig(MemoryLimit.STD_MEMORY * 2),
           feed.ref,
           List(PrewarmingConfig(1, alternativeExec, memoryLimit))))
     containers(0).expectMsg(Start(alternativeExec, memoryLimit)) // container0 was prewarmed
@@ -385,7 +397,7 @@ class ContainerPoolTests
         ContainerPool
           .props(
             factory,
-            poolConfig(MemoryLimit.STD_MEMORY),
+            poolConfig(MemoryLimit.STD_MEMORY * 2),
             feed.ref,
             List(PrewarmingConfig(1, exec, alternativeLimit))))
     containers(0).expectMsg(Start(exec, alternativeLimit)) // container0 was prewarmed
@@ -793,9 +805,21 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     stream.reset()
+    val prewarmExpirationCheckInitDelay = FiniteDuration(2, TimeUnit.SECONDS)
     val prewarmExpirationCheckIntervel = FiniteDuration(2, TimeUnit.SECONDS)
     val poolConfig =
-      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 4, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
+      ContainerPoolConfig(
+        MemoryLimit.STD_MEMORY * 4,
+        0.5,
+        false,
+        prewarmExpirationCheckInitDelay,
+        prewarmExpirationCheckIntervel,
+        None,
+        100,
+        3,
+        false,
+        1.second,
+        10)
     val initialCount = 2
     val pool =
       system.actorOf(
@@ -828,9 +852,21 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     stream.reset()
+    val prewarmExpirationCheckInitDelay = 2.seconds
     val prewarmExpirationCheckIntervel = 2.seconds
     val poolConfig =
-      ContainerPoolConfig(MemoryLimit.STD_MEMORY * 8, 0.5, false, prewarmExpirationCheckIntervel, None, 100)
+      ContainerPoolConfig(
+        MemoryLimit.STD_MEMORY * 12,
+        0.5,
+        false,
+        prewarmExpirationCheckInitDelay,
+        prewarmExpirationCheckIntervel,
+        None,
+        100,
+        3,
+        false,
+        1.second,
+        10)
     val minCount = 0
     val initialCount = 2
     val maxCount = 4
@@ -1203,7 +1239,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "remove expired in order of expiration" in {
-    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 1)
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 2.second, 10.seconds, None, 1, 3, false, 1.second, 10)
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
     //use a second kind so that we know sorting is not isolated to the expired of each kind
     val exec2 = CodeExecAsString(RuntimeManifest("actionKind2", ImageName("testImage")), "testCode", None)
@@ -1227,7 +1263,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
   it should "remove only the prewarmExpirationLimit of expired prewarms" in {
     //limit prewarm removal to 2
-    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 2)
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 2.second, 10.seconds, None, 2, 3, false, 1.second, 10)
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
     val memoryLimit = 256.MB
     val prewarmConfig =
@@ -1253,7 +1289,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
   it should "remove only the expired prewarms regardless of minCount" in {
     //limit prewarm removal to 100
-    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 10.seconds, None, 100)
+    val poolConfig = ContainerPoolConfig(0.MB, 0.5, false, 2.second, 10.seconds, None, 100, 3, false, 1.second, 10)
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
     val memoryLimit = 256.MB
     //minCount is 2 - should leave at least 2 prewarms when removing expired

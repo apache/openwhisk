@@ -16,6 +16,7 @@
 - [ ] Controller
 - [ ] Message Bus (e.g., Kafka)
 - [ ] Loadbalancer
+- [ ] Scheduler
 - [ ] Invoker
 - [ ] Intrinsic actions (e.g., sequences, conductors)
 - [ ] Data stores (e.g., CouchDB)
@@ -35,7 +36,7 @@
 <!--- Please review the points below which help you make sure you've covered all aspects of the change you're making. -->
 
 - [ ] I signed an [Apache CLA](https://github.com/apache/openwhisk/blob/master/CONTRIBUTING.md).
-- [ ] I reviewed the [style guides](https://github.com/apache/openwhisk/wiki/Contributing:-Git-guidelines#code-readiness) and followed the recommendations (Travis CI will check :).
+- [ ] I reviewed the [style guides](https://github.com/apache/openwhisk/blob/master/CONTRIBUTING.md#coding-standards) and followed the recommendations (Travis CI will check :).
 - [ ] I added tests to cover my changes.
 - [ ] My changes require further changes to the documentation.
 - [ ] I updated the documentation where necessary.

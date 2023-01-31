@@ -22,17 +22,13 @@ import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.event.Logging.InfoLevel
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
+import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import kamon.Kamon
-import pureconfig._
-import pureconfig.generic.auto._
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 import org.apache.openwhisk.common.Https.HttpsConfig
-import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging, LoggingMarkers, TransactionId}
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.common._
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.MessagingProvider
 import org.apache.openwhisk.core.containerpool.logging.LogStoreProvider
 import org.apache.openwhisk.core.database.{ActivationStoreProvider, CacheChangeNotification, RemoteCacheInvalidation}
@@ -40,13 +36,19 @@ import org.apache.openwhisk.core.entitlement._
 import org.apache.openwhisk.core.entity.ActivationId.ActivationIdGenerator
 import org.apache.openwhisk.core.entity.ExecManifest.Runtimes
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.loadBalancer.{InvokerState, LoadBalancerProvider}
+import org.apache.openwhisk.core.loadBalancer.LoadBalancerProvider
+import org.apache.openwhisk.http.CorsSettings.RespondWithServerCorsHeaders
+import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 import org.apache.openwhisk.spi.SpiLoader
+import pureconfig._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+import pureconfig.generic.auto._
 
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.Await
 import scala.util.{Failure, Success}
 
 /**
@@ -76,9 +78,9 @@ class Controller(val instance: ControllerInstanceId,
                  runtimes: Runtimes,
                  implicit val whiskConfig: WhiskConfig,
                  implicit val actorSystem: ActorSystem,
-                 implicit val materializer: ActorMaterializer,
                  implicit val logging: Logging)
-    extends BasicRasService {
+    extends BasicRasService
+    with RespondWithServerCorsHeaders {
 
   TransactionId.controller.mark(
     this,
@@ -90,6 +92,7 @@ class Controller(val instance: ControllerInstanceId,
    * A Route in Akka is technically a function taking a RequestContext as a parameter.
    *
    * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
+   *
    * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
    */
   override def routes(implicit transid: TransactionId): Route = {
@@ -97,7 +100,7 @@ class Controller(val instance: ControllerInstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ adminRoutes
   }
 
   // initialize datastores
@@ -121,7 +124,7 @@ class Controller(val instance: ControllerInstanceId,
   private implicit val activationIdFactory = new ActivationIdGenerator {}
   private implicit val logStore = SpiLoader.get[LogStoreProvider].instance(actorSystem)
   private implicit val activationStore =
-    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, materializer, logging)
+    SpiLoader.get[ActivationStoreProvider].instance(actorSystem, logging)
 
   // register collections
   Collection.initialize(entityStore)
@@ -168,6 +171,22 @@ class Controller(val instance: ControllerInstanceId,
     }
   }
 
+  /**
+   * Handles GET /activation URI.
+   *
+   * @return running activation
+   */
+  protected[controller] val activationStatus = {
+    implicit val executionContext = actorSystem.dispatcher
+    (pathPrefix("activation") & get) {
+      pathEndOrSingleSlash {
+        complete(loadBalancer.activeActivationsByController.map(_.toJson))
+      } ~ path("count") {
+        complete(loadBalancer.activeActivationsByController(controllerInstance.asString).map(_.toJson))
+      }
+    }
+  }
+
   // controller top level info
   private val info = Controller.info(
     whiskConfig,
@@ -176,6 +195,38 @@ class Controller(val instance: ControllerInstanceId,
     LogLimit.config,
     runtimes,
     List(apiV1.basepath()))
+
+  private val controllerUsername = loadConfigOrThrow[String](ConfigKeys.whiskControllerUsername)
+  private val controllerPassword = loadConfigOrThrow[String](ConfigKeys.whiskControllerPassword)
+
+  /**
+   * disable controller
+   */
+  private def disable(implicit transid: TransactionId) = {
+    implicit val executionContext = actorSystem.dispatcher
+    implicit val jsonPrettyResponsePrinter = PrettyPrinter
+    (path("disable") & post) {
+      extractCredentials {
+        case Some(BasicHttpCredentials(username, password)) =>
+          if (username == controllerUsername && password == controllerPassword) {
+            loadBalancer.close
+            logging.warn(this, "controller is disabled")
+            complete("controller is disabled")
+          } else {
+            terminate(StatusCodes.Unauthorized, "username or password are wrong.")
+          }
+        case _ => terminate(StatusCodes.Unauthorized)
+      }
+    }
+  }
+
+  private def adminRoutes(implicit transid: TransactionId) = {
+    sendCorsHeaders {
+      options {
+        complete(OK)
+      } ~ internalInvokerHealth ~ activationStatus ~ disable
+    }
+  }
 }
 
 /**
@@ -186,6 +237,9 @@ object Controller {
   protected val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   protected val interface = loadConfigOrThrow[String]("whisk.controller.interface")
   protected val readinessThreshold = loadConfig[Double]("whisk.controller.readiness-fraction")
+
+  val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
+  val userEventTopicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsUserEventPrefix)
 
   // requiredProperties is a Map whose keys define properties that must be bound to
   // a value, and whose values are default values.   A null value in the Map means there is
@@ -213,6 +267,12 @@ object Controller {
         "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
         "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson,
         "sequence_length" -> config.actionSequenceLimit.toInt.toJson,
+        "default_min_action_duration" -> TimeLimit.namespaceDefaultConfig.min.toMillis.toJson,
+        "default_max_action_duration" -> TimeLimit.namespaceDefaultConfig.max.toMillis.toJson,
+        "default_min_action_memory" -> MemoryLimit.namespaceDefaultConfig.min.toBytes.toJson,
+        "default_max_action_memory" -> MemoryLimit.namespaceDefaultConfig.max.toBytes.toJson,
+        "default_min_action_logs" -> LogLimit.namespaceDefaultConfig.min.toBytes.toJson,
+        "default_max_action_logs" -> LogLimit.namespaceDefaultConfig.max.toBytes.toJson,
         "min_action_duration" -> timeLimit.min.toMillis.toJson,
         "max_action_duration" -> timeLimit.max.toMillis.toJson,
         "min_action_memory" -> memLimit.min.toBytes.toJson,
@@ -263,10 +323,10 @@ object Controller {
     val msgProvider = SpiLoader.get[MessagingProvider]
 
     Seq(
-      ("completed" + instance.asString, "completed", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
-      ("health", "health", None),
-      ("cacheInvalidation", "cache-invalidation", None),
-      ("events", "events", None)).foreach {
+      (topicPrefix + "completed" + instance.asString, "completed", Some(ActivationEntityLimit.MAX_ACTIVATION_LIMIT)),
+      (topicPrefix + "health", "health", None),
+      (topicPrefix + "cacheInvalidation", "cache-invalidation", None),
+      (userEventTopicPrefix + "events", "events", None)).foreach {
       case (topic, topicConfigurationKey, maxMessageBytes) =>
         if (msgProvider.ensureTopic(config, topic, topicConfigurationKey, maxMessageBytes).isFailure) {
           abort(s"failure during msgProvider.ensureTopic for topic $topic")
@@ -275,20 +335,12 @@ object Controller {
 
     ExecManifest.initialize(config) match {
       case Success(_) =>
-        val controller = new Controller(
-          instance,
-          ExecManifest.runtimesManifest,
-          config,
-          actorSystem,
-          ActorMaterializer.create(actorSystem),
-          logger)
+        val controller = new Controller(instance, ExecManifest.runtimesManifest, config, actorSystem, logger)
 
         val httpsConfig =
           if (Controller.protocol == "https") Some(loadConfigOrThrow[HttpsConfig]("whisk.controller.https")) else None
 
-        BasicHttpService.startHttpService(controller.route, port, httpsConfig, interface)(
-          actorSystem,
-          controller.materializer)
+        BasicHttpService.startHttpService(controller.route, port, httpsConfig, interface)(actorSystem)
 
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")

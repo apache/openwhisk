@@ -66,8 +66,8 @@ trait RunCliCmd extends Matchers {
           stdinFile: Option[File] = None,
           showCmd: Boolean = false,
           hideFromOutput: Seq[String] = Seq.empty,
-          retriesOnNetworkError: Int = 3): RunResult = {
-    require(retriesOnNetworkError >= 0, "retry count on network error must not be negative")
+          retriesOnError: Int = 3): RunResult = {
+    require(retriesOnError >= 0, "retry count on network error must not be negative")
 
     val args = baseCommand
     if (verbose) args += "--verbose"
@@ -79,7 +79,7 @@ trait RunCliCmd extends Matchers {
     if (showCmd) println(args.mkString(" "))
 
     val rr =
-      retry(0, retriesOnNetworkError, () => runCmd(DONTCARE_EXIT, workingDir, sys.env ++ env, stdinFile, args.toSeq))
+      retry(0, retriesOnError, () => runCmd(DONTCARE_EXIT, workingDir, sys.env ++ env, stdinFile, args.toSeq))
 
     withClue(hideStr(reportFailure(args, expectedExitCode, rr).toString(), hideFromOutput)) {
       if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
@@ -96,7 +96,7 @@ trait RunCliCmd extends Matchers {
   /** Retries cmd on network error exit. */
   private def retry(i: Int, N: Int, cmd: () => RunResult): RunResult = {
     val rr = cmd()
-    if (rr.exitCode == NETWORK_ERROR_EXIT && i < N) {
+    if (rr.exitCode != SUCCESS_EXIT && i < N) {
       Thread.sleep(1.second.toMillis)
       println(s"command will retry to due to network error: $rr")
       retry(i + 1, N, cmd)

@@ -61,21 +61,21 @@ Further, you should automate and pass the following test suites:
 Actions when created specify the desired runtime for the function via a property called "kind".
 When using the `wsk` CLI, this is specified as `--kind <runtime-kind>`. The value is typically
 a string describing the language (e.g., `nodejs`) followed by a colon and the version for the runtime
-as in `nodejs:10` or `php:7.4`.
+as in `nodejs:14` or `php:7.4`.
 
 The manifest is a map of runtime family names to an array of specific kinds. The details of the
 schema are found in the [Exec Manifest](../common/scala/src/main/scala/org/apache/openwhisk/core/entity/ExecManifest.scala).
 As an example, the following entry add a new runtime family called `nodejs` with a single kind
-`nodejs:10`.
+`nodejs:14`.
 
 ```json
 {
   "nodejs": [{
-    "kind": "nodejs:10",
+    "kind": "nodejs:14",
     "default": true,
     "image": {
       "prefix": "openwhisk",
-      "name": "nodejs10action",
+      "name": "action-nodejs-v10",
       "tag": "latest"
     }
   }]
@@ -113,7 +113,7 @@ new language and added to the [test artifacts directory](../tests/dat/actions/un
 with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
 a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
 runtime manifest entry, replacing `:` in the kind with a `-`.
-For example, a plain text function for `nodejs:10` becomes `nodejs-10.txt`.
+For example, a plain text function for `nodejs:14` becomes `nodejs-14.txt`.
 
 ```js
 function main(args) {
@@ -283,7 +283,7 @@ The OpenWhisk platform will perform a generic integration test as part of its ba
 system tests. This integration test will require a [test function](#the-test-action) to
 be available so that the test harness can create, invoke, and delete the action.
 
-### Supporting Additonal Execution Environments
+### Supporting Additional Execution Environments
 
 There are now several runtimes that support execution environments in addition to OpenWhisk. Currently only an interface for single entrypoint execution environments has been defined, but more could be defined in the future.
 

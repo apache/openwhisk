@@ -30,21 +30,21 @@ distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 project.archivesBaseName = "openwhisk-user-events"
 
 dependencies {
-    compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile project(':common:scala')
+    implementation "org.scala-lang:scala-library:${gradle.scala.version}"
+    implementation project(':common:scala')
 
-    compile "com.typesafe.akka:akka-stream-kafka_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
+    implementation "com.typesafe.akka:akka-stream-kafka_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
 
-    compile "io.prometheus:simpleclient:0.6.0"
-    compile "io.prometheus:simpleclient_common:0.6.0"
+    implementation "io.prometheus:simpleclient:0.6.0"
+    implementation "io.prometheus:simpleclient_common:0.6.0"
 
-    testCompile "junit:junit:4.11"
-    testCompile "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
-    testCompile "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
-    testCompile "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
-    testCompile "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
-    testCompile "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
-    testCompile "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+    testImplementation "junit:junit:4.11"
+    testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
+    testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
+    testImplementation "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
+    testImplementation "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    testImplementation "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    testImplementation "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
 }
 
 mainClassName = "org.apache.openwhisk.core.monitoring.metrics.Main"

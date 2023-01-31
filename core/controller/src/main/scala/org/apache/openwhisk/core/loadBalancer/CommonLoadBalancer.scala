@@ -23,13 +23,12 @@ import java.util.concurrent.atomic.LongAdder
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import akka.stream.ActorMaterializer
-import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.common.LoggingMarkers._
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
+import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
@@ -44,9 +43,9 @@ import scala.util.{Failure, Success}
  */
 abstract class CommonLoadBalancer(config: WhiskConfig,
                                   feedFactory: FeedFactory,
-                                  controllerInstance: ControllerInstanceId)(implicit val actorSystem: ActorSystem,
+                                  controllerInstance: ControllerInstanceId)(implicit
+                                                                            val actorSystem: ActorSystem,
                                                                             logging: Logging,
-                                                                            materializer: ActorMaterializer,
                                                                             messagingProvider: MessagingProvider)
     extends LoadBalancer {
 
@@ -61,6 +60,8 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   protected[loadBalancer] val activationPromises =
     TrieMap[ActivationId, Promise[Either[ActivationId, WhiskActivation]]]()
   protected val activationsPerNamespace = TrieMap[UUID, LongAdder]()
+  protected val activationsPerController = TrieMap[ControllerInstanceId, LongAdder]()
+  protected val activationsPerInvoker = TrieMap[InvokerInstanceId, LongAdder]()
   protected val totalActivations = new LongAdder()
   protected val totalBlackBoxActivationMemory = new LongAdder()
   protected val totalManagedActivationMemory = new LongAdder()
@@ -78,11 +79,20 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
       totalManagedActivationMemory.longValue)
   }
 
-  actorSystem.scheduler.schedule(10.seconds, 10.seconds)(emitMetrics())
+  actorSystem.scheduler.scheduleAtFixedRate(10.seconds, 10.seconds)(() => emitMetrics())
 
   override def activeActivationsFor(namespace: UUID): Future[Int] =
     Future.successful(activationsPerNamespace.get(namespace).map(_.intValue).getOrElse(0))
   override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue)
+  override def activeActivationsByController(controller: String): Future[Int] =
+    Future.successful(activationsPerController.get(ControllerInstanceId(controller)).map(_.intValue()).getOrElse(0))
+  override def activeActivationsByController: Future[List[(String, String)]] =
+    Future.successful(
+      activationSlots.values.map(entry => (entry.id.asString, entry.fullyQualifiedEntityName.toString)).toList)
+  override def activeActivationsByInvoker(invoker: String): Future[Int] =
+    Future.successful(
+      activationsPerInvoker.get(InvokerInstanceId(invoker.toInt, userMemory = 0.MB)).map(_.intValue()).getOrElse(0))
+  override def close: Unit = activationFeed ! GracefulShutdown
 
   /**
    * Calculate the duration within which a completion ack must be received for an activation.
@@ -125,6 +135,10 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
     totalActivationMemory.add(action.limits.memory.megabytes)
 
     activationsPerNamespace.getOrElseUpdate(msg.user.namespace.uuid, new LongAdder()).increment()
+    activationsPerController.getOrElseUpdate(controllerInstance, new LongAdder()).increment()
+    activationsPerInvoker
+      .getOrElseUpdate(InvokerInstanceId(instance.instance, userMemory = 0.MB), new LongAdder())
+      .increment()
 
     // Completion Ack must be received within the calculated time.
     val completionAckTimeout = calculateCompletionAckTimeout(action.limits.timeout.duration)
@@ -162,7 +176,8 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           action.fullyQualifiedName(true),
           timeoutHandler,
           isBlackboxInvocation,
-          msg.blocking)
+          msg.blocking,
+          controllerInstance)
       })
 
     resultPromise
@@ -174,10 +189,10 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   /** 3. Send the activation to the invoker */
   protected def sendActivationToInvoker(producer: MessageProducer,
                                         msg: ActivationMessage,
-                                        invoker: InvokerInstanceId): Future[RecordMetadata] = {
+                                        invoker: InvokerInstanceId): Future[ResultMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
-    val topic = s"invoker${invoker.toInt}"
+    val topic = s"${Controller.topicPrefix}invoker${invoker.toInt}"
 
     MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
     val start = transid.started(
@@ -191,7 +206,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
         transid.finished(
           this,
           start,
-          s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]",
+          s"posted to ${status.topic}[${status.partition}][${status.offset}]",
           logLevel = InfoLevel)
       case Failure(_) => transid.failed(this, start, s"error on posting to topic $topic")
     }
@@ -287,6 +302,10 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
           if (entry.isBlackbox) totalBlackBoxActivationMemory else totalManagedActivationMemory
         totalActivationMemory.add(entry.memoryLimit.toMB * (-1))
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
+        activationsPerController.get(entry.controllerId).foreach(_.decrement())
+        activationsPerInvoker
+          .get(InvokerInstanceId(entry.invokerName.instance, userMemory = 0.MB))
+          .foreach(_.decrement())
 
         invoker.foreach(releaseInvoker(_, entry))
 

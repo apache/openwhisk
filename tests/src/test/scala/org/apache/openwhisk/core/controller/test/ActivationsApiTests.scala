@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.controller.test
 
 import java.time.{Clock, Instant}
-
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Route
@@ -31,7 +30,7 @@ import org.apache.openwhisk.core.entitlement.Collection
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.{ErrorResponse, Messages}
-import org.apache.openwhisk.core.database.UserContext
+import org.apache.openwhisk.core.database.{ActivationStoreLevel, UserContext}
 
 /**
  * Tests Activations API.
@@ -95,7 +94,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = Instant.now)
     }.toList
     try {
-      (notExpectedActivations ++ activations).foreach(storeActivation(_, false, false, context))
+      (notExpectedActivations ++ activations).foreach(
+        storeActivation(_, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context))
       waitOnListActivationsInNamespace(namespace, 2, context)
 
       org.apache.openwhisk.utils.retry {
@@ -179,7 +179,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }.toList
 
     try {
-      (notExpectedActivations ++ activations).foreach(storeActivation(_, false, false, context))
+      (notExpectedActivations ++ activations).foreach(
+        storeActivation(_, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context))
       waitOnListActivationsInNamespace(namespace, 2, context)
       checkCount("", 2)
 
@@ -254,7 +255,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = now.plusSeconds(30))) // should match
 
     try {
-      (notExpectedActivations ++ activations).foreach(storeActivation(_, false, false, context))
+      (notExpectedActivations ++ activations).foreach(
+        storeActivation(_, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context))
       waitOnListActivationsInNamespace(namespace, activations.length, context)
 
       { // get between two time stamps
@@ -363,7 +365,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         annotations = Parameters("path", s"${namespace.asString}/pkg/xyz"))
     }.toList
     try {
-      (notExpectedActivations ++ activations ++ activationsInPackage).foreach(storeActivation(_, false, false, context))
+      (notExpectedActivations ++ activations ++ activationsInPackage).foreach(
+        storeActivation(_, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context))
       waitOnListActivationsMatchingName(namespace, EntityPath("xyz"), activations.length, context)
       waitOnListActivationsMatchingName(
         namespace,
@@ -479,7 +482,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }.toList
 
     try {
-      activations.foreach(storeActivation(_, false, false, context))
+      activations.foreach(
+        storeActivation(_, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context))
       waitOnListActivationsInNamespace(namespace, activations.size, context)
 
       Get(s"$collectionPath?skip=1") ~> Route.seal(routes(creds)) ~> check {
@@ -503,7 +507,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }.toList
 
     try {
-      activations.foreach(storeActivation(_, false, false, context))
+      activations.foreach(
+        storeActivation(_, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context))
       waitOnListActivationsInNamespace(namespace, activations.size, context)
 
       Get(s"$collectionPath?limit=1") ~> Route.seal(routes(creds)) ~> check {
@@ -533,7 +538,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
     try {
-      storeActivation(activation, false, false, context)
+      storeActivation(activation, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context)
 
       Get(s"$collectionPath/${activation.activationId.asString}") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -570,7 +575,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
     try {
-      storeActivation(activation, false, false, context)
+      storeActivation(activation, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context)
 
       Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -583,7 +588,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   }
 
   //// GET /activations/id/result when db store is disabled
-  it should "return activation empty when db store is disabled" in {
+  it should "return activation empty when db store is set to failures for successful blocking" in {
     implicit val tid = transid()
     val activation =
       WhiskActivation(
@@ -594,7 +599,26 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
 
-    storeActivation(activation, true, true, context)
+    storeActivation(activation, true, ActivationStoreLevel.STORE_FAILURES, ActivationStoreLevel.STORE_ALWAYS, context)
+
+    Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
+      status should be(NotFound)
+    }
+  }
+
+  //// GET /activations/id/result when db store is disabled
+  it should "return activation empty when db store is set to failures for non-blocking" in {
+    implicit val tid = transid()
+    val activation =
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
+
+    storeActivation(activation, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_FAILURES, context)
 
     Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
@@ -602,7 +626,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   }
 
   //// GET /activations/id/result when store is disabled and activation is not blocking
-  it should "get activation result by id when db store is disabled and activation is not blocking" in {
+  it should "get activation result by id when db store is disabled for successful blocking and activation is not blocking" in {
     implicit val tid = transid()
     val activation =
       WhiskActivation(
@@ -613,7 +637,12 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
     try {
-      storeActivation(activation, false, true, context)
+      storeActivation(
+        activation,
+        false,
+        ActivationStoreLevel.STORE_FAILURES,
+        ActivationStoreLevel.STORE_ALWAYS,
+        context)
 
       Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -626,7 +655,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   }
 
   //// GET /activations/id/result when store is disabled and activation is unsuccessful
-  it should "get activation result by id when db store is disabled and activation is unsuccessful" in {
+  it should "get activation result by id when db store is set to failures and activation is unsuccessful" in {
     implicit val tid = transid()
     val activation =
       WhiskActivation(
@@ -638,7 +667,65 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = Instant.now,
         response = ActivationResponse.whiskError("activation error"))
     try {
-      storeActivation(activation, true, true, context)
+      storeActivation(
+        activation,
+        true,
+        ActivationStoreLevel.STORE_FAILURES,
+        ActivationStoreLevel.STORE_FAILURES,
+        context)
+
+      Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[JsObject]
+        response should be(activation.response.toExtendedJson)
+      }
+    } finally {
+      deleteActivation(ActivationId(activation.docid.asString), context)
+    }
+  }
+
+  it should "return activation empty when db store is set to not application failures and activation is application failure" in {
+    implicit val tid = transid()
+    val activation =
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now,
+        response = ActivationResponse.applicationError("activation error"))
+
+    storeActivation(
+      activation,
+      true,
+      ActivationStoreLevel.STORE_FAILURES_NOT_APPLICATION_ERRORS,
+      ActivationStoreLevel.STORE_FAILURES_NOT_APPLICATION_ERRORS,
+      context)
+
+    Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
+      status should be(NotFound)
+    }
+  }
+
+  it should "get activation result by id when db store is set to not application failures failures and activation is unsuccessful" in {
+    implicit val tid = transid()
+    val activation =
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now,
+        response = ActivationResponse.whiskError("activation error"))
+    try {
+      storeActivation(
+        activation,
+        true,
+        ActivationStoreLevel.STORE_FAILURES_NOT_APPLICATION_ERRORS,
+        ActivationStoreLevel.STORE_FAILURES_NOT_APPLICATION_ERRORS,
+        context)
 
       Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -662,7 +749,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
     try {
-      storeActivation(activation, false, false, context)
+      storeActivation(activation, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context)
 
       Get(s"$collectionPath/${activation.activationId.asString}/logs") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -685,7 +772,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
-    storeActivation(activation, false, false, context)
+    storeActivation(activation, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context)
     try {
 
       Get(s"$collectionPath/${activation.activationId.asString}/bogus") ~> Route.seal(routes(creds)) ~> check {
@@ -758,7 +845,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
     val activation =
       new BadActivation(namespace, aname(), creds.subject, ActivationId.generate(), Instant.now, Instant.now)
-    storeActivation(activation, false, false, context)
+    storeActivation(activation, false, ActivationStoreLevel.STORE_ALWAYS, ActivationStoreLevel.STORE_ALWAYS, context)
 
     Get(s"$collectionPath/${activation.activationId}") ~> Route.seal(routes(creds)) ~> check {
       status should be(InternalServerError)

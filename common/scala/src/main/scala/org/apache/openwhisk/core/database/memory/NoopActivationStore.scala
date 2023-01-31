@@ -18,10 +18,8 @@
 package org.apache.openwhisk.core.database.memory
 
 import java.time.Instant
-
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import org.apache.openwhisk.common.{Logging, TransactionId, WhiskInstants}
+import org.apache.openwhisk.common.{Logging, PrintStreamLogging, TransactionId, WhiskInstants}
 import org.apache.openwhisk.core.database.{
   ActivationStore,
   ActivationStoreProvider,
@@ -34,6 +32,7 @@ import spray.json.{JsNumber, JsObject}
 import scala.concurrent.Future
 
 object NoopActivationStore extends ActivationStore with WhiskInstants {
+  override val logging = new PrintStreamLogging()
   private val emptyInfo = DocInfo("foo")
   private val emptyCount = JsObject("activations" -> JsNumber(0))
   private val dummyActivation = WhiskActivation(
@@ -89,6 +88,6 @@ object NoopActivationStore extends ActivationStore with WhiskInstants {
 }
 
 object NoopActivationStoreProvider extends ActivationStoreProvider {
-  override def instance(actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, logging: Logging) =
+  override def instance(actorSystem: ActorSystem, logging: Logging) =
     NoopActivationStore
 }

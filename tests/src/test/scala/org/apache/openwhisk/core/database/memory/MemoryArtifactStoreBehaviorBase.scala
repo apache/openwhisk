@@ -50,8 +50,7 @@ trait MemoryArtifactStoreBehaviorBase extends FlatSpec with ArtifactStoreBehavio
       WhiskEntityJsonFormat,
       WhiskDocumentReader,
       actorSystem,
-      logging,
-      materializer)
+      logging)
 
   override lazy val activationStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader

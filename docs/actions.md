@@ -54,7 +54,6 @@ into a language-specific tutorial. If your preferred language isn't supported di
 the [Docker](actions-docker.md) action or [native binary](actions-docker.md#creating-native-actions)
 paths more suitable. Or, you can [create a new runtime](actions-new.md).
 
-* [Ballerina](actions-ballerina.md)
 * [Go](actions-go.md)
 * [Java](actions-java.md)
 * [JavaScript](actions-nodejs.md)
@@ -81,6 +80,84 @@ You can create a new runtime in two ways:
 
 Follow the instructions in [Updating Action Language Runtimes](actions-update.md) for updating, removing or renaming
 runtime kinds or language families.
+
+### How prewarm containers are provisioned without a reactive configuration
+
+Prewarmed containers are created when an invoker starts, they are created according to runtimes.json's stemCells, e.g.
+```
+{
+    "kind": "nodejs:14",
+    "default": true,
+    "image": {
+        "prefix": "openwhisk",
+        "name": "action-nodejs-v14",
+        "tag": "nightly"
+    },
+    "deprecated": false,
+    "attached": {
+        "attachmentName": "codefile",
+        "attachmentType": "text/plain"
+     },
+     "stemCells": [
+     {
+        "initialCount": 2,
+        "memory": "256 MB"
+     }
+     ]
+}
+```
+In the above example, there is only one runtime configuration, which is `nodejs:14`.
+It has a stem cell configuration and 2 containers with 256MB memory for `nodejs:14` will be provisioned when an invoker starts.
+When an activation with the `nodejs:14` kind arrives, one of the prewarm containers can be used to alleviate a cold start.
+A prewarm container that is assigned to an action is moved to the busy pool and the invoker creates one more prewarm container to replenish the prewarm pool.
+In this way, when no reactive configuration is configured, an invoker always maintains the same number of prewarm containers.
+
+### How prewarmed containers are provisioned with a reactive configuration
+
+With a reactive configuration, the number of prewarm containers is dynamically controlled, e.g.
+```
+{
+    "kind": "nodejs:14",
+    "default": true,
+    "image": {
+        "prefix": "openwhisk",
+        "name": "action-nodejs-v14",
+        "tag": "nightly"
+    },
+    "deprecated": false,
+    "attached": {
+        "attachmentName": "codefile",
+        "attachmentType": "text/plain"
+     },
+     "stemCells": [
+     {
+        "initialCount": 2,
+         "memory": "256 MB",
+         "reactive": {
+             "minCount": 1,
+             "maxCount": 4,
+             "ttl": "2 minutes",
+             "threshold": 2,
+             "increment": 1
+     }
+     ]
+}
+```
+In the above example, there is a reactive configuration for `nodejs:14` and there are 4 underlying configurations.
+* `minCount`: the minimum number of prewarm containers. The number of prewarm containers can't be fewer than this value
+* `maxCount`: the maximum number of prewarm containers. The number of prewarm containers cannot exceed this value
+* `ttl`: the amount of time that prewarm containers can exist without any activation. If no activation for the prewarm container arrives in the given time, the prewarm container will be removed
+* `threshold` and `increment`: these two configurations control the number of new prewarm containers to be created.
+
+The number of prewarmed containers is dynamically controlled when:
+* they are expired due to a TTL, some prewarmed containers are removed to save resources.
+* cold starts happen, some prewarm containers are created according to the following calculus.
+  - `# of prewarm containers to be created` = `# of cold starts` / `threshold` * `increment`
+  - ex1) `cold start number(2)` / `threshold(2)` * `increment(1)` = 1
+  - ex2) `cold start number(4)` / `threshold(2)` * `increment(1)` = 2
+  - ex3) `cold start number(8)` / `threshold(2)` * `increment(1)` = 4
+  - ex4) `cold start number(16)` / `threshold(2)` * `increment(1)` = 4 (cannot exceed the maximum number)
+* no activation arrives for long time, the number of prewarm containers will eventually converge to `minCount`.
 
 ## The basics
 

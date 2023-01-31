@@ -23,7 +23,6 @@ import java.time.Instant
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpRequest
-import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import common.StreamLogging
 import org.junit.runner.RunWith
@@ -56,7 +55,6 @@ class ArtifactWithFileStorageActivationStoreTests()
   implicit val transid: TransactionId = TransactionId.testing
   implicit val notifier: Option[CacheChangeNotification] = None
 
-  private val materializer = ActorMaterializer()
   private val uuid = UUID()
   private val subject = Subject()
   private val user =
@@ -136,7 +134,7 @@ class ArtifactWithFileStorageActivationStoreTests()
 
   it should "store activations in artifact store and to file without result" in {
     val config = ArtifactWithFileStorageActivationStoreConfig("userlogs", "logs", "namespaceId", false)
-    val activationStore = new ArtifactWithFileStorageActivationStore(system, materializer, logging, config)
+    val activationStore = new ArtifactWithFileStorageActivationStore(system, logging, config)
     val logDir = new File(new File(".").getCanonicalPath, config.logPath)
 
     try {
@@ -154,7 +152,7 @@ class ArtifactWithFileStorageActivationStoreTests()
             response = response,
             logs = logs,
             duration = Some(101L),
-            annotations = Parameters("kind", "nodejs:10") ++ Parameters(
+            annotations = Parameters("kind", "nodejs:14") ++ Parameters(
               "limits",
               ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
               Parameters("waitTime", 16.toJson) ++
@@ -187,7 +185,7 @@ class ArtifactWithFileStorageActivationStoreTests()
 
   it should "store activations in artifact store and to file with result" in {
     val config = ArtifactWithFileStorageActivationStoreConfig("userlogs", "logs", "namespaceId", true)
-    val activationStore = new ArtifactWithFileStorageActivationStore(system, materializer, logging, config)
+    val activationStore = new ArtifactWithFileStorageActivationStore(system, logging, config)
     val logDir = new File(new File(".").getCanonicalPath, config.logPath)
 
     try {
@@ -205,7 +203,7 @@ class ArtifactWithFileStorageActivationStoreTests()
             response = response,
             logs = logs,
             duration = Some(101L),
-            annotations = Parameters("kind", "nodejs:10") ++ Parameters(
+            annotations = Parameters("kind", "nodejs:14") ++ Parameters(
               "limits",
               ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
               Parameters("waitTime", 16.toJson) ++
@@ -254,19 +252,18 @@ class ArtifactWithFileStorageActivationStoreTests()
 
       class ArtifactWithFileStorageActivationStoreExtendedTest(
         actorSystem: ActorSystem,
-        actorMaterializer: ActorMaterializer,
         logging: Logging,
         config: ArtifactWithFileStorageActivationStoreConfigExtendedTest =
           loadConfigOrThrow[ArtifactWithFileStorageActivationStoreConfigExtendedTest](
             ConfigKeys.activationStoreWithFileStorage))
-          extends ArtifactActivationStore(actorSystem, actorMaterializer, logging) {
+          extends ArtifactActivationStore(actorSystem, logging) {
 
         private val activationFileStorage =
           new ActivationFileStorage(
             config.logFilePrefix,
             Paths.get(config.logPath),
             config.writeResultToFile,
-            actorMaterializer,
+            actorSystem,
             logging)
 
         def getLogFile = activationFileStorage.getLogFile
@@ -275,7 +272,8 @@ class ArtifactWithFileStorageActivationStoreTests()
         // other simple example for the flag: (includeResult && !activation.response.isSuccess)
 
         override def store(activation: WhiskActivation, context: UserContext)(
-          implicit transid: TransactionId,
+          implicit
+          transid: TransactionId,
           notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
           val additionalFields = Map(config.userIdField -> context.user.namespace.uuid.toJson)
@@ -294,12 +292,12 @@ class ArtifactWithFileStorageActivationStoreTests()
 
       // END - example of a simple ArtifactActivationStore implementation that uses activationToFileExtended
 
-      // writeResultToFile is defined with the inverted value of includeResult and should be overriden by the test
+      // writeResultToFile is defined with the inverted value of includeResult and should be overridden by the test
       val config =
         ArtifactWithFileStorageActivationStoreConfigExtendedTest("userlogs", "logs", "namespaceId", !includeResult)
 
       val activationStore =
-        new ArtifactWithFileStorageActivationStoreExtendedTest(system, materializer, logging, config)
+        new ArtifactWithFileStorageActivationStoreExtendedTest(system, logging, config)
       val logDir = new File(new File(".").getCanonicalPath, config.logPath)
 
       try {
@@ -317,7 +315,7 @@ class ArtifactWithFileStorageActivationStoreTests()
               response = response,
               logs = logs,
               duration = Some(101L),
-              annotations = Parameters("kind", "nodejs:10") ++ Parameters(
+              annotations = Parameters("kind", "nodejs:14") ++ Parameters(
                 "limits",
                 ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
                 Parameters("waitTime", 16.toJson) ++

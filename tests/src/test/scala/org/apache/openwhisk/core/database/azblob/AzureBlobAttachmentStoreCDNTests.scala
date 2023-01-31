@@ -41,7 +41,7 @@ class AzureBlobAttachmentStoreCDNTests extends AzureBlobAttachmentStoreBehaviorB
     super.withFixture(test)
   }
 
-  //With AzureCDN deletes are not immediate and instead the objects may live in CDN cache untill TTL
+  //With AzureCDN deletes are not immediate and instead the objects may live in CDN cache until TTL
   override protected val lazyDeletes = true
 
 }

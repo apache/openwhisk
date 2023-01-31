@@ -35,7 +35,6 @@ import scala.collection.immutable.HashMap
 import scala.concurrent.{blocking, ExecutionContext, Future}
 import scala.concurrent.duration._
 import YARNJsonProtocol._
-import akka.stream.ActorMaterializer
 
 case class YARNConfig(masterUrl: String,
                       yarnLinkLogMessage: Boolean,
@@ -84,7 +83,6 @@ class YARNContainerFactory(actorSystem: ActorSystem,
   val containerStartTimeoutMS = 60000
 
   implicit val as: ActorSystem = actorSystem
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext = actorSystem.dispatcher
 
   override def init(): Unit = {

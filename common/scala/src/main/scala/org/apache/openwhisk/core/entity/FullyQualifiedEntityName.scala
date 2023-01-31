@@ -56,6 +56,7 @@ protected[core] case class FullyQualifiedEntityName(path: EntityPath,
   def namespace: EntityName = path.root
   def qualifiedNameWithLeadingSlash: String = EntityPath.PATHSEP + qualifiedName
   def asString = path.addPath(name) + version.map("@" + _.toString).getOrElse("")
+  def serialize = FullyQualifiedEntityName.serdes.write(this).compactPrint
 
   override def size = qualifiedName.sizeInBytes
   override def toString = asString
@@ -100,6 +101,8 @@ protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
         case Failure(t)                           => deserializationError("fully qualified name malformed")
       }
   }
+
+  protected[core] def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
   /**
    * Converts the name to a fully qualified name.

@@ -30,7 +30,6 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
 import common.WhiskProperties
 import common.WskActorSystem
 import common.WskTestHelpers
@@ -41,8 +40,6 @@ import pureconfig._
 
 @RunWith(classOf[JUnitRunner])
 class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers with WskActorSystem {
-
-  implicit val materializer = ActorMaterializer()
 
   val hosts = WhiskProperties.getProperty("controller.hosts").split(",")
 

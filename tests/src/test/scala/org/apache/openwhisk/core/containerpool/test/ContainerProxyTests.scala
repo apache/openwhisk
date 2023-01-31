@@ -276,7 +276,7 @@ class ContainerProxyTests
     (transid: TransactionId, activation: WhiskActivation, isBlockingActivation: Boolean, context: UserContext) =>
       Future.successful(())
   }
-  val poolConfig = ContainerPoolConfig(2.MB, 0.5, false, 1.minute, None, 100)
+  val poolConfig = ContainerPoolConfig(2.MB, 0.5, false, 2.second, 1.minute, None, 100, 3, false, 1.second, 10)
   def healthchecksConfig(enabled: Boolean = false) = ContainerProxyHealthCheckConfig(enabled, 100.milliseconds, 2)
   val filterEnvVar = (k: String) => Character.isUpperCase(k.charAt(0))
 
@@ -1338,10 +1338,12 @@ class ContainerProxyTests
     timeout) {
     val container = new TestContainer {
       override def run(
-        parameters: JsObject,
+        parameters: JsValue,
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
+        maxResponse: ByteSize,
+        truncation: ByteSize,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         //every other run fails
@@ -1519,10 +1521,12 @@ class ContainerProxyTests
     timeout) {
     val container = new TestContainer {
       override def run(
-        parameters: JsObject,
+        parameters: JsValue,
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
+        maxResponse: ByteSize,
+        truncation: ByteSize,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         atomicRunCount.incrementAndGet()
         Future.successful((initInterval, ActivationResponse.developerError(("boom"))))
@@ -1688,16 +1692,18 @@ class ContainerProxyTests
   it should "resend the job to the parent if /run fails connection after Paused -> Running" in within(timeout) {
     val container = new TestContainer {
       override def run(
-        parameters: JsObject,
+        parameters: JsValue,
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
+        maxResponse: ByteSize,
+        truncation: ByteSize,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
 
         if (reschedule) {
           throw ContainerHealthError(transid, "reconnect failed to xyz")
         }
-        super.run(parameters, environment, timeout, concurrent, reschedule)
+        super.run(parameters, environment, timeout, concurrent, maxResponse, truncation, reschedule)
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -1740,16 +1746,18 @@ class ContainerProxyTests
   it should "resend the job to the parent if /run fails connection after Ready -> Running" in within(timeout) {
     val container = new TestContainer {
       override def run(
-        parameters: JsObject,
+        parameters: JsValue,
         environment: JsObject,
         timeout: FiniteDuration,
         concurrent: Int,
+        maxResponse: ByteSize,
+        truncation: ByteSize,
         reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
 
         if (reschedule) {
           throw ContainerHealthError(transid, "reconnect failed to xyz")
         }
-        super.run(parameters, environment, timeout, concurrent, reschedule)
+        super.run(parameters, environment, timeout, concurrent, maxResponse, truncation, reschedule)
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -2160,10 +2168,12 @@ class ContainerProxyTests
       initPromise.map(_.future).getOrElse(Future.successful(initInterval))
     }
     override def run(
-      parameters: JsObject,
+      parameters: JsValue,
       environment: JsObject,
       timeout: FiniteDuration,
       concurrent: Int,
+      maxResponse: ByteSize,
+      truncation: ByteSize,
       reschedule: Boolean = false)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
 
       // the "init" arguments are not passed on run

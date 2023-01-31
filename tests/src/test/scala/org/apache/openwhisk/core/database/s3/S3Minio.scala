@@ -21,7 +21,6 @@ import java.net.ServerSocket
 
 import actionContainers.ActionContainer
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
@@ -36,8 +35,7 @@ import scala.reflect.ClassTag
 
 trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
   def makeS3Store[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
-                                                       logging: Logging,
-                                                       materializer: ActorMaterializer): AttachmentStore = {
+                                                       logging: Logging): AttachmentStore = {
     val config = ConfigFactory.parseString(s"""
       |whisk {
       |     s3 {

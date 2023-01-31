@@ -35,8 +35,8 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   private val config = new WhiskConfig(ExecManifest.requiredProperties)
   ExecManifest.initialize(config) should be a 'success
 
-  protected val NODEJS10 = "nodejs:10"
-  protected val SWIFT4 = "swift:4.2"
+  protected val NODEJS = "nodejs:14"
+  protected val SWIFT5 = "swift:5.3"
   protected val BLACKBOX = "blackbox"
   protected val JAVA_DEFAULT = "java:8"
 
@@ -45,11 +45,11 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected def imageName(name: String) =
     ExecManifest.runtimesManifest.runtimes.flatMap(_.versions).find(_.kind == name).get.image
 
-  protected def js10Old(code: String, main: Option[String] = None) = {
+  protected def jsOld(code: String, main: Option[String] = None) = {
     CodeExecAsString(
       RuntimeManifest(
-        NODEJS10,
-        imageName(NODEJS10),
+        NODEJS,
+        imageName(NODEJS),
         default = Some(true),
         deprecated = Some(false),
         stemCells = Some(List(StemCell(2, 256.MB)))),
@@ -57,22 +57,22 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
       main.map(_.trim))
   }
 
-  protected def js10(code: String, main: Option[String] = None) = {
+  protected def js(code: String, main: Option[String] = None) = {
     val attachment = attFmt[String].read(code.trim.toJson)
-    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS10).get
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS).get
 
     CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
   }
 
   protected def jsDefault(code: String, main: Option[String] = None) = {
-    js10(code, main)
+    js(code, main)
   }
 
-  protected def js10MetaDataOld(main: Option[String] = None, binary: Boolean) = {
+  protected def jsMetaDataOld(main: Option[String] = None, binary: Boolean) = {
     CodeExecMetaDataAsString(
       RuntimeManifest(
-        NODEJS10,
-        imageName(NODEJS10),
+        NODEJS,
+        imageName(NODEJS),
         default = Some(true),
         deprecated = Some(false),
         stemCells = Some(List(StemCell(2, 256.MB)))),
@@ -80,8 +80,8 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
       main.map(_.trim))
   }
 
-  protected def js10MetaData(main: Option[String] = None, binary: Boolean) = {
-    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS10).get
+  protected def jsMetaData(main: Option[String] = None, binary: Boolean) = {
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS).get
 
     CodeExecMetaDataAsAttachment(manifest, binary, main.map(_.trim))
   }
@@ -101,7 +101,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   protected def swift(code: String, main: Option[String] = None) = {
     val attachment = attFmt[String].read(code.trim.toJson)
-    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT4).get
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT5).get
 
     CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
   }

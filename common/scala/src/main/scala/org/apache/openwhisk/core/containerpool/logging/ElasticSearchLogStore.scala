@@ -75,8 +75,6 @@ class ElasticSearchLogStore(
         elasticSearchConfig.logSchema.time)
   }
 
-  implicit val actorSystem = system
-
   private val esClient = new ElasticSearchRestClient(
     elasticSearchConfig.protocol,
     elasticSearchConfig.host,
