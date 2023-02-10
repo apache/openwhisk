@@ -1074,4 +1074,60 @@ class SchedulingDecisionMakerTests
     // 10 / 3 = 4.0
     testProbe.expectMsg(DecisionResults(AddContainer, 4))
   }
+
+  it should "add only up to the action container limit if less than the namespace limit" in {
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
+    val testProbe = TestProbe()
+
+    // container
+    val msg = QueueSnapshot(
+      initialized = true,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 100,
+      existingContainerCount = 1,
+      inProgressContainerCount = 0,
+      staleActivationNum = 0,
+      existingContainerCountInNamespace = 2,
+      inProgressContainerCountInNamespace = 0,
+      averageDuration = Some(100.0),
+      namespaceLimit = 10,
+      actionLimit = 5,
+      maxActionConcurrency = 3,
+      stateName = Running,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    // one container already exists with an action limit of 5. Number of messages will exceed limit of containers
+    // so use smaller of the two limits
+    testProbe.expectMsg(DecisionResults(AddContainer, 4))
+  }
+
+  it should "add only up to the namespace limit total if existing containers in namespace prevents reaching action limit" in {
+    val decisionMaker = system.actorOf(SchedulingDecisionMaker.props(testNamespace, action, schedulingConfig))
+    val testProbe = TestProbe()
+
+    // container
+    val msg = QueueSnapshot(
+      initialized = true,
+      incomingMsgCount = new AtomicInteger(0),
+      currentMsgCount = 100,
+      existingContainerCount = 1,
+      inProgressContainerCount = 0,
+      staleActivationNum = 0,
+      existingContainerCountInNamespace = 7,
+      inProgressContainerCountInNamespace = 0,
+      averageDuration = Some(100.0),
+      namespaceLimit = 10,
+      actionLimit = 5,
+      maxActionConcurrency = 3,
+      stateName = Running,
+      recipient = testProbe.ref)
+
+    decisionMaker ! msg
+
+    // one container already exists with an action limit of 5. There are currently 7 containers in namespace
+    // so can only add 3 more even if that only gives this action 4 containers when it has an action limit of 5
+    testProbe.expectMsg(DecisionResults(EnableNamespaceThrottling(false), 3))
+  }
 }

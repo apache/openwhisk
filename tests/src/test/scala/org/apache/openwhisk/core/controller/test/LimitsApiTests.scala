@@ -91,6 +91,8 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         responseAs[UserLimits].invocationsPerMinute shouldBe Some(whiskConfig.actionInvokePerMinuteLimit.toInt)
         responseAs[UserLimits].concurrentInvocations shouldBe Some(whiskConfig.actionInvokeConcurrentLimit.toInt)
         responseAs[UserLimits].firesPerMinute shouldBe Some(whiskConfig.triggerFirePerMinuteLimit.toInt)
+        responseAs[UserLimits].maxActionContainerConcurrency shouldBe Some(whiskConfig.actionInvokeConcurrentLimit.toInt)
+
         responseAs[UserLimits].allowedKinds shouldBe None
         responseAs[UserLimits].storeActivations shouldBe None
 
@@ -117,6 +119,7 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         responseAs[UserLimits].firesPerMinute shouldBe Some(testFiresPerMinute)
         responseAs[UserLimits].allowedKinds shouldBe Some(testAllowedKinds)
         responseAs[UserLimits].storeActivations shouldBe Some(testStoreActivations)
+        responseAs[UserLimits].maxActionContainerConcurrency shouldBe Some(testConcurrent)
 
         // provide action limits for namespace
         responseAs[UserLimits].minActionMemory.get.megabytes shouldBe testMemoryMin.megabytes

@@ -17,6 +17,8 @@
 
 package org.apache.openwhisk.core.entity
 
+import org.apache.openwhisk.http.Messages
+
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -55,7 +57,7 @@ protected[core] object ContainerConcurrencyLimit extends ArgNormalizer[Container
   protected[core] def apply(maxConcurrency: Int): ContainerConcurrencyLimit = {
     require(
       maxConcurrency >= MIN_CONTAINER_CONCURRENT,
-      s"max container concurrency $maxConcurrency below allowed threshold of $MIN_CONTAINER_CONCURRENT")
+      Messages.belowMinAllowedActionContainerConcurrency(MIN_CONTAINER_CONCURRENT))
     new ContainerConcurrencyLimit(maxConcurrency)
   }
 

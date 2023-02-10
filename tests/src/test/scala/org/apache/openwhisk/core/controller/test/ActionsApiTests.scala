@@ -945,6 +945,32 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "reject create when max container concurrency is greater than namespace's concurrency" in {
+    implicit val tid = transid()
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(concurrentInvocations = Some(30)))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          None,
+          None,
+          None,
+          None,
+          Some(ContainerConcurrencyLimit(40)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.maxActionContainerConcurrencyExceedsNamespace(30)
+      }
+    }
+  }
+
   it should "reject activation with entity which is too big" in {
     implicit val tid = transid()
     val code = "a" * (systemPayloadLimit.toBytes.toInt + 1)

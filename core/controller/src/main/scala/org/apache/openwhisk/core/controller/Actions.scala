@@ -553,7 +553,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         l.memory getOrElse action.limits.memory,
         l.logs getOrElse action.limits.logs,
         l.concurrency getOrElse action.limits.concurrency,
-        if (l.maxContainerConcurrency.isDefined) l.maxContainerConcurrency else action.limits.maxContainerConcurrency)
+        if (l.maxContainerConcurrency.isDefined) l.maxContainerConcurrency else action.limits.containerConcurrency)
     } getOrElse action.limits
 
     // This is temporary while we are making sequencing directly supported in the controller.

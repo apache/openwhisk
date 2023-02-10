@@ -64,7 +64,9 @@ trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with Aut
               minActionTimeout = Some(TimeLimit(user.limits.allowedMinActionTimeout)),
               maxActionConcurrency = Some(ConcurrencyLimit(user.limits.allowedMaxActionConcurrency)),
               minActionConcurrency = Some(ConcurrencyLimit(user.limits.allowedMinActionConcurrency)),
-              maxParameterSize = Some(user.limits.allowedMaxParameterSize))
+              maxParameterSize = Some(user.limits.allowedMaxParameterSize),
+              maxActionContainerConcurrency =
+                Some(user.limits.concurrentInvocations.getOrElse(concurrentInvocationsSystemDefault)))
             pathEndOrSingleSlash { complete(OK, limits) }
           case _ => reject //should never get here
         }

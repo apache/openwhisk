@@ -46,13 +46,13 @@ protected[entity] abstract class Limits {
  * @param memory the memory limit in megabytes, assured to be non-null because it is a value
  * @param logs the limit for logs written by the container and stored in the activation record, assured to be non-null because it is a value
  * @param concurrency the limit on concurrently processed activations per container, assured to be non-null because it is a value
- * @param maxContainerConcurrency the limit in which an action can scale up to within the confines of the namespace's concurrency limit
+ * @param containerConcurrency the limit in which an action can scale up to within the confines of the namespace's concurrency limit
  */
 protected[core] case class ActionLimits(timeout: TimeLimit = TimeLimit(),
                                         memory: MemoryLimit = MemoryLimit(),
                                         logs: LogLimit = LogLimit(),
                                         concurrency: ConcurrencyLimit = ConcurrencyLimit(),
-                                        maxContainerConcurrency: Option[ContainerConcurrencyLimit] = None)
+                                        containerConcurrency: Option[ContainerConcurrencyLimit] = None)
     extends Limits {
   override protected[entity] def toJson = ActionLimits.serdes.write(this)
 
@@ -86,8 +86,8 @@ protected[core] object ActionLimits extends ArgNormalizer[ActionLimits] with Def
       val memory = MemoryLimit.serdes.read(obj.get("memory") getOrElse deserializationError("'memory' is missing"))
       val logs = obj.get("logs") map { LogLimit.serdes.read(_) } getOrElse LogLimit()
       val concurrency = obj.get("concurrency") map { ConcurrencyLimit.serdes.read(_) } getOrElse ConcurrencyLimit()
-      val maxContainerConcurrency = obj.get("maxContainerConcurrency") map { ContainerConcurrencyLimit.serdes.read }
-      ActionLimits(time, memory, logs, concurrency, maxContainerConcurrency)
+      val containerConcurrency = obj.get("containerConcurrency") map { ContainerConcurrencyLimit.serdes.read }
+      ActionLimits(time, memory, logs, concurrency, containerConcurrency)
     }
 
     def write(a: ActionLimits) = helper.write(a)

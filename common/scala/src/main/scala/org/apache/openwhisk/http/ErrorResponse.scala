@@ -75,6 +75,9 @@ object Messages {
   def maxActionContainerConcurrencyExceedsNamespace(namespaceConcurrencyLimit: Int) =
     s"Max action container concurrency must not exceed your namespace concurrency of $namespaceConcurrencyLimit."
 
+  def belowMinAllowedActionContainerConcurrency(minThreshold: Int) =
+    s"Action container concurrency must be greater than or equal to $minThreshold."
+
   /** System overload message. */
   val systemOverloaded = "System is overloaded, try again later."
 

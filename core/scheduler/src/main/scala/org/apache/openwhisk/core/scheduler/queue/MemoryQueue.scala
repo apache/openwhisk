@@ -933,6 +933,13 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
       getUserLimit(invocationNamespace).andThen {
         case Success(namespaceLimit) =>
+          // extra safeguard to use namespace limit if action limit exceeds due to namespace limit being lowered
+          // by operator after action is deployed
+          val actionLimit = actionMetaData.limits.containerConcurrency
+            .map(limit =>
+              if (limit.maxConcurrentContainers > namespaceLimit) ContainerConcurrencyLimit(namespaceLimit) else limit)
+            .getOrElse(ContainerConcurrencyLimit(namespaceLimit))
+            .maxConcurrentContainers
           decisionMaker ! QueueSnapshot(
             initialized,
             in,
@@ -944,9 +951,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
             namespaceContainerCount.inProgressContainerNumByNamespace,
             averageDuration,
             namespaceLimit,
-            actionMetaData.limits.maxContainerConcurrency
-              .getOrElse(ContainerConcurrencyLimit(namespaceLimit))
-              .maxConcurrentContainers,
+            actionLimit,
             actionMetaData.limits.concurrency.maxConcurrent,
             stateName,
             self)
