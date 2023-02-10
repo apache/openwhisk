@@ -456,7 +456,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         l.memory getOrElse MemoryLimit(),
         l.logs getOrElse LogLimit(),
         l.concurrency getOrElse ConcurrencyLimit(),
-        l.maxContainerConcurrency)
+        l.containerConcurrency)
     } getOrElse ActionLimits()
     // This is temporary while we are making sequencing directly supported in the controller.
     // The parameter override allows this to work with Pipecode.code. Any parameters other
@@ -553,7 +553,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         l.memory getOrElse action.limits.memory,
         l.logs getOrElse action.limits.logs,
         l.concurrency getOrElse action.limits.concurrency,
-        if (l.maxContainerConcurrency.isDefined) l.maxContainerConcurrency else action.limits.containerConcurrency)
+        if (l.containerConcurrency.isDefined) l.containerConcurrency else action.limits.containerConcurrency)
     } getOrElse action.limits
 
     // This is temporary while we are making sequencing directly supported in the controller.
@@ -697,7 +697,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     content.limits
       .map(
         l =>
-          l.maxContainerConcurrency
+          l.containerConcurrency
             .map(
               m =>
                 if (m.maxConcurrentContainers > namespaceConcurrencyLimit)
