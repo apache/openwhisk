@@ -313,7 +313,7 @@ class MemoryQueueFlowTests
     // this is the case where there is no capacity in a namespace and no container can be created.
     decisionMaker.setAutoPilot((sender: ActorRef, msg) => {
       msg match {
-        case QueueSnapshot(_, _, _, _, _, _, _, _, _, _, Running, _) =>
+        case QueueSnapshot(_, _, _, _, _, _, _, _, _, _, _, Running, _) =>
           sender ! DecisionResults(EnableNamespaceThrottling(true), 0)
           TestActor.KeepRunning
 
