@@ -947,6 +947,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
             actionMetaData.limits.maxContainerConcurrency
               .getOrElse(ContainerConcurrencyLimit(namespaceLimit))
               .maxConcurrentContainers,
+            actionMetaData.limits.concurrency.maxConcurrent,
             stateName,
             self)
         case Failure(_: NoDocumentException) =>
@@ -1227,6 +1228,7 @@ case class QueueSnapshot(initialized: Boolean,
                          averageDuration: Option[Double],
                          namespaceLimit: Int,
                          actionLimit: Int,
+                         maxActionConcurrency: Int,
                          stateName: MemoryQueueState,
                          recipient: ActorRef)
 

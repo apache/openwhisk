@@ -91,7 +91,6 @@ object Invoker {
     Map(servicePort -> 8080.toString) ++
       ExecManifest.requiredProperties ++
       kafkaHosts ++
-      zookeeperHosts ++
       wskApiHost
 
   def initKamon(instance: Int): Unit = {
