@@ -1735,7 +1735,6 @@
           "type": "string"
         },
         "value": {
-          "$ref": "#/definitions/AnyValue",
           "description": "Any JSON value"
         }
       }
@@ -1749,9 +1748,6 @@
           "type": "string"
         }
       }
-    },
-    "AnyValue": {
-      "description": "Can be anything: string, number, array, object, etc."
     },
     "PathName": {
       "required": [

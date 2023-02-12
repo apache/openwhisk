@@ -29,9 +29,6 @@ import com.atlassian.oai.validator.report.ValidationReport
 import com.atlassian.oai.validator.whitelist.ValidationErrorsWhitelist
 import com.atlassian.oai.validator.whitelist.rule.WhitelistRules
 
-import scala.annotation.nowarn
-
-@nowarn("cat=deprecation")
 trait SwaggerValidator {
   private val specWhitelist = ValidationErrorsWhitelist
     .create()
@@ -51,7 +48,7 @@ trait SwaggerValidator {
         WhitelistRules.messageContains("Instance value"),
         WhitelistRules.messageContains("not found"),
         WhitelistRules.pathContains("/actions/"),
-        WhitelistRules.methodIs(io.swagger.models.HttpMethod.POST)))
+        WhitelistRules.methodIs(io.swagger.models.HttpMethod.PUT)))
     .withRule(
       "Ignore tests that check for invalid DELETEs and PUTs on actions",
       WhitelistRules.anyOf(
