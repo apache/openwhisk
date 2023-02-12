@@ -44,7 +44,7 @@ protected[entity] class ContainerConcurrencyLimit private (val maxConcurrentCont
 protected[core] object ContainerConcurrencyLimit extends ArgNormalizer[ContainerConcurrencyLimit] {
 
   /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
-  protected[core] val MIN_CONTAINER_CONCURRENT: Int = 1
+  protected[core] val MIN_CONTAINER_CONCURRENT: Int = 0
 
   /**
    * Creates ContainerConcurrencyLimit for limit, iff limit is within permissible range.
