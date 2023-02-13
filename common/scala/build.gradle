@@ -92,7 +92,7 @@ dependencies {
 
     api "com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}:6.7.4"
     //for mongo
-    api "org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.9.0"
+    api "org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.7.0"
 
     api ("com.lightbend.akka:akka-stream-alpakka-s3_${gradle.scala.depVersion}:1.1.2") {
         exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http
