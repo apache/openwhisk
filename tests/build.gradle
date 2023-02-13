@@ -226,7 +226,7 @@ dependencies {
     implementation "io.opentracing:opentracing-mock:0.31.0"
     implementation "org.apache.curator:curator-test:${gradle.curator.version}"
     implementation "com.atlassian.oai:swagger-request-validator-core:1.4.5"
-    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.8.1"
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
     implementation "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
     implementation "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     implementation "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"

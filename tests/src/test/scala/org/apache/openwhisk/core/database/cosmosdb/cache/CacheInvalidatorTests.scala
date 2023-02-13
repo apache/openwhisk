@@ -22,7 +22,7 @@ import akka.Done
 import akka.actor.CoordinatedShutdown
 import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
 import com.typesafe.config.ConfigFactory
-import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
+import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
