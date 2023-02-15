@@ -68,7 +68,7 @@ class CreationJobManagerTests
   val schedulerHost = "127.17.0.1"
   val rpcPort = 13001
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
-  val execAction = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testAction), exec)
+  val execAction = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testAction), DocId(s"$testNamespace/$testAction@0.0.1"), exec)
   val execMetadata =
     CodeExecMetaDataAsString(RuntimeManifest(execAction.exec.kind, ImageName("test")), entryPoint = Some("test"))
   val revision = DocRevision("1-testRev")
@@ -76,6 +76,7 @@ class CreationJobManagerTests
     WhiskActionMetaData(
       execAction.namespace,
       execAction.name,
+      execAction.docId,
       execMetadata,
       execAction.parameters,
       execAction.limits,
@@ -342,6 +343,7 @@ class CreationJobManagerTests
     val actionMetaData = WhiskActionMetaData(
       execAction.namespace,
       execAction.name,
+      execAction.docId,
       execMetadata,
       execAction.parameters,
       execAction.limits,

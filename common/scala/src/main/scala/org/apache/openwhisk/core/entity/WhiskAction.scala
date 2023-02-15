@@ -34,9 +34,9 @@ import org.apache.openwhisk.core.database.{
   ArtifactStore,
   CacheChangeNotification,
   DocumentFactory,
-  NoDocumentException,
   EvictionPolicy,
   MultipleReadersSingleWriterCache,
+  NoDocumentException,
   StaleParameter,
   WriteTime
 }

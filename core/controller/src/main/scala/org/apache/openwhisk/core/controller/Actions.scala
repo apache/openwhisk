@@ -255,7 +255,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                   entitlementProvider.check(user, content.exec))
               } yield (checkAdditionalPrivileges, checkLimits)
 
-
               onComplete(check) {
                 case Success(_) =>
                   onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {

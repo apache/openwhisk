@@ -125,7 +125,7 @@ class FunctionPullingContainerProxyTests
 
   val memoryLimit = 256.MB
 
-  val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+  val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), DocId("actionSpace/actionName@0.0.1"), exec)
 
   val fqn = FullyQualifiedEntityName(action.namespace, action.name, Some(action.version))
 
@@ -135,6 +135,7 @@ class FunctionPullingContainerProxyTests
     action.rev,
     Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty),
     ActivationId.generate(),
+    action.docId,
     ControllerInstanceId("0"),
     blocking = false,
     content = None)

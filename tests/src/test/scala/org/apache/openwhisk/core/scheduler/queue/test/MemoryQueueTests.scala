@@ -1342,6 +1342,7 @@ class MemoryQueueTests
       WhiskActionMetaData(
         action.namespace,
         action.name,
+        action.docId,
         execMetadata,
         action.parameters,
         action.limits,

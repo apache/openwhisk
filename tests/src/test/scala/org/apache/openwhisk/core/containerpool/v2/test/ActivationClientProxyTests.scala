@@ -64,9 +64,10 @@ class ActivationClientProxyTests
   val timeout = 20.seconds
 
   val log = logging
-
+  val testNamespace = "actionSpace"
+  val testActionName = "actionName"
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
-  val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+  val action = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testActionName), DocId(s"$testNamespace/$testActionName@0.0.1"), exec)
   val fqn = action.fullyQualifiedName(true)
   val rev = action.rev
   val schedulerHost = "127.17.0.1"
@@ -82,6 +83,7 @@ class ActivationClientProxyTests
     action.rev,
     Identity(Subject(), Namespace(invocationNamespace, uuid), BasicAuthenticationAuthKey(uuid, Secret()), Set.empty),
     ActivationId.generate(),
+    action.docId,
     ControllerInstanceId("0"),
     blocking = false,
     content = None)
