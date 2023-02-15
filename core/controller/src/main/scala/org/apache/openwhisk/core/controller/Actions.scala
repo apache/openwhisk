@@ -249,7 +249,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           case Failure(_) =>
             entity(as[WhiskActionPut]) { content =>
               val request = content.resolve(user.namespace)
-              checkLimits <- checkActionLimits(user, content)
               val check = for {
                 checkLimits <- checkActionLimits(user, content)
                 checkAdditionalPrivileges <- entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap(_ =>
