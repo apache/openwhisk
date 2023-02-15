@@ -50,7 +50,7 @@ dependencies {
 
     api "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:1.1.2"
 
-    api "ch.qos.logback:logback-classic:1.4.5"
+    api "ch.qos.logback:logback-classic:1.2.11"
     api "org.slf4j:jcl-over-slf4j:1.7.25"
     api "org.slf4j:log4j-over-slf4j:1.7.25"
     api "commons-codec:commons-codec:1.9"
