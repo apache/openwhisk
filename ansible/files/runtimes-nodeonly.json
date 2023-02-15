@@ -10,7 +10,7 @@
         "runtime families or runtime kinds, mark all affected runtime kinds as deprecated (deprecated: true) and",
         "perform a manual migration of all affected actions.",
         "",
-        "This file is meant to list a small set of runtimes used by Travis system tests. Using a small set of runtimes",
+        "This file is meant to list a small set of runtimes used by the GitHub Action system tests. Using a small set of runtimes",
         "instead of all runtimes maintained by the Apache Openwhisk community speeds up tests."
     ],
     "runtimes": {

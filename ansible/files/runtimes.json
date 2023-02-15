@@ -54,6 +54,20 @@
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
                 }
+            },
+            {
+                "kind": "nodejs:18",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-nodejs-v18",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "python": [
@@ -63,6 +77,20 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-python-v3.7",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            },
+            {
+                "kind": "python:3.10",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-python-v3.10",
                     "tag": "nightly"
                 },
                 "deprecated": false,
@@ -137,7 +165,7 @@
             {
                 "kind": "php:7.3",
                 "default": false,
-                "deprecated": false,
+                "deprecated": true,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-php-v7.3",
@@ -169,6 +197,20 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-php-v8.0",
+                    "tag": "nightly"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            },
+            {
+                "kind": "php:8.1",
+                "default": false,
+                "deprecated": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-php-v8.1",
                     "tag": "nightly"
                 },
                 "attached": {
@@ -207,13 +249,27 @@
                     "name": "action-golang-v1.17",
                     "tag": "nightly"
                 }
+            },
+            {
+                "kind": "go:1.20",
+                "default": false,
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-golang-v1.20",
+                    "tag": "nightly"
+                }
             }
         ],
         "dotnet": [
             {
                 "kind": "dotnet:2.2",
-                "default": true,
-                "deprecated": false,
+                "default": false,
+                "deprecated": true,
                 "requireMain": true,
                 "image": {
                     "prefix": "openwhisk",
@@ -227,12 +283,27 @@
             },
             {
                 "kind": "dotnet:3.1",
-                "default": false,
+                "default": true,
                 "deprecated": false,
                 "requireMain": true,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-dotnet-v3.1",
+                    "tag": "nightly"
+                },
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            },
+            {
+                "kind": "dotnet:6.0",
+                "default": false,
+                "deprecated": false,
+                "requireMain": true,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-dotnet-v6.0",
                     "tag": "nightly"
                 },
                 "attached": {
