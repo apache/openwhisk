@@ -54,7 +54,6 @@ into a language-specific tutorial. If your preferred language isn't supported di
 the [Docker](actions-docker.md) action or [native binary](actions-docker.md#creating-native-actions)
 paths more suitable. Or, you can [create a new runtime](actions-new.md).
 
-* [Ballerina](actions-ballerina.md)
 * [Go](actions-go.md)
 * [Java](actions-java.md)
 * [JavaScript](actions-nodejs.md)

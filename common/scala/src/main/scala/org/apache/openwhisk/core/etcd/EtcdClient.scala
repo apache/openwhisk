@@ -48,10 +48,16 @@ object RichListenableFuture {
 
 object EtcdClient {
   // hostAndPorts format: {HOST}:{PORT}[,{HOST}:{PORT},{HOST}:{PORT}, ...]
-  def apply(hostAndPorts: String)(implicit ece: ExecutionContextExecutor): EtcdClient = {
-    require(hostAndPorts != null)
-    val client: Client = Client.forEndpoints(hostAndPorts).withPlainText().build()
-    new EtcdClient(client)(ece)
+  def apply(config: EtcdConfig)(implicit ece: ExecutionContextExecutor): EtcdClient = {
+    require(config.hosts != null)
+    require(
+      (config.username.nonEmpty && config.password.nonEmpty) || (config.username.isEmpty && config.password.isEmpty))
+    val clientBuilder = Client.forEndpoints(config.hosts).withPlainText()
+    if (config.username.nonEmpty && config.password.nonEmpty) {
+      new EtcdClient(clientBuilder.withCredentials(config.username.get, config.password.get).build())
+    } else {
+      new EtcdClient(clientBuilder.build())(ece)
+    }
   }
 
   def apply(client: Client)(implicit ece: ExecutionContextExecutor): EtcdClient = {

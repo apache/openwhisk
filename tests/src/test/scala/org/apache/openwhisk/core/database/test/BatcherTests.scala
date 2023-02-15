@@ -20,7 +20,6 @@ package org.apache.openwhisk.core.database.test
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.stream.ActorMaterializer
 import common.{LoggedFunction, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -34,7 +33,6 @@ import scala.concurrent.{Await, Future, Promise}
 
 @RunWith(classOf[JUnitRunner])
 class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   def await[V](f: Future[V]) = Await.result(f, 10.seconds)
 
@@ -56,32 +54,32 @@ class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
 
     val transform = (i: Int) => i + 1
 
-    val batchOperation = LoggedFunction((els: Seq[Int]) => {
+    val batchOperation = LoggedFunction((els: Seq[Int], retry: Int) => {
       batchPromises.dequeue().future.map(_ => els.map(transform))
     })
 
-    val batcher = new Batcher[Int, Int](2, 1)(batchOperation)
+    val batcher = new Batcher[Int, Int](2, 1, 1)(batchOperation)
 
     val values = 1 to 5
     val results = values.map(batcher.put)
 
     // First "batch"
     retry(batchOperation.calls should have size 1, (promiseDelay.toMillis * 2).toInt)
-    batchOperation.calls(0) should have size 1
+    batchOperation.calls(0)._1 should have size 1
 
     // Allow batch to build up
     resolveDelayed(ps(0))
 
     // Second batch
     retry(batchOperation.calls should have size 2, (promiseDelay.toMillis * 2).toInt)
-    batchOperation.calls(1) should have size 2
+    batchOperation.calls(1)._1 should have size 2
 
     // Allow batch to build up
     resolveDelayed(ps(1))
 
     // Third batch
     retry(batchOperation.calls should have size 3, (promiseDelay.toMillis * 2).toInt)
-    batchOperation.calls(2) should have size 2
+    batchOperation.calls(2)._1 should have size 2
     ps(2).success(())
 
     await(Future.sequence(results)) shouldBe values.map(transform)
@@ -92,7 +90,7 @@ class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
     val parallel = new AtomicInteger(0)
     val concurrency = 2
 
-    val batcher = new Batcher[Int, Int](1, concurrency)(els => {
+    val batcher = new Batcher[Int, Int](1, concurrency, 1)((els, _) => {
       parallel.incrementAndGet()
       p.future.map(_ => els)
     })
@@ -110,7 +108,7 @@ class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
   }
 
   it should "complete batched values with the thrown exception" in {
-    val batcher = new Batcher[Int, Int](2, 1)(_ => Future.failed(new Exception))
+    val batcher = new Batcher[Int, Int](2, 1, 1)((_, _) => Future.failed(new Exception))
 
     val r1 = batcher.put(1)
     val r2 = batcher.put(2)
@@ -124,5 +122,72 @@ class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
 
     an[Exception] should be thrownBy await(r3)
     an[Exception] should be thrownBy await(r4)
+  }
+
+  it should "complete batched values with max retry limit" in {
+    val p = Promise[Unit]()
+
+    val maxRetry = 3
+    val batchSize = 1
+    val concurrency = 1
+
+    var retryCount = new AtomicInteger(0)
+
+    def doStore(els: Seq[Int], retry: Int): Future[Seq[Int]] = {
+      val result = if (retry > 0) {
+        Future.failed(new Exception)
+      } else {
+        p.future.map(_ => els)
+      }
+
+      result.recoverWith {
+        case _ if retry > 0 =>
+          retryCount.incrementAndGet()
+          doStore(els, retry - 1)
+        case e =>
+          Future.failed(e)
+      }
+
+    }
+    val batcher = new Batcher[Int, Int](batchSize, concurrency, maxRetry)(doStore)
+
+    val values = List(1)
+    val results = values.map(batcher.put)
+
+    p.success(())
+
+    await(Future.sequence(results)) shouldBe values
+
+    retryCount.get() shouldBe maxRetry
+  }
+
+  it should "complete batched values with the thrown exception with max retry limit" in {
+    val p = Promise[Unit]()
+
+    val maxRetry = 3
+    val batchSize = 1
+    val concurrency = 1
+
+    val retryCount = new AtomicInteger(0)
+
+    def doStore(els: Seq[Int], retry: Int): Future[Seq[Int]] = {
+      val result = Future.failed(new Exception)
+
+      result.recoverWith {
+        case _ if retry > 0 =>
+          retryCount.incrementAndGet()
+          doStore(els, retry - 1)
+        case e =>
+          Future.failed(e)
+      }
+
+    }
+    val batcher = new Batcher[Int, Int](batchSize, concurrency, maxRetry)(doStore)
+
+    val r1 = batcher.put(1)
+
+    an[Exception] should be thrownBy await(r1)
+
+    retryCount.get() shouldBe maxRetry
   }
 }

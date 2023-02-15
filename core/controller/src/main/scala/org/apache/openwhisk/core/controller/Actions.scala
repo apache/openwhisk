@@ -249,11 +249,15 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           case Failure(_) =>
             entity(as[WhiskActionPut]) { content =>
               val request = content.resolve(user.namespace)
-              val checkAdditionalPrivileges = entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap {
-                case _ => entitlementProvider.check(user, content.exec)
-              }
+              checkLimits <- checkActionLimits(user, content)
+              val check = for {
+                checkLimits <- checkActionLimits(user, content)
+                checkAdditionalPrivileges <- entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap(_ =>
+                  entitlementProvider.check(user, content.exec))
+              } yield (checkAdditionalPrivileges, checkLimits)
 
-              onComplete(checkAdditionalPrivileges) {
+
+              onComplete(check) {
                 case Success(_) =>
                   onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
                     case Success(result) if (result.versionMappings.size >= actionMaxVersionLimit && !deleteOld) =>
@@ -359,8 +363,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           complete(Accepted, activationId.toJsObject)
         }
       case Success(Right(activation)) =>
-        val response = if (result) activation.resultAsJson else activation.toExtendedJson()
-
+        val response = activation.response.result match {
+          case Some(JsArray(elements)) =>
+            JsArray(elements)
+          case _ =>
+            if (result) activation.resultAsJson else activation.toExtendedJson()
+        }
         respondWithActivationIdHeader(activation.activationId) {
           if (activation.response.isSuccess) {
             complete(OK, response)
@@ -784,6 +792,23 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       // list actions in resolved namespace
       list(user, pkgns)
     })
+  }
+
+  private def checkActionLimits(user: Identity, content: WhiskActionPut)(
+    implicit transid: TransactionId): Future[Unit] = {
+    logging.debug(this, "checking the namespace and system limit for action")
+    try {
+      // check namespace limits
+      content.limits foreach { limit =>
+        limit.memory foreach (_.checkNamespaceLimit(user))
+        limit.timeout foreach (_.checkNamespaceLimit(user))
+        limit.logs foreach (_.checkNamespaceLimit(user))
+        limit.concurrency foreach (_.checkNamespaceLimit(user))
+      }
+      Future.successful(())
+    } catch {
+      case e: ActionLimitsException => Future failed RejectRequest(BadRequest, e.getMessage)
+    }
   }
 
   /**

@@ -23,7 +23,6 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.directives.AuthenticationDirective
 import akka.http.scaladsl.server.{Directives, Route}
-import akka.stream.ActorMaterializer
 import pureconfig._
 import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
@@ -37,7 +36,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.types._
 import org.apache.openwhisk.core.loadBalancer.LoadBalancer
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
-import org.apache.openwhisk.http.Messages
+import org.apache.openwhisk.http.{CorsSettings, Messages}
 import org.apache.openwhisk.spi.{Spi, SpiLoader}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -160,7 +159,6 @@ case class WhiskInformation(buildNo: String, date: String)
 class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
   implicit val activeAckTopicIndex: ControllerInstanceId,
   implicit val actorSystem: ActorSystem,
-  implicit val materializer: ActorMaterializer,
   implicit val logging: Logging,
   implicit val entityStore: EntityStore,
   implicit val entitlementProvider: EntitlementProvider,
@@ -306,8 +304,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     override val cacheChangeNotification: Some[CacheChangeNotification],
     override val executionContext: ExecutionContext,
     override val logging: Logging,
-    override val whiskConfig: WhiskConfig,
-    override val materializer: ActorMaterializer)
+    override val whiskConfig: WhiskConfig)
       extends WhiskTriggersApi
       with WhiskServices
 

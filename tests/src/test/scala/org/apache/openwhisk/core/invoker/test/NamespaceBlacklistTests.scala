@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.core.invoker.test
 
-import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
@@ -44,7 +43,6 @@ class NamespaceBlacklistTests
 
   behavior of "NamespaceBlacklist"
 
-  implicit val materializer = ActorMaterializer()
   implicit val tid = TransactionId.testing
 
   val authStore = WhiskAuthStore.datastore()

@@ -22,7 +22,6 @@ import java.net.SocketTimeoutException
 import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 import java.time.{Instant, ZoneId}
-
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.event.Logging.InfoLevel
@@ -31,7 +30,7 @@ import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.pattern.after
 import akka.stream.scaladsl.Source
 import akka.stream.stage._
-import akka.stream.{ActorMaterializer, Attributes, Outlet, SourceShape}
+import akka.stream.{Attributes, Outlet, SourceShape}
 import akka.util.ByteString
 
 import collection.JavaConverters._
@@ -48,6 +47,7 @@ import org.apache.openwhisk.core.containerpool.docker.ProcessRunner
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
+import org.apache.openwhisk.http.Messages
 import pureconfig._
 import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
@@ -81,6 +81,16 @@ case class KubernetesEphemeralStorageConfig(limit: ByteSize)
  */
 case class KubernetesPodReadyTimeoutException(timeout: FiniteDuration)
     extends Exception(s"Pod readiness timed out after ${timeout.toSeconds}s")
+
+/**
+ * Exception to indicate it failed to pull an image for blackbox actions.
+ */
+case class KubernetesImagePullFailedException(msg: String) extends Exception(msg)
+
+/**
+ * Exception to indicate the command for an image is not found.
+ */
+case class KubernetesImageCommandNotFoundException(msg: String) extends Exception(msg)
 
 /**
  * Exception to indicate a pod could not be created at the apiserver.
@@ -123,7 +133,6 @@ class KubernetesClient(
     extends KubernetesApi
     with ProcessRunner {
   implicit protected val ec = executionContext
-  implicit protected val am = ActorMaterializer()
   implicit protected val scheduler = as.scheduler
   implicit protected val kubeRestClient = testClient.getOrElse {
     val configBuilder = new ConfigBuilder()
@@ -132,6 +141,8 @@ class KubernetesClient(
     config.actionNamespace.foreach(configBuilder.withNamespace)
     new DefaultKubernetesClient(configBuilder.build())
   }
+
+  private val imagePullFailedMsgs = Set("ImagePullBackOff", "ErrImagePull")
 
   private val podBuilder = new WhiskPodBuilder(kubeRestClient, config)
 
@@ -183,7 +194,9 @@ class KubernetesClient(
             case e =>
               transid.failed(this, start, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}", ErrorLevel)
               //log pod events to diagnose pod readiness failures
-              val podEvents = kubeRestClient.events
+              val podEvents = kubeRestClient
+                .v1()
+                .events()
                 .inNamespace(namespace)
                 .withField("involvedObject.name", name)
                 .list()
@@ -322,7 +335,23 @@ class KubernetesClient(
       .withName(pod.getMetadata.getName)
     val deadline = deadlineOpt.getOrElse((timeout - (System.currentTimeMillis() - start.toEpochMilli).millis).fromNow)
     if (!readyPod.isReady) {
-      if (deadline.isOverdue()) {
+      // when action pod is failed while pulling images, we need to let users know that
+      val imagePullErr = Try {
+        readyPod.get.getStatus.getContainerStatuses.asScala.exists { status =>
+          imagePullFailedMsgs.contains(status.getState.getWaiting.getReason)
+        }
+      } getOrElse false
+      // when command not found in image, we need to let users know that as well
+      val commandNotFoundErr = Try {
+        readyPod.get.getStatus.getContainerStatuses.asScala.exists { status =>
+          status.getState.getWaiting.getMessage.contains(Messages.commandNotFoundError)
+        }
+      } getOrElse false
+      if (imagePullErr) {
+        Future.failed(KubernetesImagePullFailedException(s"Failed to pull image for pod ${pod.getMetadata.getName}"))
+      } else if (commandNotFoundErr) {
+        Future.failed(KubernetesImageCommandNotFoundException(Messages.commandNotFoundError))
+      } else if (deadline.isOverdue()) {
         Future.failed(KubernetesPodReadyTimeoutException(timeout))
       } else {
         after(1.seconds, scheduler) {

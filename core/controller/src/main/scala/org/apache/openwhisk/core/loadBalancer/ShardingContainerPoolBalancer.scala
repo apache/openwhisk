@@ -26,8 +26,6 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.management.scaladsl.AkkaManagement
 import akka.management.cluster.bootstrap.ClusterBootstrap
-import akka.stream.ActorMaterializer
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import pureconfig._
 import pureconfig.generic.auto._
@@ -152,8 +150,7 @@ class ShardingContainerPoolBalancer(
   val invokerPoolFactory: InvokerPoolFactory,
   implicit val messagingProvider: MessagingProvider = SpiLoader.get[MessagingProvider])(
   implicit actorSystem: ActorSystem,
-  logging: Logging,
-  materializer: ActorMaterializer)
+  logging: Logging)
     extends CommonLoadBalancer(config, feedFactory, controllerInstance) {
 
   /** Build a cluster of all loadbalancers */
@@ -334,17 +331,15 @@ class ShardingContainerPoolBalancer(
 
 object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
-  override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(
-    implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): LoadBalancer = {
+  override def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
+                                                                                  logging: Logging): LoadBalancer = {
 
     val invokerPoolFactory = new InvokerPoolFactory {
       override def createInvokerPool(
         actorRefFactory: ActorRefFactory,
         messagingProvider: MessagingProvider,
         messagingProducer: MessageProducer,
-        sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[RecordMetadata],
+        sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[ResultMetadata],
         monitor: Option[ActorRef]): ActorRef = {
 
         InvokerPool.prepare(instance, WhiskEntityStore.datastore())
@@ -621,6 +616,7 @@ case class ShardingContainerPoolBalancerConfig(managedFraction: Double,
  * @param timeoutHandler times out completion of this activation, should be canceled on good paths
  * @param isBlackbox true if the invoked action is a blackbox action, otherwise false (managed action)
  * @param isBlocking true if the action is invoked in a blocking fashion, i.e. "somebody" waits for the result
+ * @param controllerId id of the controller that this activation comes from
  */
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
@@ -631,4 +627,5 @@ case class ActivationEntry(id: ActivationId,
                            fullyQualifiedEntityName: FullyQualifiedEntityName,
                            timeoutHandler: Cancellable,
                            isBlackbox: Boolean,
-                           isBlocking: Boolean)
+                           isBlocking: Boolean,
+                           controllerId: ControllerInstanceId = ControllerInstanceId("0"))

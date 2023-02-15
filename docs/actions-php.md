@@ -47,6 +47,32 @@ function main(array $args) : array
 }
 ```
 
+An action supports not only a JSON object but also a JSON arary as a return value.
+
+It would be a simple example that uses an array as a return value:
+
+```php
+<?php
+function main(array $args) : array
+{
+    $arr=array("a","b","c");
+    return $arr;
+}
+```
+
+You can also create a sequence action with actions accepting an array param and returning an array result.
+
+You can easily figure out the parameters with the following example:
+
+```php
+<?php
+function main(array $args) : array
+{
+    $result = array_reverse($args);
+    return $result;
+}
+```
+
 PHP actions always consume an associative array and return an associative array.
 The entry method for the action is `main` by default but may be specified explicitly when creating
 the action with the `wsk` CLI using `--main`, as with any other action type.

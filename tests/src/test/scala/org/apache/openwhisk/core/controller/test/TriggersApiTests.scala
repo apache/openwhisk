@@ -67,6 +67,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   def aname() = MakeName.next("triggers_tests")
   def afullname(namespace: EntityPath, name: String) = FullyQualifiedEntityName(namespace, EntityName(name))
   val parametersLimit = Parameters.sizeLimit
+  val systemPayloadLimit = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT
   val dummyInstant = Instant.now()
 
   //// GET /triggers
@@ -269,13 +270,12 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "reject activation with entity which is too big" in {
     implicit val tid = transid()
-    val code = "a" * (allowedActivationEntitySize.toInt + 1)
+    val code = "a" * (systemPayloadLimit.toBytes.toInt + 1)
     val content = s"""{"a":"$code"}""".stripMargin
     Post(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(PayloadTooLarge)
       responseAs[String] should include {
-        Messages.entityTooBig(
-          SizeError(fieldDescriptionForSizeError, (content.length).B, allowedActivationEntitySize.B))
+        Messages.entityTooBig(SizeError(fieldDescriptionForSizeError, (content.length).B, systemPayloadLimit.toBytes.B))
       }
     }
   }

@@ -31,6 +31,32 @@ and demonstrate how to bundle multiple JavaScript files and third party dependen
   }
   ```
 
+  An action supports not only a JSON object but also a JSON array as a return value.
+
+  It would be a simple example that uses an array as a return value:
+
+  ```javascript
+  function main(params) {
+    return ["a", "b"];
+  }
+  ```
+
+  You can also create a sequence action with actions accepting an array param and returning an array result.
+
+  You can easily figure out the parameters with the following example:
+
+  ```javascript
+  /**
+   * Sort a set of lines.
+   * @param lines An array of strings to sort.
+   */
+  function main(msg) {
+      var lines = msg || [];
+      lines.sort();
+      return lines;
+  }
+  ```
+
   The JavaScript file might contain additional functions.
   However, by convention, a function called `main` must exist to provide the entry point for the action.
 
@@ -43,7 +69,7 @@ and demonstrate how to bundle multiple JavaScript files and third party dependen
 
   The CLI automatically infers the type of the action by using the source file extension.
   For `.js` source files, the action runs by using a Node.js runtime. You may specify
-  the Node.js runtime to use by explicitly specifying the parameter `--kind nodejs:14`, `--kind nodejs:12`, or `--kind nodejs:10`.
+  the Node.js runtime to use by explicitly specifying the parameter `--kind nodejs:14`, or `--kind nodejs:12`.
 
 
 ## Creating asynchronous actions
@@ -459,15 +485,8 @@ wsk action invoke my-action --result --param lines "[\"and now\", \"for somethin
 
 ## Reference
 
-JavaScript actions can be executed in Node.js version 10, 12 or 14.
+JavaScript actions can be executed in Node.js version 12 or 14.
 Currently actions are executed by default in a Node.js version 14 environment.
-
-### Node.js version 10 environment
-The Node.js version 10 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:10' when creating or updating an Action.
-
-The following packages are pre-installed in the Node.js version 10 environment:
-
-- [openwhisk](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
 
 ### Node.js version 12 environment
 The Node.js version 12 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:12' when creating or updating an Action.

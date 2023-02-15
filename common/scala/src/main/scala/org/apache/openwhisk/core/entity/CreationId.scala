@@ -81,4 +81,7 @@ protected[core] object CreationId {
       }
     }
   }
+
+  val systemPrefix = "cid_"
+  val void = CreationId(systemPrefix + "void")
 }

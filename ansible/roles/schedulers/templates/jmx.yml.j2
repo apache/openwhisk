@@ -1,0 +1,25 @@
+collects:
+{% set index = groups['schedulers'].index(inventory_hostname) %}
+{% set ip = hostvars[groups['schedulers'][groups['schedulers'].index(inventory_hostname) | int]]['ansible_host'] %}
+{% for i in range(0,index+1)|reverse if hostvars[groups['schedulers'][i]]['ansible_host'] == ip %}
+  - {{ hostvars[groups['schedulers'][i]]['inventory_hostname'] }}
+{% endfor %}
+
+rules:
+{% for i in range(0,index+1)|reverse if hostvars[groups['schedulers'][i]]['ansible_host'] == ip %}
+  - name: {{ hostvars[groups['schedulers'][i]]['inventory_hostname'] }}
+    metrics:
+    - kafka.producer:type=producer-metrics,client-id=* request-latency-avg,request-latency-max,request-rate,response-rate,incoming-byte-rate,outgoing-byte-rate,connection-count,connection-creation-rate,connection-close-rate,io-ratio,io-time-ns-avg,io-wait-ratio,select-rate,io-wait-time-ns-avg client-id
+    - kafka.producer:type=producer-node-metrics,client-id=*,node-id=* request-rate,response-rate,request-latency-max,request-latency-avg,incoming-byte-rate,request-size-avg,outgoing-byte-rate,request-size-max client-id
+    - kafka.producer:type=producer-topic-metrics,client-id=*,topic=* record-retry-rate,record-send-rate,compression-rate,byte-rate,record-error-rate client-id
+    - kafka.consumer:type=consumer-metrics,client-id=* connection-creation-rate,response-rate,select-rate,connection-count,network-io-rate,io-ratio,io-wait-time-ns-avg,io-wait-ratio,outgoing-byte-rate,request-size-max,io-time-ns-avg,request-rate,incoming-byte-rate,connection-close-rate,request-size-avg client-id
+    - kafka.consumer:type=consumer-fetch-manager-metrics,client-id=*,topic=* bytes-consumed-rate,records-consumed-rate,fetch-size-max,fetch-size-avg,records-per-request-avg client-id
+    - kafka.consumer:type=consumer-node-metrics,client-id=*,node-id=* request-rate,response-rate,request-latency-max,request-latency-avg,incoming-byte-rate,request-size-avg,outgoing-byte-rate,request-size-max client-id
+    - kafka.consumer:type=consumer-coordinator-metrics,client-id=* join-time-max,commit-latency-avg,sync-time-avg,join-rate,assigned-partitions,sync-rate,commit-rate,last-heartbeat-seconds-ago,heartbeat-rate,commit-latency-max,join-time-avg,sync-time-max,heartbeat-response-time-max client-id
+    jvmPrefix: kafka.jvm
+    jmxUrl: "service:jmx:rmi:///jndi/rmi://{{ ip }}:{{ jmx.basePortScheduler + i }}/jmxrmi"
+    jmxUsername: "{{ jmx.user }}"
+    jmxPassword: "{{ jmx.pass }}"
+
+{% endfor %}
+intervalSec: 10

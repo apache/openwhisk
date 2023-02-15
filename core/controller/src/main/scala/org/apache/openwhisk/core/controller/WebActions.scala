@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.controller
 
 import java.util.Base64
-
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 import akka.http.scaladsl.model.HttpEntity.Empty
@@ -29,6 +28,7 @@ import akka.http.scaladsl.model.MediaType
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.MediaTypes._
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.headers._
@@ -40,7 +40,7 @@ import akka.http.scaladsl.model.headers.`Timeout-Access`
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.FormData
-import akka.http.scaladsl.model.HttpMethods.{OPTIONS}
+import akka.http.scaladsl.model.HttpMethods.OPTIONS
 import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.HttpResponse
 import spray.json._
@@ -55,7 +55,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.types._
 import org.apache.openwhisk.core.loadBalancer.LoadBalancerException
 import org.apache.openwhisk.http.ErrorResponse.terminate
-import org.apache.openwhisk.http.Messages
+import org.apache.openwhisk.http.{CorsSettings, Messages}
 import org.apache.openwhisk.http.LenientSprayJsonSupport._
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.utils.JsHelpers._
@@ -248,17 +248,18 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
       val body = fields.get("body")
 
-      val code = fields.get(rp.statusCode).map {
-        case JsNumber(c) =>
-          // the following throws an exception if the code is not a whole number or a valid code
-          StatusCode.int2StatusCode(c.toIntExact)
-        case JsString(c) =>
-          // parse the string to an Int (not a BigInt) matching JsNumber case match above
-          // c.toInt could throw an exception if the string isn't an integer
-          StatusCode.int2StatusCode(c.toInt)
+      val intCode = fields.get(rp.statusCode).map {
+        // the following throws an exception if the code is not a whole number or a valid code
+        case JsNumber(c) => c.toIntExact
+
+        // parse the string to an Int (not a BigInt) matching JsNumber case match above
+        // c.toInt could throw an exception if the string isn't an integer
+        case JsString(c) => c.toInt
 
         case _ => throw new Throwable("Illegal status code")
       }
+
+      val code: Option[StatusCode] = intCode.map(c => StatusCodes.getForKey(c).getOrElse(StatusCodes.custom(c, "")))
 
       body.collect {
         case JsString(str) if str.nonEmpty   => interpretHttpResponse(code.getOrElse(OK), headers, str, transid)
@@ -268,7 +269,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
     } getOrElse {
       // either the result was not a JsObject or there was an exception validating the
-      // response as an http result
+      // response as an http result (including an invalid status code)
       terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid, jsonPrettyPrinter)
     }
   }
@@ -490,11 +491,14 @@ trait WhiskWebActionsApi
         // as the context body which may be the incoming request when the content type is JSON or formdata, or
         // the raw body as __ow_body (and query parameters as __ow_query) otherwise
         extract(_.request.entity) { e =>
-          validateSize(isWhithinRange(e.contentLengthOption.getOrElse(0)))(transid, jsonPrettyPrinter) {
-            requestMethodParamsAndPath { context =>
-              provide(fullyQualifiedActionName(actionName)) { fullActionName =>
-                onComplete(verifyWebAction(fullActionName)) {
-                  case Success((actionOwnerIdentity, action)) =>
+          requestMethodParamsAndPath { context =>
+            provide(fullyQualifiedActionName(actionName)) { fullActionName =>
+              onComplete(verifyWebAction(fullActionName)) {
+                case Success((actionOwnerIdentity, action)) =>
+                  validateSize(isWhithinRange(actionOwnerIdentity.limits, e.contentLengthOption.getOrElse(0)))(
+                    transid,
+                    jsonPrettyPrinter) {
+
                     val actionDelegatesCors =
                       !action.annotations.getAs[Boolean](Annotations.WebCustomOptionsAnnotationName).getOrElse(false)
 
@@ -531,14 +535,14 @@ trait WhiskWebActionsApi
                         context,
                         e)
                     }
+                  }
 
-                  case Failure(t: RejectRequest) =>
-                    terminate(t.code, t.message)
+                case Failure(t: RejectRequest) =>
+                  terminate(t.code, t.message)
 
-                  case Failure(t) =>
-                    logging.error(this, s"exception in handleMatch: $t")
-                    terminate(InternalServerError)
-                }
+                case Failure(t) =>
+                  logging.error(this, s"exception in handleMatch: $t")
+                  terminate(InternalServerError)
               }
             }
           }

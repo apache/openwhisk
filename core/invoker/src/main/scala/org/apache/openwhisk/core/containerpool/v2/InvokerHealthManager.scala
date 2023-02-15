@@ -172,7 +172,8 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
 
     WhiskAction.get(entityStore, docId).onComplete {
       case Success(action) =>
-        val initialize = Initialize(namespace, action.toExecutableWhiskAction.get, "", 0, transid)
+        val initialize =
+          Initialize(namespace, action.fullyQualifiedName(true), action.toExecutableWhiskAction.get, "", 0, transid)
         startHealthAction(initialize, manager)
       case Failure(t) => logging.error(this, s"get health action error: ${t.getMessage}")
     }
@@ -219,7 +220,7 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
   }
 
   /**
-   * This is to decide wether to change from the newState or not.
+   * This is to decide weather to change from the newState or not.
    * If current state is already newState, it will stay, otherwise it will change its state.
    *
    * @param newState the desired state to change.
@@ -246,7 +247,7 @@ case class HealthActivationServiceClient() extends Actor {
   private var closed: Boolean = false
 
   override def receive: Receive = {
-    case StartClient => sender() ! ClientCreationCompleted()
+    case StartClient => sender() ! ClientCreationCompleted
     case _: RequestActivation =>
       InvokerHealthManager.healthActivation match {
         case Some(activation) if !closed =>
@@ -261,7 +262,7 @@ case class HealthActivationServiceClient() extends Actor {
         case _ => // do nothing
       }
 
-    case CloseClientProxy =>
+    case GracefulShutdown =>
       closed = true
 
   }

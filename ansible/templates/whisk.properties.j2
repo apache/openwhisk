@@ -53,11 +53,15 @@ edge.host.apiport=443
 kafkaras.host.port={{ kafka.ras.port }}
 redis.host.port={{ redis.port }}
 invoker.hosts.basePort={{ invoker.port }}
+invoker.username={{ invoker.username }}
+invoker.password={{ invoker.password }}
 
 controller.hosts={{ groups["controllers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
 controller.host.basePort={{ controller.basePort }}
 controller.instances={{ controller.instances }}
 controller.protocol={{ controller.protocol }}
+controller.username={{ controller.username }}
+controller.password={{ controller.password }}
 
 invoker.container.network=bridge
 invoker.container.policy={{ invoker_container_policy_name | default()}}

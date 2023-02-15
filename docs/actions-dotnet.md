@@ -79,6 +79,46 @@ cd out
 zip -r -0 helloDotNet.zip *
 ```
 
+An action supports not only a JSON object but also a JSON array as a return value.
+
+It would be a simple example that uses an array as a return value:
+
+```csharp
+using System;
+using Newtonsoft.Json.Linq;
+namespace Apache.OpenWhisk.Tests.Dotnet
+{
+    public class HelloArray
+    {
+        public JArray Main(JObject args)
+        {
+            JArray jarray = new JArray();
+            jarray.Add("a");
+            jarray.Add("b");
+            return (jarray);
+        }
+    }
+}
+```
+You can also create a sequence action with actions accepting an array param and returning an array result.
+
+You can easily figure out the parameters with the following example:
+
+```csharp
+using System;
+using Newtonsoft.Json.Linq;
+namespace Apache.OpenWhisk.Tests.Dotnet
+{
+    public class HelloPassArrayParam
+    {
+        public JArray Main(JArray args)
+        {
+            return (args);
+        }
+    }
+}
+```
+
 ### Create the .NET Core Action
 
 You need to specify the name of the function handler using `--main` argument.

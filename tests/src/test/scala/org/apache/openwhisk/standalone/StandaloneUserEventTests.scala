@@ -17,7 +17,6 @@
 
 package org.apache.openwhisk.standalone
 
-import akka.stream.ActorMaterializer
 import common.{FreePortFinder, WskProps}
 import org.apache.openwhisk.common.UserEventTests
 import org.junit.runner.RunWith
@@ -25,7 +24,6 @@ import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class StandaloneUserEventTests extends UserEventTests with StandaloneServerFixture {
-  private implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val kafkaPort = sys.props.get("whisk.kafka.port").map(_.toInt).getOrElse(FreePortFinder.freePort())
 
   protected override val customConfig = Some("""

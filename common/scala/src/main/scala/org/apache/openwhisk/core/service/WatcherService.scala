@@ -20,9 +20,10 @@ package org.apache.openwhisk.core.service
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.client.kv.WatchUpdate
-import org.apache.openwhisk.common.Logging
+import org.apache.openwhisk.common.{GracefulShutdown, Logging}
 import org.apache.openwhisk.core.etcd.EtcdClient
 import org.apache.openwhisk.core.etcd.EtcdType._
+
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 
@@ -128,6 +129,7 @@ class WatcherService(etcdClient: EtcdClient)(implicit logging: Logging, actorSys
           deleteWatchers.update(watcherKey, sender())
 
     case request: UnwatchEndpoint =>
+      logging.info(this, s"unwatch endpoint: $request")
       val watcherKey = WatcherKey(request.watchKey, request.watchName)
       if (request.isPrefix) {
         prefixPutWatchers.remove(watcherKey)
@@ -140,6 +142,13 @@ class WatcherService(etcdClient: EtcdClient)(implicit logging: Logging, actorSys
       // always send WatcherClosed back to sender if it need a feedback
       if (request.needFeedback)
         sender ! WatcherClosed(request.watchKey, request.isPrefix)
+
+    case GracefulShutdown =>
+      watcher.close()
+      putWatchers.clear()
+      deleteWatchers.clear()
+      prefixPutWatchers.clear()
+      prefixDeleteWatchers.clear()
   }
 }
 

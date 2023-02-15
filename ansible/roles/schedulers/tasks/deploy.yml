@@ -1,0 +1,365 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# This role will install Scheduler in group 'schedulers' in the environment
+# inventory
+
+- import_tasks: docker_login.yml
+
+- name: get scheduler name and index
+  set_fact:
+    scheduler_name: "{{ name_prefix ~ host_group.index(inventory_hostname) }}"
+    scheduler_index:
+      "{{ (scheduler_index_base|int) + host_group.index(inventory_hostname) }}"
+
+- name: "pull the {{ docker.image.tag }} image of scheduler"
+  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/scheduler:{{docker.image.tag}}"
+  when: docker_registry != ""
+  register: result
+  until: (result.rc == 0)
+  retries: "{{ docker.pull.retries }}"
+  delay: "{{ docker.pull.delay }}"
+
+- name: ensure scheduler log directory is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/{{ scheduler_name }}"
+    state: directory
+    mode: 0777
+  become: "{{ logs.dir.become }}"
+
+# We need to create the file with proper permissions because the dir creation above
+# does not result in a dir with full permissions in docker machine especially with macos mounts
+- name: ensure scheduler log file is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/{{ scheduler_name }}/{{ scheduler_name }}_logs.log"
+    state: touch
+    mode: 0777
+  when: environment_type is defined and environment_type == "docker-machine"
+
+- name: ensure scheduler config directory is created with permissions
+  file:
+    path: "{{ scheduler.confdir }}/{{ scheduler_name }}"
+    state: directory
+    mode: 0777
+  become: "{{ scheduler.dir.become }}"
+
+- name: check, that required databases exist
+  include_tasks: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
+  vars:
+    dbName: "{{ item }}"
+    dbUser: "{{ db.credentials.scheduler.user }}"
+    dbPass: "{{ db.credentials.scheduler.pass }}"
+  with_items:
+  - "{{ db.whisk.auth }}"
+
+- name: copy jmxremote password file
+  when: jmx.enabled
+  template:
+    src: "jmxremote.password.j2"
+    dest: "{{ scheduler.confdir }}/{{ scheduler_name }}/jmxremote.password"
+    mode: 0777
+
+- name: copy jmxremote access file
+  when: jmx.enabled
+  template:
+    src: "jmxremote.access.j2"
+    dest: "{{ scheduler.confdir }}/{{ scheduler_name }}/jmxremote.access"
+    mode: 0777
+
+- name: prepare scheduler port
+  set_fact:
+    scheduler_port: "{{ scheduler.basePort + (scheduler_index | int) }}"
+    ports_to_expose:
+      - "{{ scheduler.grpc.basePort + (scheduler_index | int) }}:{{ scheduler.grpc.basePort + (scheduler_index | int) }}"
+      - "{{ scheduler.basePort + (scheduler_index | int) }}:8080"
+
+- name: expose additional ports if jmxremote is enabled
+  when: jmx.enabled
+  vars:
+    jmx_remote_port: "{{ jmx.basePortScheduler + (scheduler_index|int) }}"
+    jmx_remote_rmi_port:
+      "{{ jmx.rmiBasePortScheduler + (scheduler_index|int) }}"
+  set_fact:
+    ports_to_expose: >-
+      {{ ports_to_expose }} +
+      [ '{{ jmx_remote_port }}:{{ jmx_remote_port }}' ] +
+      [ '{{ jmx_remote_rmi_port }}:{{ jmx_remote_rmi_port }}' ]
+    scheduler_args: >-
+      {{ scheduler.arguments }}
+      {{ jmx.jvmCommonArgs }}
+      -Djava.rmi.server.hostname={{ ansible_host }}
+      -Dcom.sun.management.jmxremote.rmi.port={{ jmx_remote_rmi_port }}
+      -Dcom.sun.management.jmxremote.port={{ jmx_remote_port }}
+
+- name: populate environment variables for scheduler
+  set_fact:
+    env:
+      "JAVA_OPTS":
+        -Xmx{{ scheduler.heap }}
+        -XX:+CrashOnOutOfMemoryError
+        -XX:+UseGCOverheadLimit
+        -XX:ErrorFile=/logs/java_error.log
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/logs
+      "SCHEDULER_OPTS": "{{ scheduler_args | default(scheduler.arguments) }}"
+      "SCHEDULER_INSTANCES": "{{ scheduler.instances }}"
+      "JMX_REMOTE": "{{ jmx.enabled }}"
+      "PORT": "8080"
+
+      "WHISK_SCHEDULER_ENDPOINTS_HOST": "{{ ansible_host }}"
+      "WHISK_SCHEDULER_ENDPOINTS_RPCPORT": "{{ scheduler.grpc.basePort + (scheduler_index | int)}}"
+      "WHISK_SCHEDULER_ENDPOINTS_AKKAPORT": "{{ scheduler.akka.cluster.basePort + (scheduler_index | int) }}"
+      "CONFIG_whisk_scheduler_protocol": "{{ scheduler.protocol }}"
+      "CONFIG_whisk_scheduler_maxPeek": "{{ scheduler.maxPeek }}"
+      "CONFIG_whisk_scheduler_dataManagementService_retryInterval": "{{ scheduler.dataManagementService.retryInterval }}"
+      "CONFIG_whisk_scheduler_inProgressJobRetention": "{{ scheduler.inProgressJobRetention }}"
+      "CONFIG_whisk_scheduler_blackboxMultiple": "{{ scheduler.blackboxMultiple }}"
+      "CONFIG_whisk_scheduler_scheduling_staleThreshold": "{{ scheduler.scheduling.staleThreshold }}"
+      "CONFIG_whisk_scheduler_scheduling_checkInterval": "{{ scheduler.scheduling.checkInterval }}"
+      "CONFIG_whisk_scheduler_scheduling_dropInterval": "{{ scheduler.scheduling.dropInterval }}"
+      "CONFIG_whisk_scheduler_queueManager_maxSchedulingTime": "{{ scheduler.queueManager.maxSchedulingTime }}"
+      "CONFIG_whisk_scheduler_queueManager_maxRetriesToGetQueue": "{{ scheduler.queueManager.maxRetriesToGetQueue }}"
+      "CONFIG_whisk_scheduler_queue_idleGrace": "{{ scheduler.queue.idleGrace }}"
+      "CONFIG_whisk_scheduler_queue_stopGrace": "{{ scheduler.queue.stopGrace }}"
+      "CONFIG_whisk_scheduler_queue_flushGrace": "{{ scheduler.queue.flushGrace }}"
+      "CONFIG_whisk_scheduler_queue_gracefulShutdownTimeout": "{{ scheduler.queue.gracefulShutdownTimeout }}"
+      "CONFIG_whisk_scheduler_queue_maxRetentionSize": "{{ scheduler.queue.maxRetentionSize }}"
+      "CONFIG_whisk_scheduler_queue_maxRetentionMs": "{{ scheduler.queue.maxRetentionMs }}"
+      "CONFIG_whisk_scheduler_queue_maxBlackboxRetentionMs": "{{ scheduler.queue.maxBlackboxRetentionMs }}"
+      "CONFIG_whisk_scheduler_queue_throttlingFraction": "{{ scheduler.queue.throttlingFraction }}"
+      "CONFIG_whisk_scheduler_queue_durationBufferSize": "{{ scheduler.queue.durationBufferSize }}"
+      "CONFIG_whisk_durationChecker_timeWindow": "{{ durationChecker.timeWindow }}"
+
+      "TZ": "{{ docker.timezone }}"
+
+      "KAFKA_HOSTS": "{{ kafka_connect_string }}"
+      "CONFIG_whisk_kafka_replicationFactor":
+        "{{ kafka.replicationFactor | default() }}"
+      "CONFIG_whisk_kafka_topics_scheduler_retentionBytes":
+        "{{ kafka_topics_scheduler_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_scheduler_retentionMs":
+        "{{ kafka_topics_scheduler_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_scheduler_segmentBytes":
+        "{{ kafka_topics_scheduler_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_creationAck_retentionBytes":
+        "{{ kafka_topics_creationAck_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_creationAck_retentionMs":
+        "{{ kafka_topics_creationAck_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_creationAck_segmentBytes":
+        "{{ kafka_topics_creationAck_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_prefix":
+        "{{ kafka.topicsPrefix }}"
+      "CONFIG_whisk_kafka_topics_userEvent_prefix":
+        "{{ kafka.topicsUserEventPrefix }}"
+      "CONFIG_whisk_kafka_common_securityProtocol":
+        "{{ kafka.protocol }}"
+      "CONFIG_whisk_kafka_common_sslTruststoreLocation":
+        "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslTruststorePassword":
+        "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_kafka_common_sslKeystoreLocation":
+        "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslKeystorePassword":
+        "{{ kafka.ssl.keystore.password }}"
+      "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
+
+      "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
+
+      "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
+      "CONFIG_whisk_couchdb_host": "{{ db.host }}"
+      "CONFIG_whisk_couchdb_port": "{{ db.port }}"
+      "CONFIG_whisk_couchdb_username": "{{ db.credentials.scheduler.user }}"
+      "CONFIG_whisk_couchdb_password": "{{ db.credentials.scheduler.pass }}"
+      "CONFIG_whisk_couchdb_provider": "{{ db.provider }}"
+      "CONFIG_whisk_couchdb_databases_WhiskAuth": "{{ db.whisk.auth }}"
+      "CONFIG_whisk_couchdb_databases_WhiskEntity": "{{ db.whisk.actions }}"
+      "CONFIG_whisk_couchdb_databases_WhiskActivation": "{{ db.whisk.activations }}"
+      "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}"
+      "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}"
+      "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"
+      "CONFIG_whisk_userEvents_enabled": "{{ user_events | default(false) | lower }}"
+
+      "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"
+      "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}"
+      "CONFIG_whisk_memory_std": "{{ limit_action_memory_std | default() }}"
+
+      "CONFIG_whisk_timeLimit_min": "{{ limit_action_time_min | default() }}"
+      "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
+      "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
+
+      "CONFIG_whisk_concurrencyLimit_min": "{{ limit_action_concurrency_min | default() }}"
+      "CONFIG_whisk_concurrencyLimit_max": "{{ limit_action_concurrency_max | default() }}"
+      "CONFIG_whisk_concurrencyLimit_std": "{{ limit_action_concurrency_std | default() }}"
+
+      "CONFIG_whisk_namespaceDefaultLimit_memory_min": "{{ namespace_default_limit_action_memory_min | default() }}"
+      "CONFIG_whisk_namespaceDefaultLimit_memory_max": "{{ namespace_default_limit_action_memory_max | default() }}"
+
+      "CONFIG_whisk_namespaceDefaultLimit_timeLimit_min": "{{ namespace_default_limit_action_time_min | default() }}"
+      "CONFIG_whisk_namespaceDefaultLimit_timeLimit_max": "{{ namespace_default_limit_action_time_max | default() }}"
+
+      "CONFIG_whisk_namespaceDefaultLimit_concurrencyLimit_min": "{{ namespace_default_limit_action_concurrency_min | default() }}"
+      "CONFIG_whisk_namespaceDefaultLimit_concurrencyLimit_max": "{{ namespace_default_limit_action_concurrency_max | default() }}"
+
+      "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
+      "CONFIG_whisk_runtimes_defaultImagePrefix":
+        "{{ runtimes_default_image_prefix | default() }}"
+      "CONFIG_whisk_runtimes_defaultImageTag":
+        "{{ runtimes_default_image_tag | default() }}"
+      "CONFIG_whisk_runtimes_bypassPullForLocalImages":
+        "{{ runtimes_bypass_pull_for_local_images | default() | lower }}"
+      "CONFIG_whisk_runtimes_localImagePrefix":
+        "{{ runtimes_local_image_prefix | default() }}"
+
+      "METRICS_KAMON": "{{ metrics.kamon.enabled | default(false) | lower }}"
+      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags | default() | lower }}"
+      "METRICS_LOG": "{{ metrics.log.enabled | default(false) | lower }}"
+
+      "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
+      "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
+
+      "CONFIG_whisk_fraction_managedFraction":
+        "{{ scheduler.managedFraction }}"
+      "CONFIG_whisk_fraction_blackboxFraction":
+        "{{ scheduler.blackboxFraction }}"
+
+      "CONFIG_logback_log_level": "{{ scheduler.loglevel }}"
+
+      "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
+
+      "CONFIG_whisk_etcd_hosts": "{{ etcd_connect_string }}"
+      "CONFIG_whisk_etcd_lease_timeout": "{{ etcd.lease.timeout }}"
+      "CONFIG_whisk_etcd_pool_threads": "{{ etcd.pool_threads }}"
+      "CONFIG_whisk_cluster_name": "{{ whisk.cluster_name | lower }}"
+
+      "CONFIG_whisk_scheduler_username": "{{ scheduler.username }}"
+      "CONFIG_whisk_scheduler_password": "{{ scheduler.password }}"
+
+      "CONFIG_whisk_spi_DurationCheckerProvider": "{{ durationChecker.spi }}"
+
+
+- name: merge extra env variables
+  set_fact:
+    env: "{{ env | combine(scheduler.extraEnv) }}"
+
+- name: populate volumes for scheduler
+  set_fact:
+    scheduler_volumes:
+       - "{{ whisk_logs_dir }}/{{ scheduler_name }}:/logs"
+       - "{{ scheduler.confdir }}/{{ scheduler_name }}:/conf"
+
+- name: setup elasticsearch activation store env
+  set_fact:
+    elastic_env:
+      "CONFIG_whisk_activationStore_elasticsearch_protocol": "{{ db.elasticsearch.protocol}}"
+      "CONFIG_whisk_activationStore_elasticsearch_hosts": "{{ elasticsearch_connect_string }}"
+      "CONFIG_whisk_activationStore_elasticsearch_indexPattern": "{{ db.elasticsearch.index_pattern }}"
+      "CONFIG_whisk_activationStore_elasticsearch_username": "{{ db.elasticsearch.auth.admin.username }}"
+      "CONFIG_whisk_activationStore_elasticsearch_password": "{{ db.elasticsearch.auth.admin.password }}"
+      "CONFIG_whisk_spi_ActivationStoreProvider": "org.apache.openwhisk.core.database.elasticsearch.ElasticSearchActivationStoreProvider"
+      "CONFIG_whisk_spi_DurationCheckerProvider": "org.apache.openwhisk.core.scheduler.queue.ElasticSearchDurationCheckerProvider"
+  when: db.activation_store.backend == "ElasticSearch"
+
+- name: merge elasticsearch activation store env
+  set_fact:
+    env: "{{ env | combine(elastic_env) }}"
+  when: db.activation_store.backend == "ElasticSearch"
+
+- name: check if coverage collection is enabled
+  set_fact:
+    coverage_enabled: false
+  when: coverage_enabled is undefined
+
+- name: ensure scheduler coverage directory is created with permissions
+  file:
+    path: "{{ coverage_logs_dir }}/scheduler/{{ item }}"
+    state: directory
+    mode: 0777
+  with_items:
+    - scheduler
+    - common
+  become: "{{ logs.dir.become }}"
+  when: coverage_enabled
+
+- name: extend scheduler volume for coverage
+  set_fact:
+    scheduler_volumes: "{{ scheduler_volumes|default({}) + [coverage_logs_dir+'/scheduler:/coverage']  }}"
+  when: coverage_enabled
+
+- name: include plugins
+  include_tasks: "{{ item }}.yml"
+  with_items: "{{ scheduler_plugins | default([]) }}"
+
+- name: disable scheduler{{ groups['schedulers'].index(inventory_hostname) }} before redeploy scheduler
+  uri:
+    url: "{{ scheduler.protocol }}://{{ ansible_host }}:{{ scheduler_port }}/disable"
+    validate_certs: no
+    method: POST
+    status_code: 200
+    user: "{{ scheduler.username }}"
+    password: "{{ scheduler.password }}"
+    force_basic_auth: yes
+  ignore_errors: "{{ scheduler.deployment_ignore_error }}"
+  when: zeroDowntimeDeployment.enabled == true
+
+- name: wait until all activation is finished before redeploy scheduler
+  uri:
+    url: "{{ scheduler.protocol }}://{{ ansible_host }}:{{ scheduler_port }}/activation/count"
+    validate_certs: no
+    return_content: yes
+    user: "{{ scheduler.username }}"
+    password: "{{ scheduler.password }}"
+    force_basic_auth: yes
+  register: result
+  until: result.content == "0"
+  retries: 180
+  delay: 5
+  when: zeroDowntimeDeployment.enabled == true
+  ignore_errors: "{{ scheduler.deployment_ignore_error }}"
+
+- name: (re)start scheduler
+  docker_container:
+    name: "{{ scheduler_name }}"
+    image:
+      "{{docker_registry~docker.image.prefix}}/scheduler:{{ 'cov' if (coverage_enabled) else docker.image.tag }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: "{{ scheduler_name }}"
+    env: "{{ env }}"
+    volumes: "{{ scheduler_volumes }}"
+    ports: "{{ ports_to_expose }}"
+    command:
+      /bin/sh -c
+      "exec /init.sh {{ scheduler_index }}
+      >> /logs/{{ scheduler_name }}_logs.log 2>&1"
+
+- name: wait until the Scheduler in this host is up and running
+  uri:
+    url:
+      "{{scheduler.protocol}}://{{ansible_host}}:{{scheduler_port}}/ping"
+    validate_certs: "no"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5
+
+- name: create scheduler jmx.yml
+  template:
+    src: "{{ openwhisk_home }}/ansible/roles/schedulers/templates/jmx.yml.j2"
+    dest: "{{ scheduler.confdir }}/jmx.yml"
+  ignore_errors: True
+  when: scheduler_index | int + 1 == groups['schedulers'] | length or ansible_host != hostvars[groups['schedulers'][scheduler_index | int + 1 ]]['ansible_host']

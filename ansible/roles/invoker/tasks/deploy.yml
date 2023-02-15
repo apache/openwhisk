@@ -17,6 +17,12 @@
 ---
 # This role installs invokers.
 
+###
+# When the zero-downtime-deployment is enabled, clean.yml is used to gracefully shut down the invoker.
+#
+- import_tasks: clean.yml
+  when: zeroDowntimeDeployment.enabled == true and enable_scheduler
+
 - import_tasks: docker_login.yml
 
 - name: get invoker name and index
@@ -273,6 +279,12 @@
       "CONFIG_whisk_concurrencyLimit_min": "{{ limit_action_concurrency_min | default() }}"
       "CONFIG_whisk_concurrencyLimit_max": "{{ limit_action_concurrency_max | default() }}"
       "CONFIG_whisk_concurrencyLimit_std": "{{ limit_action_concurrency_std | default() }}"
+      "CONFIG_whisk_namespaceDefaultLimit_memory_min": "{{ namespace_default_limit_action_memory_min | default() }}"
+      "CONFIG_whisk_namespaceDefaultLimit_memory_max": "{{ namespace_default_limit_action_memory_max | default() }}"
+      "CONFIG_whisk_namespaceDefaultLimit_timeLimit_min": "{{ namespace_default_limit_action_time_min | default() }}"
+      "CONFIG_whisk_namespaceDefaultLimit_timeLimit_max": "{{ namespace_default_limit_action_time_max | default() }}"
+      "CONFIG_whisk_namespaceDefaultLimit_concurrencyLimit_min": "{{ namespace_default_limit_action_concurrency_min | default() }}"
+      "CONFIG_whisk_namespaceDefaultLimit_concurrencyLimit_max": "{{ namespace_default_limit_action_concurrency_max | default() }}"
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
       "CONFIG_whisk_containerPool_akkaClient": "{{ container_pool_akka_client | default('false') | lower }}"
@@ -282,11 +294,21 @@
       "CONFIG_whisk_invoker_https_keystorePassword": "{{ invoker.ssl.keystore.password }}"
       "CONFIG_whisk_invoker_https_keystoreFlavor": "{{ invoker.ssl.storeFlavor }}"
       "CONFIG_whisk_invoker_https_clientAuth": "{{ invoker.ssl.clientAuth }}"
+      "CONFIG_whisk_invoker_resource_tags": "{% if tags is defined %} '{{ tags | join(',') }}' {% else %} '' {% endif %}"
+      "CONFIG_whisk_invoker_dedicated_namespaces": "{% if dedicatedNamespaces is defined %} '{{ dedicatedNamespaces | join(',') }}' {% else %} '' {% endif %}"
+      "CONFIG_whisk_containerProxy_timeouts_idleContainer": "{{ whisk.containerProxy.timeouts.idleContainer }}"
+      "CONFIG_whisk_containerProxy_timeouts_pauseGrace": "{{ whisk.containerProxy.timeouts.pauseGrace  }}"
+      "CONFIG_whisk_containerProxy_timeouts_keepingDuration": "{{ whisk.containerProxy.timeouts.keepingDuration }}"
       "CONFIG_whisk_containerPool_prewarmExpirationCheckInitDelay": "{{ container_pool_prewarm_expirationCheckInitDelay | default('10 minutes') }}"
       "CONFIG_whisk_containerPool_prewarmExpirationCheckInterval": "{{ container_pool_prewarm_expirationCheckInterval | default('10 minutes') }}"
       "CONFIG_whisk_containerPool_prewarmExpirationCheckIntervalVariance": "{{ container_pool_prewarm_expirationCheckIntervalVariance | default('10 seconds') }}"
       "CONFIG_whisk_containerPool_prewarmPromotion": "{{ container_pool_strict | default('false') | lower }}"
       "CONFIG_whisk_containerPool_prewarmMaxRetryLimit": "{{ container_pool_prewarm_max_retry_limit | default(5) }}"
+      "CONFIG_whisk_containerPool_memorySyncInterval": "{{ container_pool_memorySyncInterval | default('1 second') }}"
+      "CONFIG_whisk_containerPool_batchDeletionSize": "{{ container_pool_batchDeletionSize | default(10) }}"
+      "CONFIG_whisk_invoker_username": "{{ invoker.username }}"
+      "CONFIG_whisk_invoker_password": "{{ invoker.password }}"
+      "CONFIG_whisk_cluster_name": "{{ whisk.cluster_name | lower }}"
 
 - name: extend invoker dns env
   set_fact:
@@ -314,6 +336,36 @@
   set_fact:
     env: "{{ env | combine(elastic_env) }}"
   when: db.activation_store.backend == "ElasticSearch"
+
+- name: setup mongodb artifact store env
+  set_fact:
+    mongodb_env:
+      "CONFIG_whisk_mongodb_uri": "{{ db.mongodb.connect_string }}"
+      "CONFIG_whisk_mongodb_database": "{{ db.mongodb.database }}"
+      "CONFIG_whisk_spi_ArtifactStoreProvider": "org.apache.openwhisk.core.database.mongodb.MongoDBArtifactStoreProvider"
+  when: db.artifact_store.backend == "MongoDB"
+
+- name: merge mongodb artifact store env
+  set_fact:
+    env: "{{ env | combine(mongodb_env) }}"
+  when: db.artifact_store.backend == "MongoDB"
+
+- name: setup scheduler env
+  set_fact:
+    scheduler_env:
+      "CONFIG_whisk_etcd_hosts": "{{ etcd_connect_string }}"
+      "CONFIG_whisk_etcd_lease_timeout": "{{ etcd.lease.timeout }}"
+      "CONFIG_whisk_etcd_pool_threads": "{{ etcd.pool_threads }}"
+      "CONFIG_whisk_scheduler_dataManagementService_retryInterval": "{{ scheduler.dataManagementService.retryInterval }}"
+      "CONFIG_whisk_invoker_containerCreation_maxPeek": "{{ invoker.container.creationMaxPeek }}"
+      "CONFIG_whisk_spi_InvokerProvider": "org.apache.openwhisk.core.invoker.FPCInvokerReactive"
+      "CONFIG_whisk_spi_InvokerServerProvider": "org.apache.openwhisk.core.invoker.FPCInvokerServer"
+  when: enable_scheduler
+
+- name: merge scheduler env
+  set_fact:
+    env: "{{ env | combine(scheduler_env) }}"
+  when: enable_scheduler
 
 - name: include plugins
   include_tasks: "{{ inv_item }}.yml"

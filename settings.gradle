@@ -15,6 +15,18 @@
  * limitations under the License.
  */
 
+plugins {
+    id "com.gradle.enterprise" version "3.10.2"
+}
+
+gradleEnterprise {
+    buildScan {
+        termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+        termsOfServiceAgree = 'yes'
+        publishAlwaysIf(System.getenv('CI') != null)
+    }
+}
+
 include 'common:scala'
 
 include 'core:controller'
@@ -61,10 +73,10 @@ gradle.ext.scalafmt = [
     config: new File(rootProject.projectDir, '.scalafmt.conf')
 ]
 
-gradle.ext.akka = [version : '2.5.26']
+gradle.ext.akka = [version : '2.6.12']
 gradle.ext.akka_kafka = [version : '2.0.2']
-gradle.ext.akka_http = [version : '10.1.11']
+gradle.ext.akka_http = [version : '10.2.4']
 gradle.ext.akka_management = [version : '1.0.5']
 
-gradle.ext.curator = [version : '4.0.0']
-gradle.ext.kube_client = [version: '4.4.2']
+gradle.ext.curator = [version : '4.3.0']
+gradle.ext.kube_client = [version: '4.10.3']

@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.database
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl._
 import akka.util.ByteString
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import spray.json._
@@ -31,6 +31,7 @@ import org.apache.openwhisk.core.database.StoreUtils._
 import org.apache.openwhisk.core.entity.Attachments.Attached
 import org.apache.openwhisk.core.entity.{BulkEntityResult, DocInfo, DocumentReader, UUID}
 import org.apache.openwhisk.http.Messages
+import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -58,7 +59,6 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
-  val materializer: ActorMaterializer,
   docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol
@@ -76,8 +76,9 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   // and more documents need to be stored, then all arriving documents will be put into batches (if enabled) to avoid a long queue.
   private val maxOpenDbRequests = system.settings.config.getInt("akka.http.host-connection-pool.max-connections") / 2
 
+  private val maxRetry = loadConfigOrThrow[Int]("whisk.activation-store.retry-config.max-tries")
   private val batcher: Batcher[JsObject, Either[ArtifactStoreException, DocInfo]] =
-    new Batcher(500, maxOpenDbRequests)(put(_)(TransactionId.dbBatcher))
+    new Batcher(500, maxOpenDbRequests, maxRetry)(put(_, _)(TransactionId.dbBatcher))
 
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
     val asJson = d.toDocumentRecord
@@ -139,7 +140,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
         transid.failed(this, start, s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
   }
 
-  private def put(ds: Seq[JsObject])(
+  private def put(ds: Seq[JsObject], retry: Int)(
     implicit transid: TransactionId): Future[Seq[Either[ArtifactStoreException, DocInfo]]] = {
     val count = ds.size
     val start = transid.started(this, LoggingMarkers.DATABASE_BULK_SAVE, s"'$dbName' saving $count documents")
@@ -168,10 +169,16 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       }
     }
 
-    reportFailure(
-      f,
-      failure =>
-        transid.failed(this, start, s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+    f.recoverWith {
+      case t: ArtifactStoreException => Future.failed(t)
+      case _ if retry > 0 =>
+        transid.failed(this, start, s"failed to store an activation to CouchDB")
+        put(ds, retry - 1)
+      case t =>
+        transid
+          .failed(this, start, s"[PUT] '$dbName' internal error, failure: '${t.getMessage}'", ErrorLevel)
+        Future.failed(t)
+    }
   }
 
   override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {

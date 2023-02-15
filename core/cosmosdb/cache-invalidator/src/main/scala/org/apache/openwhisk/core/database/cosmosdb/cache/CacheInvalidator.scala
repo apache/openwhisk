@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.kafka.ProducerSettings
-import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.openwhisk.common.Logging
@@ -28,9 +27,7 @@ import org.apache.openwhisk.core.database.RemoteCacheInvalidation.cacheInvalidat
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Success
 
-class CacheInvalidator(globalConfig: Config)(implicit system: ActorSystem,
-                                             materializer: ActorMaterializer,
-                                             log: Logging) {
+class CacheInvalidator(globalConfig: Config)(implicit system: ActorSystem, log: Logging) {
   import CacheInvalidator._
   val instanceId = "cache-invalidator"
   val whisksCollection = "whisks"

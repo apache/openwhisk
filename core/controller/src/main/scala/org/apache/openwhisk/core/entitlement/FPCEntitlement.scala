@@ -21,12 +21,16 @@ import scala.concurrent.Future
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}
-import org.apache.openwhisk.core.WhiskConfig
+import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.{EventMessage, Metric}
 import org.apache.openwhisk.core.controller.RejectRequest
 import org.apache.openwhisk.core.entitlement.Privilege.ACTIVATE
 import org.apache.openwhisk.core.entity.{ControllerInstanceId, Identity}
 import org.apache.openwhisk.core.loadBalancer.LoadBalancer
+import pureconfig.loadConfigOrThrow
+import pureconfig.generic.auto._
+
+case class FPCEntitlementConfig(usePerMinThrottles: Boolean)
 
 protected[core] class FPCEntitlementProvider(
   private val config: WhiskConfig,
@@ -34,7 +38,21 @@ protected[core] class FPCEntitlementProvider(
   private val controllerInstance: ControllerInstanceId)(implicit actorSystem: ActorSystem, logging: Logging)
     extends LocalEntitlementProvider(config, loadBalancer, controllerInstance) {
 
+  private implicit val executionContext = actorSystem.dispatcher
+
+  private val fpcEntitlementConfig: FPCEntitlementConfig =
+    loadConfigOrThrow[FPCEntitlementConfig](ConfigKeys.fpcLoadBalancer)
+
   override protected[core] def checkThrottles(user: Identity, right: Privilege, resources: Set[Resource])(
+    implicit transid: TransactionId): Future[Unit] = {
+    if (fpcEntitlementConfig.usePerMinThrottles) {
+      checkUserThrottle(user, right, resources).flatMap(_ => checkFPCConcurrentThrottle(user, right, resources))
+    } else {
+      checkFPCConcurrentThrottle(user, right, resources)
+    }
+  }
+
+  private def checkFPCConcurrentThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
     implicit transid: TransactionId): Future[Unit] = {
     if (right == ACTIVATE) {
       val checks = resources.filter(_.collection.path == Collection.ACTIONS).map { res =>
@@ -55,7 +73,6 @@ protected[core] class FPCEntitlementProvider(
       } else Future.successful(())
     } else Future.successful(())
   }
-
 }
 
 private object FPCEntitlementProvider extends EntitlementSpiProvider {

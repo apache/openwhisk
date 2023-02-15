@@ -39,6 +39,27 @@ def main(args)
 end
 ```
 
+An action supports not only a JSON object but also a JSON array as a return value.
+
+It would be a simple example that uses an array as a return value:
+
+```ruby
+def main(args)
+  nums = Array["a","b"]
+  nums
+end
+```
+
+You can also create a sequence action with actions accepting an array param and returning an array result.
+
+You can easily figure out the parameters with the following example:
+
+```ruby
+def main(args)
+  args
+end
+```
+
 Ruby actions always consume a Hash and return a Hash.
 The entry method for the action is `main` by default but may be specified explicitly
 when creating the action with the `wsk` CLI using `--main`, as with any other action type.

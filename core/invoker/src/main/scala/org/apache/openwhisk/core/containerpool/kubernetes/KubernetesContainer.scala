@@ -74,6 +74,10 @@ object KubernetesContainer {
         case e: KubernetesPodApiException =>
           //apiserver call failed - this will expose a different error to users
           cleanupFailedPod(e, podName, WhiskContainerStartupError(Messages.resourceProvisionError))
+        case e: KubernetesImagePullFailedException =>
+          cleanupFailedPod(e, podName, BlackboxStartupError(Messages.imagePullError(image)))
+        case e: KubernetesImageCommandNotFoundException =>
+          cleanupFailedPod(e, podName, BlackboxStartupError(s"${Messages.commandNotFoundError} in image ${image}"))
         case e: Throwable =>
           cleanupFailedPod(e, podName, WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
       }

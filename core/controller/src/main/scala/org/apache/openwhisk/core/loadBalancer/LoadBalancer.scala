@@ -18,7 +18,6 @@
 package org.apache.openwhisk.core.loadBalancer
 
 import akka.actor.{ActorRefFactory, ActorSystem, Props}
-import akka.stream.ActorMaterializer
 import org.apache.openwhisk.common.{InvokerHealth, Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector._
@@ -56,6 +55,15 @@ trait LoadBalancer {
   /** Gets the number of in-flight activations for a specific user. */
   def activeActivationsFor(namespace: UUID): Future[Int]
 
+  /** Gets the number of in-flight activations for a specific controller. */
+  def activeActivationsByController(controller: String): Future[Int]
+
+  /** Gets the in-flight activations */
+  def activeActivationsByController: Future[List[(String, String)]]
+
+  /** Gets the number of in-flight activations for a specific invoker. */
+  def activeActivationsByInvoker(invoker: String): Future[Int]
+
   /** Gets the number of in-flight activations in the system. */
   def totalActiveActivations: Future[Int]
 
@@ -64,6 +72,9 @@ trait LoadBalancer {
 
   /** Gets the throttling for given action. */
   def checkThrottle(namespace: EntityPath, action: String): Boolean = false
+
+  /** Close the load balancer */
+  def close: Unit = {}
 }
 
 /**
@@ -73,8 +84,7 @@ trait LoadBalancerProvider extends Spi {
   def requiredProperties: Map[String, String]
 
   def instance(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,
-                                                                         logging: Logging,
-                                                                         materializer: ActorMaterializer): LoadBalancer
+                                                                         logging: Logging): LoadBalancer
 
   /** Return default FeedFactory */
   def createFeedFactory(whiskConfig: WhiskConfig, instance: ControllerInstanceId)(implicit actorSystem: ActorSystem,

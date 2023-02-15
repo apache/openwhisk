@@ -17,13 +17,15 @@
 
 package org.apache.openwhisk.core.entity
 
+import org.apache.openwhisk.core.ConfigKeys
+
 import scala.util.{Failure, Success, Try}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.language.postfixOps
-import org.apache.openwhisk.core.entity.size.SizeInt
-import org.apache.openwhisk.core.entity.size.SizeString
+import org.apache.openwhisk.core.entity.size._
+import pureconfig.loadConfigOrThrow
 
 /**
  * Parameters is a key-value map from parameter names to parameter values. The value of a
@@ -214,9 +216,20 @@ protected[entity] case class ParameterValue protected[entity] (private val v: Js
 
 protected[core] object Parameters extends ArgNormalizer[Parameters] {
 
+  protected[core] val MAX_SIZE = loadConfigOrThrow[ByteSize](ConfigKeys.parameterSizeLimit) // system limit
+  protected[core] val MAX_SIZE_DEFAULT = try {
+    loadConfigOrThrow[ByteSize](ConfigKeys.namespaceParameterSizeLimit)
+  } catch {
+    case _: Throwable =>
+      // Supports backwards compatibility for openwhisk that do not use the namespace default limit
+      MAX_SIZE
+  }
+
+  require(MAX_SIZE >= MAX_SIZE_DEFAULT, "The system limit must be greater than the namespace limit.")
+
   /** Name of parameter that indicates if action is a feed. */
   protected[core] val Feed = "feed"
-  protected[core] val sizeLimit = 1 MB
+  protected[core] val sizeLimit = MAX_SIZE
 
   protected[core] def apply(): Parameters = new Parameters(Map.empty)
 

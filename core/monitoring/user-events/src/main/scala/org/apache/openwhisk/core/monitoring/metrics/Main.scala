@@ -19,7 +19,6 @@ package org.apache.openwhisk.core.monitoring.metrics
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
 import kamon.Kamon
 
 import scala.concurrent.duration.DurationInt
@@ -29,13 +28,11 @@ object Main {
   def main(args: Array[String]): Unit = {
     Kamon.init()
     implicit val system: ActorSystem = ActorSystem("events-actor-system")
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
     val binding = OpenWhiskEvents.start(system.settings.config)
     addShutdownHook(binding)
   }
 
-  private def addShutdownHook(binding: Future[Http.ServerBinding])(implicit actorSystem: ActorSystem,
-                                                                   materializer: ActorMaterializer): Unit = {
+  private def addShutdownHook(binding: Future[Http.ServerBinding])(implicit actorSystem: ActorSystem): Unit = {
     implicit val ec: ExecutionContextExecutor = actorSystem.dispatcher
     sys.addShutdownHook {
       Await.result(binding.map(_.unbind()), 30.seconds)

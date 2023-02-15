@@ -52,6 +52,7 @@ import org.apache.openwhisk.core.containerpool.Container
 trait ActionContainer {
   def init(value: JsValue): (Int, Option[JsObject])
   def run(value: JsValue): (Int, Option[JsObject])
+  def runForJsArray(value: JsValue): (Int, Option[JsArray])
   def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])]
 }
 
@@ -227,6 +228,7 @@ object ActionContainer {
     val mock = new ActionContainer {
       def init(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/init", value)
       def run(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/run", value)
+      def runForJsArray(value: JsValue): (Int, Option[JsArray]) = syncPostForJsArray(ip, port, "/run", value)
       def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])] =
         concurrentSyncPost(ip, port, "/run", values)
     }
@@ -252,6 +254,17 @@ object ActionContainer {
 
     org.apache.openwhisk.core.containerpool.AkkaContainerClient.post(host, port, endPoint, content, 30.seconds)
   }
+
+  private def syncPostForJsArray(host: String, port: Int, endPoint: String, content: JsValue)(
+    implicit logging: Logging,
+    as: ActorSystem): (Int, Option[JsArray]) = {
+
+    implicit val transid = TransactionId.testing
+
+    org.apache.openwhisk.core.containerpool.AkkaContainerClient
+      .postForJsArray(host, port, endPoint, content, 30.seconds)
+  }
+
   private def concurrentSyncPost(host: String, port: Int, endPoint: String, contents: Seq[JsValue])(
     implicit logging: Logging,
     as: ActorSystem): Seq[(Int, Option[JsObject])] = {

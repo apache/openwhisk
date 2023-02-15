@@ -96,6 +96,7 @@ if __name__ == "__main__":
         ("db-triggers.log", {"db"}, [ partial(database_has_at_most_x_entries, 0) ]),
         # Assert that stdout of the container is correctly piped and empty
         ("controller0.log", {"system"}, [ partial(file_has_at_most_x_bytes, 0) ]),
+        ("scheduler0.log", {"system"}, [ partial(file_has_at_most_x_bytes, 0) ]),
         ("invoker0.log", {"system"}, [ partial(file_has_at_most_x_bytes, 0) ])
     ]
 

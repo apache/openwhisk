@@ -32,8 +32,20 @@ case class ActivationEntityLimitConf(serdesOverhead: ByteSize, payload: Activati
  */
 protected[core] object ActivationEntityLimit {
   private val config = loadConfigOrThrow[ActivationEntityLimitConf](ConfigKeys.activation)
+  private val namespacePayloadLimitConfig = try {
+    loadConfigOrThrow[ActivationEntityPayload](ConfigKeys.namespaceActivationPayloadLimit)
+  } catch {
+    case _: Throwable =>
+      // Supports backwards compatibility for openwhisk that do not use the namespace default limit
+      ActivationEntityPayload(config.payload.max, config.payload.truncation)
+  }
 
+  // system limit
   protected[core] val MAX_ACTIVATION_ENTITY_LIMIT: ByteSize = config.payload.max
   protected[core] val MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT: ByteSize = config.payload.truncation
   protected[core] val MAX_ACTIVATION_LIMIT: ByteSize = config.payload.max + config.serdesOverhead
+
+  // namespace default limit
+  protected[core] val MAX_ACTIVATION_ENTITY_LIMIT_DEFAULT: ByteSize = namespacePayloadLimitConfig.max
+  protected[core] val MAX_ACTIVATION_ENTITY_TRUNCATION_LIMIT_DEFAULT: ByteSize = namespacePayloadLimitConfig.truncation
 }

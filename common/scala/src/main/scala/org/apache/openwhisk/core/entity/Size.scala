@@ -123,15 +123,15 @@ case class ByteSize(size: Long, unit: SizeUnits.Unit) extends Ordered[ByteSize] 
 
   override def equals(that: Any): Boolean = that match {
     case t: ByteSize => compareTo(t) == 0
-    case _ => false
+    case _           => false
   }
 
   override def toString = {
     unit match {
       case SizeUnits.BYTE => s"$size B"
-      case SizeUnits.KB => s"$size KB"
-      case SizeUnits.MB => s"$size MB"
-      case SizeUnits.GB => s"$size GB"
+      case SizeUnits.KB   => s"$size KB"
+      case SizeUnits.MB   => s"$size MB"
+      case SizeUnits.GB   => s"$size GB"
     }
   }
 }
@@ -190,7 +190,7 @@ object size {
 
     def read(value: JsValue): ByteSize = value match {
       case JsString(s) => ByteSize.fromString(s)
-      case _ => deserializationError(formatError)
+      case _           => deserializationError(formatError)
     }
   }
 }

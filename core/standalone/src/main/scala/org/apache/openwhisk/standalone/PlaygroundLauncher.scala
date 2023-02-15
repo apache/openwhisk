@@ -23,7 +23,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.FileAndResourceDirectives.ResourceFile
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import org.apache.commons.io.IOUtils
@@ -38,17 +37,14 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}
 
-class PlaygroundLauncher(host: String,
-                         extHost: String,
-                         controllerPort: Int,
-                         pgPort: Int,
-                         authKey: String,
-                         devMode: Boolean,
-                         noBrowser: Boolean)(implicit logging: Logging,
-                                             ec: ExecutionContext,
-                                             actorSystem: ActorSystem,
-                                             materializer: ActorMaterializer,
-                                             tid: TransactionId) {
+class PlaygroundLauncher(
+  host: String,
+  extHost: String,
+  controllerPort: Int,
+  pgPort: Int,
+  authKey: String,
+  devMode: Boolean,
+  noBrowser: Boolean)(implicit logging: Logging, ec: ExecutionContext, actorSystem: ActorSystem, tid: TransactionId) {
   private val interface = loadConfigOrThrow[String]("whisk.controller.interface")
   private val jsFileName = "playgroundFunctions.js"
   private val jsContentType = ContentType(MediaTypes.`application/javascript`, HttpCharsets.`UTF-8`)
@@ -75,7 +71,7 @@ class PlaygroundLauncher(host: String,
   private val wsk = new Wsk(host, controllerPort, authKey)
 
   def run(): ServiceContainer = {
-    BasicHttpService.startHttpService(PlaygroundService.route, pgPort, None, interface)(actorSystem, materializer)
+    BasicHttpService.startHttpService(PlaygroundService.route, pgPort, None, interface)(actorSystem)
     ServiceContainer(pgPort, pgUrl, "Playground")
   }
 
