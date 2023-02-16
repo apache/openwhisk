@@ -69,7 +69,7 @@ class ContainerMessageConsumer(
         val createContainer = for {
           identity <- Identity.get(authStore, EntityName(creation.invocationNamespace))
           action <- WhiskAction
-            .get(entityStore, creation.action.toDocId, creation.revision, fromCache = true)
+            .get(entityStore, creation.whiskActionMetaData.docId, creation.revision, fromCache = true)
         } yield {
           // check action limits before creating container
           action.limits.checkLimits(identity)
