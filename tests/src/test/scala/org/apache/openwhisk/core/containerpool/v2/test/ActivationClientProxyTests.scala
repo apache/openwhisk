@@ -203,26 +203,34 @@ class ActivationClientProxyTests
     val client = (_: String, _: FullyQualifiedEntityName, _: String, _: Int, _: Boolean) =>
       Future(MockActivationServiceClient(fetch))
 
-    val probe = TestProbe()
+    val parentProbe = TestProbe()
+    val selfProbe = TestProbe()
     val machine =
-      probe.childActorOf(
+      parentProbe.childActorOf(
         ActivationClientProxy
           .props(invocationNamespace.asString, fqn, rev, schedulerHost, rpcPort, containerId, client))
-    registerCallback(machine, probe)
-    ready(machine, probe)
+
+    // set up watch of client proxy fsm
+    machine ! SubscribeTransitionCallBack(selfProbe.ref)
+    selfProbe.expectMsg(CurrentState(machine, ClientProxyUninitialized))
+    selfProbe watch machine
+
+    // wait for client proxy to be ready
+    machine ! StartClient
+    parentProbe.expectMsg(ClientCreationCompleted)
+    selfProbe.expectMsg(Transition(machine, ClientProxyUninitialized, ClientProxyReady))
 
     machine ! RequestActivation()
 
-    inAnyOrder {
-      probe.expectMsg(Transition(machine, ClientProxyReady, ClientProxyRemoving))
-      probe.expectMsgPF() {
-        case Failure(t) => t.getMessage.contains(s"action version does not match") shouldBe true
-      }
+    // next two events can happen in any order
+    selfProbe.expectMsg(Transition(machine, ClientProxyReady, ClientProxyRemoving))
+    parentProbe.expectMsgPF() {
+      case Failure(t) => t.getMessage.contains(s"action version does not match") shouldBe true
     }
 
-    probe.expectMsg(ClientClosed)
+    parentProbe.expectMsg(ClientClosed)
 
-    probe expectTerminated machine
+    selfProbe expectTerminated machine
   }
 
   it should "retry to request activation message when scheduler response no activation message" in within(timeout) {
