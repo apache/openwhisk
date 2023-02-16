@@ -218,7 +218,7 @@ dependencies {
     implementation "io.rest-assured:rest-assured:4.5.1"
     implementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
     implementation "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
-    implementation "com.google.code.gson:gson:2.3.1"
+    implementation "com.google.code.gson:gson:2.10.1"
     implementation "org.scalamock:scalamock_${gradle.scala.depVersion}:4.4.0"
     implementation "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
     implementation "com.github.java-json-tools:json-schema-validator:2.2.8"
@@ -234,7 +234,7 @@ dependencies {
 
     implementation "com.amazonaws:aws-java-sdk-s3:1.12.395"
     implementation "com.microsoft.azure:azure-cosmos:3.7.6"
-    implementation 'org.testcontainers:elasticsearch:1.17.1'
+    implementation 'org.testcontainers:elasticsearch:1.17.6'
     implementation 'org.testcontainers:mongodb:1.17.1'
 
     implementation project(':common:scala')
@@ -245,7 +245,7 @@ dependencies {
     implementation project(':core:monitoring:user-events')
     implementation project(':tools:admin')
 
-    swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.9'
+    swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.29'
 }
 
 def keystorePath = new File(sourceSets.test.scala.outputDir, 'keystore')
