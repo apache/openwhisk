@@ -105,7 +105,6 @@ dependencies {
         exclude group: "com.azure", module: "azure-core-test"
     }
 
-    // https://nvd.nist.gov/vuln/detail/CVE-2020-11612
     compile "io.netty:netty-buffer:${gradle.netty.version}"
     compile "io.netty:netty-handler:${gradle.netty.version}"
     compile "io.netty:netty-handler-proxy:${gradle.netty.version}"
