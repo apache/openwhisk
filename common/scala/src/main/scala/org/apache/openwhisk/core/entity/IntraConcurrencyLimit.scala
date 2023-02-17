@@ -28,11 +28,11 @@ import scala.util.Success
 import scala.util.Try
 import spray.json._
 
-case class NamespaceConcurrencyLimitConfig(min: Int, max: Int)
-case class ConcurrencyLimitConfig(min: Int, max: Int, std: Int)
+case class NamespaceIntraConcurrencyLimitConfig(min: Int, max: Int)
+case class IntraConcurrencyLimitConfig(min: Int, max: Int, std: Int)
 
 /**
- * ConcurrencyLimit encapsulates allowed concurrency in a single container for an action. The limit must be within a
+ * IntraConcurrencyLimit encapsulates allowed concurrency in a single container for an action. The limit must be within a
  * permissible range (by default [1, 1]). This default range was chosen intentionally to reflect that concurrency
  * is disabled by default.
  *
@@ -42,7 +42,7 @@ case class ConcurrencyLimitConfig(min: Int, max: Int, std: Int)
  *
  * @param maxConcurrent the max number of concurrent activations in a single container
  */
-protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extends AnyVal {
+protected[entity] class IntraConcurrencyLimit private(val maxConcurrent: Int) extends AnyVal {
 
   /** It checks the namespace memory limit setting value  */
   @throws[ActionConcurrencyLimitException]
@@ -60,17 +60,17 @@ protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extend
   }
 }
 
-protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] {
+protected[core] object IntraConcurrencyLimit extends ArgNormalizer[IntraConcurrencyLimit] {
   //since tests require override to the default config, load the "test" config, with fallbacks to default
   val config = ConfigFactory.load().getConfig("test")
   private val concurrencyConfig =
-    loadConfigWithFallbackOrThrow[ConcurrencyLimitConfig](config, ConfigKeys.concurrencyLimit)
+    loadConfigWithFallbackOrThrow[IntraConcurrencyLimitConfig](config, ConfigKeys.concurrencyLimit)
   private val namespaceConcurrencyDefaultConfig = try {
-    loadConfigWithFallbackOrThrow[NamespaceConcurrencyLimitConfig](config, ConfigKeys.namespaceConcurrencyLimit)
+    loadConfigWithFallbackOrThrow[NamespaceIntraConcurrencyLimitConfig](config, ConfigKeys.namespaceConcurrencyLimit)
   } catch {
     case _: Throwable =>
       // Supports backwards compatibility for openwhisk that do not use the namespace default limit
-      NamespaceConcurrencyLimitConfig(concurrencyConfig.min, concurrencyConfig.max)
+      NamespaceIntraConcurrencyLimitConfig(concurrencyConfig.min, concurrencyConfig.max)
   }
 
   /**
@@ -91,10 +91,10 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
   require(MIN_CONCURRENT <= MIN_CONCURRENT_DEFAULT, "The system min limit must be less than the namespace min limit.")
 
   /** A singleton ConcurrencyLimit with default value */
-  protected[core] val standardConcurrencyLimit = ConcurrencyLimit(STD_CONCURRENT)
+  protected[core] val standardConcurrencyLimit = IntraConcurrencyLimit(STD_CONCURRENT)
 
   /** Gets ConcurrencyLimit with default value */
-  protected[core] def apply(): ConcurrencyLimit = standardConcurrencyLimit
+  protected[core] def apply(): IntraConcurrencyLimit = standardConcurrencyLimit
 
   /**
    * Creates ConcurrencyLimit for limit, iff limit is within permissible range.
@@ -104,19 +104,19 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
    * @throws IllegalArgumentException if limit does not conform to requirements
    */
   @throws[IllegalArgumentException]
-  protected[core] def apply(concurrency: Int): ConcurrencyLimit = {
-    new ConcurrencyLimit(concurrency)
+  protected[core] def apply(concurrency: Int): IntraConcurrencyLimit = {
+    new IntraConcurrencyLimit(concurrency)
   }
 
-  override protected[core] implicit val serdes = new RootJsonFormat[ConcurrencyLimit] {
-    def write(m: ConcurrencyLimit) = JsNumber(m.maxConcurrent)
+  override protected[core] implicit val serdes = new RootJsonFormat[IntraConcurrencyLimit] {
+    def write(m: IntraConcurrencyLimit) = JsNumber(m.maxConcurrent)
 
     def read(value: JsValue) = {
       Try {
         val JsNumber(c) = value
-        require(c.isWhole, "concurrency limit must be whole number")
+        require(c.isWhole, "intra concurrency limit must be whole number")
 
-        ConcurrencyLimit(c.toInt)
+        IntraConcurrencyLimit(c.toInt)
       } match {
         case Success(limit)                       => limit
         case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)

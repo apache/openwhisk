@@ -455,7 +455,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         l.timeout getOrElse TimeLimit(),
         l.memory getOrElse MemoryLimit(),
         l.logs getOrElse LogLimit(),
-        l.concurrency getOrElse ConcurrencyLimit(),
+        l.concurrency getOrElse IntraConcurrencyLimit(),
         l.containerConcurrency)
     } getOrElse ActionLimits()
     // This is temporary while we are making sequencing directly supported in the controller.
@@ -504,7 +504,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   /** Creates a WhiskAction from PUT content, generating default values where necessary. */
   private def make(user: Identity, entityName: FullyQualifiedEntityName, content: WhiskActionPut)(
     implicit transid: TransactionId) = {
-    checkContainerConcurrencyLessThanNamespaceConcurrency(user, content) flatMap { _ =>
+    checkInstanceConcurrencyLessThanNamespaceConcurrency(user, content) flatMap { _ =>
       content.exec map {
         case seq: SequenceExec =>
           // check that the sequence conforms to max length and no recursion rules
@@ -522,7 +522,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
   /** Updates a WhiskAction from PUT content, merging old action where necessary. */
   private def update(user: Identity, content: WhiskActionPut)(action: WhiskAction)(implicit transid: TransactionId) = {
-    checkContainerConcurrencyLessThanNamespaceConcurrency(user, content) flatMap { _ =>
+    checkInstanceConcurrencyLessThanNamespaceConcurrency(user, content) flatMap { _ =>
       content.exec map {
         case seq: SequenceExec =>
           // check that the sequence conforms to max length and no recursion rules
@@ -553,7 +553,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         l.memory getOrElse action.limits.memory,
         l.logs getOrElse action.limits.logs,
         l.concurrency getOrElse action.limits.concurrency,
-        if (l.containerConcurrency.isDefined) l.containerConcurrency else action.limits.containerConcurrency)
+        if (l.containerConcurrency.isDefined) l.containerConcurrency else action.limits.instances)
     } getOrElse action.limits
 
     // This is temporary while we are making sequencing directly supported in the controller.
@@ -690,7 +690,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     }
   }
 
-  private def checkContainerConcurrencyLessThanNamespaceConcurrency(user: Identity, content: WhiskActionPut)(
+  private def checkInstanceConcurrencyLessThanNamespaceConcurrency(user: Identity, content: WhiskActionPut)(
     implicit transid: TransactionId): Future[Unit] = {
     val namespaceConcurrencyLimit =
       user.limits.concurrentInvocations.getOrElse(whiskConfig.actionInvokeConcurrentLimit.toInt)
@@ -700,10 +700,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           l.containerConcurrency
             .map(
               m =>
-                if (m.maxConcurrentContainers > namespaceConcurrencyLimit)
+                if (m.maxConcurrentInstances > namespaceConcurrencyLimit)
                   Future failed RejectRequest(
                     BadRequest,
-                    maxActionContainerConcurrencyExceedsNamespace(namespaceConcurrencyLimit))
+                    maxActionInstanceConcurrencyExceedsNamespace(namespaceConcurrencyLimit))
                 else Future.successful({}))
             .getOrElse(Future.successful({})))
       .getOrElse(Future.successful({}))

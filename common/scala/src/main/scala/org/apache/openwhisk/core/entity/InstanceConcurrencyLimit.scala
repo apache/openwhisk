@@ -25,7 +25,7 @@ import scala.util.Try
 import spray.json._
 
 /**
- * ActionContainerConcurrencyLimit encapsulates max allowed container concurrency for an action within a given namespace.
+ * InstanceConcurrencyLimit encapsulates max allowed container concurrency for an action within a given namespace.
  * A user is given a max concurrency for their entire namespace, but this doesn't allow for any fairness across their actions
  * during load spikes. This action limit allows a user to specify max container concurrency for a specific action within the
  * constraints of their namespace limit. By default, this limit does not exist and therefore the namespace concurrency limit is used.
@@ -37,39 +37,39 @@ import spray.json._
  * not using the scheduler service, the limit will do nothing.
  *
  *
- * @param maxConcurrentConcurrentContainers the max number of concurrent activations in a single container
+ * @param maxConcurrentInstances the max number of concurrent activations in a single container
  */
-protected[entity] class ContainerConcurrencyLimit private (val maxConcurrentContainers: Int) extends AnyVal
+protected[entity] class InstanceConcurrencyLimit private(val maxConcurrentInstances: Int) extends AnyVal
 
-protected[core] object ContainerConcurrencyLimit extends ArgNormalizer[ContainerConcurrencyLimit] {
+protected[core] object InstanceConcurrencyLimit extends ArgNormalizer[InstanceConcurrencyLimit] {
 
   /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
-  protected[core] val MIN_CONTAINER_CONCURRENT: Int = 0
+  protected[core] val MIN_INSTANCES_LIMIT: Int = 0
 
   /**
    * Creates ContainerConcurrencyLimit for limit, iff limit is within permissible range.
    *
-   * @param maxConcurrency the limit, must be within permissible range
+   * @param maxConcurrenctInstances the limit, must be within permissible range
    * @return ConcurrencyLimit with limit set
    * @throws IllegalArgumentException if limit does not conform to requirements
    */
   @throws[IllegalArgumentException]
-  protected[core] def apply(maxConcurrency: Int): ContainerConcurrencyLimit = {
+  protected[core] def apply(maxConcurrenctInstances: Int): InstanceConcurrencyLimit = {
     require(
-      maxConcurrency >= MIN_CONTAINER_CONCURRENT,
-      Messages.belowMinAllowedActionContainerConcurrency(MIN_CONTAINER_CONCURRENT))
-    new ContainerConcurrencyLimit(maxConcurrency)
+      maxConcurrenctInstances >= MIN_INSTANCES_LIMIT,
+      Messages.belowMinAllowedActionInstanceConcurrency(MIN_INSTANCES_LIMIT))
+    new InstanceConcurrencyLimit(maxConcurrenctInstances)
   }
 
-  override protected[core] implicit val serdes = new RootJsonFormat[ContainerConcurrencyLimit] {
-    def write(m: ContainerConcurrencyLimit) = JsNumber(m.maxConcurrentContainers)
+  override protected[core] implicit val serdes = new RootJsonFormat[InstanceConcurrencyLimit] {
+    def write(m: InstanceConcurrencyLimit) = JsNumber(m.maxConcurrentInstances)
 
     def read(value: JsValue) = {
       Try {
         val JsNumber(c) = value
         require(c.isWhole, "container concurrency limit must be whole number")
 
-        ContainerConcurrencyLimit(c.toInt)
+        InstanceConcurrencyLimit(c.toInt)
       } match {
         case Success(limit)                       => limit
         case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)

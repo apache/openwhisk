@@ -1803,10 +1803,10 @@
           "description": "number of concurrent activations allowed within an instance",
           "default": 1
         },
-        "containerConcurrency": {
+        "instances": {
           "type": "integer",
           "format": "int32",
-          "description": "Max number of containers allowed for an action. Default is the namespace concurrency limit."
+          "description": "Max number of instances allowed for an action. Must be less than or equal to namespace concurrency limit. Default is the namespace concurrency limit."
         }
       }
     },
@@ -2873,15 +2873,15 @@
         },
         "minActionConcurrency": {
           "type": "integer",
-          "description": "Min number of concurrent activations within a container allowed"
+          "description": "Min number of concurrent activations within an instance allowed"
         },
         "maxActionConcurrency": {
           "type": "integer",
-          "description": "Max number of concurrent activations within a container allowed"
+          "description": "Max number of concurrent activations within an instance allowed"
         },
-        "maxActionContainerConcurrency": {
+        "maxActionInstances": {
           "type": "integer",
-          "description": "Max number of concurrent containers allowed for an action"
+          "description": "Max number of concurrent instances allowed for an action"
         }
       }
     }

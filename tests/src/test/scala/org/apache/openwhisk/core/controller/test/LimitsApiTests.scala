@@ -23,7 +23,7 @@ import akka.http.scaladsl.model.StatusCodes.{BadRequest, MethodNotAllowed, OK}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.core.controller.WhiskLimitsApi
-import org.apache.openwhisk.core.entity.{ConcurrencyLimit, EntityPath, LogLimit, MemoryLimit, TimeLimit, UserLimits}
+import org.apache.openwhisk.core.entity.{IntraConcurrencyLimit, EntityPath, LogLimit, MemoryLimit, TimeLimit, UserLimits}
 import org.apache.openwhisk.core.entity.size._
 
 import scala.concurrent.duration._
@@ -58,8 +58,8 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
   val testLogMax = LogLimit(6.MB)
   val testDurationMax = TimeLimit(20.seconds)
   val testDurationMin = TimeLimit(10.seconds)
-  val testConcurrencyMax = ConcurrencyLimit(20)
-  val testConcurrencyMin = ConcurrencyLimit(10)
+  val testConcurrencyMax = IntraConcurrencyLimit(20)
+  val testConcurrencyMin = IntraConcurrencyLimit(10)
 
   val creds = WhiskAuthHelpers.newIdentity()
   val credsWithSetLimits = WhiskAuthHelpers
@@ -91,7 +91,7 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         responseAs[UserLimits].invocationsPerMinute shouldBe Some(whiskConfig.actionInvokePerMinuteLimit.toInt)
         responseAs[UserLimits].concurrentInvocations shouldBe Some(whiskConfig.actionInvokeConcurrentLimit.toInt)
         responseAs[UserLimits].firesPerMinute shouldBe Some(whiskConfig.triggerFirePerMinuteLimit.toInt)
-        responseAs[UserLimits].maxActionContainerConcurrency shouldBe Some(whiskConfig.actionInvokeConcurrentLimit.toInt)
+        responseAs[UserLimits].maxActionInstances shouldBe Some(whiskConfig.actionInvokeConcurrentLimit.toInt)
 
         responseAs[UserLimits].allowedKinds shouldBe None
         responseAs[UserLimits].storeActivations shouldBe None
@@ -103,8 +103,8 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         responseAs[UserLimits].maxActionLogs.get.megabytes shouldBe LogLimit.MAX_LOGSIZE_DEFAULT.toMB
         responseAs[UserLimits].minActionTimeout.get.duration shouldBe TimeLimit.MIN_DURATION_DEFAULT
         responseAs[UserLimits].maxActionTimeout.get.duration shouldBe TimeLimit.MAX_DURATION_DEFAULT
-        responseAs[UserLimits].minActionConcurrency.get.maxConcurrent shouldBe ConcurrencyLimit.MIN_CONCURRENT_DEFAULT
-        responseAs[UserLimits].maxActionConcurrency.get.maxConcurrent shouldBe ConcurrencyLimit.MAX_CONCURRENT_DEFAULT
+        responseAs[UserLimits].minActionConcurrency.get.maxConcurrent shouldBe IntraConcurrencyLimit.MIN_CONCURRENT_DEFAULT
+        responseAs[UserLimits].maxActionConcurrency.get.maxConcurrent shouldBe IntraConcurrencyLimit.MAX_CONCURRENT_DEFAULT
       }
     }
   }
@@ -119,7 +119,7 @@ class LimitsApiTests extends ControllerTestCommon with WhiskLimitsApi {
         responseAs[UserLimits].firesPerMinute shouldBe Some(testFiresPerMinute)
         responseAs[UserLimits].allowedKinds shouldBe Some(testAllowedKinds)
         responseAs[UserLimits].storeActivations shouldBe Some(testStoreActivations)
-        responseAs[UserLimits].maxActionContainerConcurrency shouldBe Some(testConcurrent)
+        responseAs[UserLimits].maxActionInstances shouldBe Some(testConcurrent)
 
         // provide action limits for namespace
         responseAs[UserLimits].minActionMemory.get.megabytes shouldBe testMemoryMin.megabytes

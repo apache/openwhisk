@@ -72,10 +72,10 @@ object Messages {
   def tooManyConcurrentRequests(count: Int, allowed: Int) =
     s"Too many concurrent requests in flight (count: $count, allowed: $allowed)."
 
-  def maxActionContainerConcurrencyExceedsNamespace(namespaceConcurrencyLimit: Int) =
-    s"Max action container concurrency must not exceed your namespace concurrency of $namespaceConcurrencyLimit."
+  def maxActionInstanceConcurrencyExceedsNamespace(namespaceConcurrencyLimit: Int) =
+    s"Max action instance concurrency must not exceed your namespace concurrency of $namespaceConcurrencyLimit."
 
-  def belowMinAllowedActionContainerConcurrency(minThreshold: Int) =
+  def belowMinAllowedActionInstanceConcurrency(minThreshold: Int) =
     s"Action container concurrency must be greater than or equal to $minThreshold."
 
   /** System overload message. */

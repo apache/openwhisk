@@ -776,12 +776,12 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson,
         "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
-        "concurrency" -> ConcurrencyLimit.STD_CONCURRENT.toInt.toJson),
+        "concurrency" -> IntraConcurrencyLimit.STD_CONCURRENT.toInt.toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson,
         "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
-        "concurrency" -> ConcurrencyLimit.STD_CONCURRENT.toInt.toJson,
+        "concurrency" -> IntraConcurrencyLimit.STD_CONCURRENT.toInt.toJson,
         "foo" -> "bar".toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
