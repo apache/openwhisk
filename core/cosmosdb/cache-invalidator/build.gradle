@@ -34,7 +34,7 @@ dependencies {
     implementation (project(':common:scala')) {
         exclude group: 'com.microsoft.azure', module:'azure-cosmosdb'
     }
-    implementation "com.microsoft.azure:azure-cosmos:3.5.0"
+    implementation "com.microsoft.azure:azure-cosmos:3.7.6"
     implementation "com.typesafe.akka:akka-stream-kafka_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
 }
 

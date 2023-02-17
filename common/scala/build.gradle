@@ -50,11 +50,11 @@ dependencies {
 
     api "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:1.1.2"
 
-    api "ch.qos.logback:logback-classic:1.2.3"
+    api "ch.qos.logback:logback-classic:1.2.11"
     api "org.slf4j:jcl-over-slf4j:1.7.25"
     api "org.slf4j:log4j-over-slf4j:1.7.25"
     api "commons-codec:commons-codec:1.9"
-    api "commons-io:commons-io:2.6"
+    api "commons-io:commons-io:2.11.0"
     api "commons-collections:commons-collections:3.2.2"
     api "org.apache.kafka:kafka-clients:2.4.0"
     api "org.apache.httpcomponents:httpclient:4.5.5"
@@ -99,11 +99,20 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
-    api "com.amazonaws:aws-java-sdk-cloudfront:1.11.517"
+    api "com.amazonaws:aws-java-sdk-cloudfront:1.12.395"
 
     api ("com.azure:azure-storage-blob:12.7.0") {
         exclude group: "com.azure", module: "azure-core-test"
     }
+
+    compile "io.netty:netty-buffer:${gradle.netty.version}"
+    compile "io.netty:netty-handler:${gradle.netty.version}"
+    compile "io.netty:netty-handler-proxy:${gradle.netty.version}"
+    compile "io.netty:netty-codec-socks:${gradle.netty.version}"
+    compile "io.netty:netty-codec-http:${gradle.netty.version}"
+    compile "io.netty:netty-codec-http2:${gradle.netty.version}"
+    compile "io.netty:netty-transport-native-epoll:${gradle.netty.version}"
+    compile "io.netty:netty-transport-native-unix-common:${gradle.netty.version}"
 }
 
 configurations {
