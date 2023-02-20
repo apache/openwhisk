@@ -41,7 +41,7 @@ case class ActionLimitsOption(timeout: Option[TimeLimit],
                               memory: Option[MemoryLimit],
                               logs: Option[LogLimit],
                               concurrency: Option[IntraConcurrencyLimit],
-                              containerConcurrency: Option[InstanceConcurrencyLimit] = None)
+                              instances: Option[InstanceConcurrencyLimit] = None)
 
 /**
  * WhiskActionPut is a restricted WhiskAction view that eschews properties

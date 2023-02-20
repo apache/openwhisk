@@ -67,13 +67,13 @@ protected[core] object InstanceConcurrencyLimit extends ArgNormalizer[InstanceCo
     def read(value: JsValue) = {
       Try {
         val JsNumber(c) = value
-        require(c.isWhole, "container concurrency limit must be whole number")
+        require(c.isWhole, "instance concurrency limit must be whole number")
 
         InstanceConcurrencyLimit(c.toInt)
       } match {
         case Success(limit)                       => limit
         case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
-        case Failure(e: Throwable)                => deserializationError("container concurrency limit malformed", e)
+        case Failure(e: Throwable)                => deserializationError("instance concurrency limit malformed", e)
       }
     }
   }
