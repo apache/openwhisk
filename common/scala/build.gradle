@@ -88,11 +88,29 @@ dependencies {
 
     api "io.reactivex:rxjava:1.3.8"
     api "io.reactivex:rxjava-reactive-streams:1.2.1"
-    api "com.microsoft.azure:azure-cosmosdb:2.6.2"
+    api "com.microsoft.azure:azure-cosmosdb"
+    constraints {
+        api("com.microsoft.azure:azure-cosmosdb:2.6.16")
+        api("com.fasterxml.jackson.core:jackson-databind:2.14.2") {
+            because "cannot upgrade azure-cosmosdb to new major version to remediate vulns w/o breaking change"
+        }
+    }
 
-    api "com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}:6.7.4"
+    api "com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}"
+    constraints {
+        api("com.sksamuel.elastic4s:elastic4s-http_${gradle.scala.depVersion}:6.7.8")
+        api("org.elasticsearch.client:elasticsearch-rest-client:6.8.23") {
+            because "cannot upgrade elastic4s to remediate vuln without performing major version rest client upgrade"
+        }
+    }
     //for mongo
     api "org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.7.0"
+    constraints {
+        api("org.mongodb.scala:mongo-scala-driver_${gradle.scala.depVersion}:2.7.0")
+        api("org.mongodb:mongodb-driver-core:3.12.1") {
+            because "cannot upgrade major mongo scala driver to remediate vuln w/o code changes"
+        }
+    }
 
     api ("com.lightbend.akka:akka-stream-alpakka-s3_${gradle.scala.depVersion}:1.1.2") {
         exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http

@@ -28,6 +28,10 @@ jar {
     enabled = true
 }
 
+scala {
+    zincVersion = '1.8.0'
+}
+
 task copyBootJarToBin(type:Copy){
     from ("${buildDir}/libs")
     into file("${project.rootProject.projectDir}/bin")
