@@ -28,6 +28,11 @@ apply from: '../../gradle/docker.gradle'
 
 project.archivesBaseName = "openwhisk-common"
 
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 dependencies {
     api "org.scala-lang:scala-library:${gradle.scala.version}"
 

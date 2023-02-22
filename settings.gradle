@@ -55,6 +55,8 @@ if (scalaVersion == '2.12') {
     gradle.ext.scala = [
             version     : '2.12.10',
             depVersion  : '2.12',
+            scoverageScalaVersion : '2.12.15',
+            scoverageVersion : '1.4.11',
             compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
     ]
 } else {
@@ -62,6 +64,8 @@ if (scalaVersion == '2.12') {
     gradle.ext.scala = [
             version     : '2.13.1',
             depVersion  : '2.13',
+            scoverageScalaVersion : '2.13.1',
+            scoverageVersion : '1.4.8',
             // We can't use fatal warnings yet because there are deprecated things in 2.13 that are not fixable
             // in 2.12.
             compileFlags: ['-feature', '-unchecked', '-deprecation']
