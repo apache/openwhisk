@@ -229,7 +229,7 @@ dependencies {
     }
     implementation "com.atlassian.oai:swagger-request-validator-core"
     constraints {
-        implementation("com.atlassian.oai:swagger-request-validator-core:1.5.1")
+        implementation("com.atlassian.oai:swagger-request-validator-core:1.4.5")
         implementation("org.slf4j:slf4j-ext:1.7.36") {
             because 'swagger-request-validator-core cannot be upgraded to 2.x where vuln is remediated'
         }
