@@ -224,9 +224,23 @@ dependencies {
     implementation "com.github.java-json-tools:json-schema-validator:2.2.8"
     implementation "org.mockito:mockito-core:2.27.0"
     implementation "io.opentracing:opentracing-mock:0.31.0"
-    implementation "org.apache.curator:curator-test:${gradle.curator.version}"
-    implementation "com.atlassian.oai:swagger-request-validator-core:1.4.5"
-    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
+    implementation ("org.apache.curator:curator-test:${gradle.curator.version}") {
+        exclude group: 'log4j'
+    }
+    implementation "com.atlassian.oai:swagger-request-validator-core"
+    constraints {
+        implementation("com.atlassian.oai:swagger-request-validator-core:1.4.5")
+        implementation("org.slf4j:slf4j-ext:1.7.36") {
+            because 'swagger-request-validator-core cannot be upgraded to 2.x where vuln is remediated'
+        }
+    }
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}"
+    constraints {
+        implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0")
+        implementation('org.apache.avro:avro:1.11.1') {
+            because 'embeddedkafka dependency cannot be upgraded currently and avro in embedded kafka 2.4.0 has vulns'
+        }
+    }
     implementation "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
     implementation "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     implementation "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
