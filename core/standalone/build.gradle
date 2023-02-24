@@ -169,7 +169,7 @@ dependencies {
     implementation project(':tools:admin')
     implementation "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 
-    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}"
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
     constraints {
         implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0")
         implementation('org.apache.avro:avro:1.11.1') {

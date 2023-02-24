@@ -232,14 +232,14 @@ dependencies {
     implementation ("org.apache.curator:curator-test:${gradle.curator.version}") {
         exclude group: 'log4j'
     }
-    implementation "com.atlassian.oai:swagger-request-validator-core"
+    implementation "com.atlassian.oai:swagger-request-validator-core:1.4.5"
     constraints {
         implementation("com.atlassian.oai:swagger-request-validator-core:1.4.5")
         implementation("org.slf4j:slf4j-ext:1.7.36") {
             because 'swagger-request-validator-core cannot be upgraded to 2.x where vuln is remediated'
         }
     }
-    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}"
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
     constraints {
         implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0")
         implementation('org.apache.avro:avro:1.11.1') {
