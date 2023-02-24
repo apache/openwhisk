@@ -45,7 +45,7 @@ dependencies {
 
     testImplementation "junit:junit:4.11"
     testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
-    testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}"
+    testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
     constraints {
         testImplementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0")
         testImplementation('org.apache.avro:avro:1.11.1') {
