@@ -32,6 +32,11 @@ install.dependsOn ':tools:admin:install'
 
 project.archivesBaseName = "openwhisk-tests"
 
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 def leanExcludes = [
     '**/MaxActionDurationTests*',
     'invokerShoot/**'

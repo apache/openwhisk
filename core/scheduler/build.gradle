@@ -28,6 +28,11 @@ distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 project.archivesBaseName = "openwhisk-scheduler"
 
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 ext.coverageDirs = [
         "${buildDir}/classes/scala/scoverage",
         "${project(':common:scala').buildDir.absolutePath}/classes/scala/scoverage"
