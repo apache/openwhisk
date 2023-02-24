@@ -29,6 +29,11 @@ distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 project.archivesBaseName = "openwhisk-cache-invalidator-cosmosdb"
 
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 dependencies {
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
     implementation (project(':common:scala')) {

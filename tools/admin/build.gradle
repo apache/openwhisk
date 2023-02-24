@@ -24,6 +24,11 @@ plugins {
 
 project.archivesBaseName = "openwhisk-admin-tools"
 
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 jar {
     enabled = true
 }

@@ -32,6 +32,11 @@ distDocker.dependsOn 'bootJar'
 
 project.archivesBaseName = "openwhisk-standalone"
 
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 task copySwagger(type: Copy) {
     def version = "3.6.0"
     mkdir("$buildDir/tmp/swagger")
