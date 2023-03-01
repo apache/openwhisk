@@ -56,6 +56,7 @@ protected[core] case class FullyQualifiedEntityName(path: EntityPath,
   def namespace: EntityName = path.root
   def qualifiedNameWithLeadingSlash: String = EntityPath.PATHSEP + qualifiedName
   def asString = path.addPath(name) + version.map("@" + _.toString).getOrElse("")
+  def toStringWithoutVersion = path.addPath(name).asString
   def serialize = FullyQualifiedEntityName.serdes.write(this).compactPrint
 
   override def size = qualifiedName.sizeInBytes

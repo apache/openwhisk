@@ -20,7 +20,6 @@ package org.apache.openwhisk.common
 import java.io.PrintStream
 import java.time.{Clock, Instant, ZoneId}
 import java.time.format.DateTimeFormatter
-
 import akka.event.Logging._
 import akka.event.LoggingAdapter
 import kamon.Kamon
@@ -372,20 +371,22 @@ object LoggingMarkers {
   def SCHEDULER_NAMESPACE_INPROGRESS_CONTAINER(namespace: String) =
     LogMarkerToken(scheduler, "namespaceInProgressContainer", counter, Some(namespace), Map("namespace" -> namespace))(
       MeasurementUnit.none)
-  def SCHEDULER_ACTION_CONTAINER(namespace: String, action: String) =
+  def SCHEDULER_ACTION_CONTAINER(namespace: String, actionWithVersion: String, actionWithoutVersion: String) =
     LogMarkerToken(
       scheduler,
       "actionContainer",
       counter,
-      Some(action),
-      Map("namespace" -> namespace, "action" -> action))(MeasurementUnit.none)
-  def SCHEDULER_ACTION_INPROGRESS_CONTAINER(namespace: String, action: String) =
+      Some(actionWithoutVersion),
+      Map("namespace" -> namespace, "action" -> actionWithVersion))(MeasurementUnit.none)
+  def SCHEDULER_ACTION_INPROGRESS_CONTAINER(namespace: String,
+                                            actionWithVersion: String,
+                                            actionWithoutVersion: String) =
     LogMarkerToken(
       scheduler,
       "actionInProgressContainer",
       counter,
-      Some(action),
-      Map("namespace" -> namespace, "action" -> action))(MeasurementUnit.none)
+      Some(actionWithoutVersion),
+      Map("namespace" -> namespace, "action" -> actionWithVersion))(MeasurementUnit.none)
 
   /*
    * Controller related markers
@@ -593,8 +594,8 @@ object LoggingMarkers {
   val SCHEDULER_KAFKA = LogMarkerToken(scheduler, kafka, start)(MeasurementUnit.time.milliseconds)
   val SCHEDULER_KAFKA_WAIT_TIME =
     LogMarkerToken(scheduler, "kafkaWaitTime", counter)(MeasurementUnit.time.milliseconds)
-  def SCHEDULER_WAIT_TIME(action: String) =
-    LogMarkerToken(scheduler, "waitTime", counter, Some(action), Map("action" -> action))(
+  def SCHEDULER_WAIT_TIME(actionWithVersion: String, actionWithoutVersion: String) =
+    LogMarkerToken(scheduler, "waitTime", counter, Some(actionWithoutVersion), Map("action" -> actionWithVersion))(
       MeasurementUnit.time.milliseconds)
 
   def SCHEDULER_KEEP_ALIVE(leaseId: Long) =
@@ -604,8 +605,13 @@ object LoggingMarkers {
   def SCHEDULER_QUEUE_RECOVER = LogMarkerToken(scheduler, "queueRecover", start)(MeasurementUnit.time.milliseconds)
   def SCHEDULER_QUEUE_UPDATE(reason: String) =
     LogMarkerToken(scheduler, "queueUpdate", counter, None, Map("reason" -> reason))(MeasurementUnit.none)
-  def SCHEDULER_QUEUE_WAITING_ACTIVATION(action: String) =
-    LogMarkerToken(scheduler, "queueActivation", counter, Some(action), Map("action" -> action))(MeasurementUnit.none)
+  def SCHEDULER_QUEUE_WAITING_ACTIVATION(namespace: String, actionWithVersion: String, actionWithoutVersion: String) =
+    LogMarkerToken(
+      scheduler,
+      "queueActivation",
+      counter,
+      Some(actionWithoutVersion),
+      Map("namespace" -> namespace, "action" -> actionWithVersion))(MeasurementUnit.none)
 
   /*
    * General markers
