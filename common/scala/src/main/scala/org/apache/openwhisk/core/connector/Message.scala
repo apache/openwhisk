@@ -655,6 +655,7 @@ object ContainerCreationError extends Enumeration {
       case BlackBoxError                    => "a blackbox error happens"
       case ZeroNamespaceLimit               => "the namespace has 0 limit configured"
       case TooManyConcurrentRequests        => "too many concurrent requests are in flight."
+      case InvalidActionLimitError          => "a configured action limit is invalid."
     }
   }
 
@@ -682,6 +683,8 @@ object ContainerCreationError extends Enumeration {
 
   case object TooManyConcurrentRequests extends ContainerCreationError
 
+  case object InvalidActionLimitError extends ContainerCreationError
+
   val whiskErrors: Set[ContainerCreationError] =
     Set(
       NoAvailableInvokersError,
@@ -705,6 +708,7 @@ object ContainerCreationError extends Enumeration {
     case "ZERONAMESPACELIMIT"               => ZeroNamespaceLimit
     case "TOOMANYCONCURRENTREQUESTS"        => TooManyConcurrentRequests
     case "UNKNOWNERROR"                     => UnknownError
+    case "INVALIDACTIONLIMITERROR"          => InvalidActionLimitError
   }
 
   implicit val serds = new RootJsonFormat[ContainerCreationError] {

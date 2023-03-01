@@ -32,6 +32,11 @@ install.dependsOn ':tools:admin:install'
 
 project.archivesBaseName = "openwhisk-tests"
 
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 def leanExcludes = [
     '**/MaxActionDurationTests*',
     'invokerShoot/**'
@@ -212,29 +217,43 @@ task testUnit(type: Test) {
 dependencies {
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
     implementation "org.apache.commons:commons-lang3:3.3.2"
-    implementation "org.apache.httpcomponents:httpclient:4.5.2:tests"
+    implementation "org.apache.httpcomponents:httpclient:4.5.14:tests"
     implementation "org.apache.httpcomponents:httpmime:4.3.6"
     implementation "junit:junit:4.11"
-    implementation "io.rest-assured:rest-assured:4.0.0"
+    implementation "io.rest-assured:rest-assured:4.5.1"
     implementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
     implementation "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
-    implementation "com.google.code.gson:gson:2.3.1"
+    implementation "com.google.code.gson:gson:2.10.1"
     implementation "org.scalamock:scalamock_${gradle.scala.depVersion}:4.4.0"
     implementation "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
     implementation "com.github.java-json-tools:json-schema-validator:2.2.8"
     implementation "org.mockito:mockito-core:2.27.0"
     implementation "io.opentracing:opentracing-mock:0.31.0"
-    implementation "org.apache.curator:curator-test:${gradle.curator.version}"
-    implementation "com.atlassian.oai:swagger-request-validator-core:1.4.5"
-    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
+    implementation ("org.apache.curator:curator-test:${gradle.curator.version}") {
+        exclude group: 'log4j'
+    }
+    implementation "com.atlassian.oai:swagger-request-validator-core"
+    constraints {
+        implementation("com.atlassian.oai:swagger-request-validator-core:1.4.5")
+        implementation("org.slf4j:slf4j-ext:1.7.36") {
+            because 'swagger-request-validator-core cannot be upgraded to 2.x where vuln is remediated'
+        }
+    }
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}"
+    constraints {
+        implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0")
+        implementation('org.apache.avro:avro:1.11.1') {
+            because 'embeddedkafka dependency cannot be upgraded currently and avro in embedded kafka 2.4.0 has vulns'
+        }
+    }
     implementation "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
     implementation "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     implementation "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
     implementation "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 
-    implementation "com.amazonaws:aws-java-sdk-s3:1.11.295"
-    implementation "com.microsoft.azure:azure-cosmos:3.5.0"
-    implementation 'org.testcontainers:elasticsearch:1.17.1'
+    implementation "com.amazonaws:aws-java-sdk-s3:1.12.395"
+    implementation "com.microsoft.azure:azure-cosmos:3.7.6"
+    implementation 'org.testcontainers:elasticsearch:1.17.6'
     implementation 'org.testcontainers:mongodb:1.17.1'
 
     implementation project(':common:scala')
@@ -245,7 +264,7 @@ dependencies {
     implementation project(':core:monitoring:user-events')
     implementation project(':tools:admin')
 
-    swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.9'
+    swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.29'
 }
 
 def keystorePath = new File(sourceSets.test.scala.outputDir, 'keystore')

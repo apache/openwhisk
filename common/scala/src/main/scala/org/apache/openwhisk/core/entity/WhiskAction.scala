@@ -21,7 +21,6 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Instant
 import java.util.Base64
-
 import akka.http.scaladsl.model.ContentTypes
 
 import scala.concurrent.ExecutionContext
@@ -30,9 +29,7 @@ import scala.util.{Failure, Success, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.database.ArtifactStore
-import org.apache.openwhisk.core.database.DocumentFactory
-import org.apache.openwhisk.core.database.CacheChangeNotification
+import org.apache.openwhisk.core.database.{ArtifactStore, CacheChangeNotification, DocumentFactory, NoDocumentException}
 import org.apache.openwhisk.core.entity.Attachments._
 import org.apache.openwhisk.core.entity.types.EntityStore
 
@@ -421,11 +418,13 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
   }
 
   // overridden to retrieve attached code
-  override def get[A >: WhiskAction](
-    db: ArtifactStore[A],
-    doc: DocId,
-    rev: DocRevision = DocRevision.empty,
-    fromCache: Boolean)(implicit transid: TransactionId, mw: Manifest[WhiskAction]): Future[WhiskAction] = {
+  override def get[A >: WhiskAction](db: ArtifactStore[A],
+                                     doc: DocId,
+                                     rev: DocRevision = DocRevision.empty,
+                                     fromCache: Boolean,
+                                     ignoreMissingAttachment: Boolean = false)(
+    implicit transid: TransactionId,
+    mw: Manifest[WhiskAction]): Future[WhiskAction] = {
 
     implicit val ec = db.executionContext
 
@@ -439,6 +438,9 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           val newAction = a.copy(exec = exec.inline(boas.toByteArray))
           newAction.revision(a.rev)
           newAction
+        }).recover({
+          case _: NoDocumentException if ignoreMissingAttachment =>
+            action
         })
       }
 

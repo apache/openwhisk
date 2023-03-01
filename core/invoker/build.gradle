@@ -28,6 +28,12 @@ apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 project.archivesBaseName = "openwhisk-invoker"
+
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 ext.coverageDirs = [
     "${buildDir}/classes/scala/scoverage",
     "${project(':common:scala').buildDir.absolutePath}/classes/scala/scoverage"
@@ -42,7 +48,7 @@ dependencies {
     implementation ("org.apache.curator:curator-recipes:${gradle.curator.version}") {
         exclude group: 'org.apache.zookeeper', module:'zookeeper'
     }
-    implementation ("org.apache.zookeeper:zookeeper:3.4.11") {
+    implementation ("org.apache.zookeeper:zookeeper:3.4.14") {
         exclude group: 'org.slf4j'
         exclude group: 'log4j'
         exclude group: 'jline'

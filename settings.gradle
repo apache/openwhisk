@@ -55,6 +55,8 @@ if (scalaVersion == '2.12') {
     gradle.ext.scala = [
             version     : '2.12.10',
             depVersion  : '2.12',
+            scoverageScalaVersion : '2.12.15',
+            scoverageVersion : '1.4.11',
             compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
     ]
 } else {
@@ -62,6 +64,8 @@ if (scalaVersion == '2.12') {
     gradle.ext.scala = [
             version     : '2.13.1',
             depVersion  : '2.13',
+            scoverageScalaVersion : '2.13.1',
+            scoverageVersion : '1.4.11',
             // We can't use fatal warnings yet because there are deprecated things in 2.13 that are not fixable
             // in 2.12.
             compileFlags: ['-feature', '-unchecked', '-deprecation']
@@ -78,5 +82,7 @@ gradle.ext.akka_kafka = [version : '2.0.2']
 gradle.ext.akka_http = [version : '10.2.4']
 gradle.ext.akka_management = [version : '1.0.5']
 
-gradle.ext.curator = [version : '4.0.0']
+gradle.ext.curator = [version : '4.3.0']
 gradle.ext.kube_client = [version: '4.10.3']
+
+gradle.ext.netty = [version : '4.1.87.Final']

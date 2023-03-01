@@ -49,5 +49,7 @@ container_pool_akka_client: true
 runtimes_enable_concurrency: true
 limit_action_concurrency_max: 500
 
+namespace_default_limit_action_concurrency_max: 500
+
 invoker1_machine: openwhisk-vm3-he-de
 invoker_use_runc: false

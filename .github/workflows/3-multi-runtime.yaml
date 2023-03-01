@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+name: MultiRuntime Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+    types: [ opened, synchronize, reopened ]
+  schedule:
+    - cron: '30 3 * * 1,3,5'
+
+env:
+  # openwhisk env
+  TEST_SUITE: MultiRuntime
+  ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
+  GRADLE_PROJS_SKIP: ""
+
+  ## secrets
+  # (optional) slack incoming wehbook for notifications
+  SLACK_WEBHOOK: ${{secrets.SLACK_WEBHOOK}}
+
+  # (optional) s3 log upload
+  LOG_BUCKET: ${{ secrets.LOG_BUCKET }}
+  LOG_ACCESS_KEY_ID: ${{ secrets.LOG_ACCESS_KEY_ID }}
+  LOG_SECRET_ACCESS_KEY: ${{ secrets.LOG_SECRET_ACCESS_KEY }}
+  LOG_REGION: ${{ secrets.LOG_REGION }}
+
+  # github
+  GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
+  GH_BRANCH: ${{ github.head_ref || github.ref_name }} 
+
+jobs:
+  openwhisk:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: "Setup"
+        run: ./tools/github/setup.sh
+      - id: tests
+        name: Run Tests
+        run: "./tools/github/run${{ env.TEST_SUITE }}Tests.sh"
+        continue-on-error: true
+      - id: logs
+        name: Show results and Upload logs
+        run: ./tools/github/checkAndUploadLogs.sh ${{ env.TEST_SUITE }}
+      - name: Slack Notification
+        run: > 
+             ./tools/github/writeOnSlack.sh
+             "[$TEST_SUITE]" ${{ steps.tests.outcome }} on ${GH_BUILD}
+             $'\nbranch:' $GH_BRANCH
+             $'\nmessage:' "$(git log -1 --oneline | cat)"
+             $'\nlogs:' ${{ steps.logs.outputs.logs }}
+             $'\nreport:' ${{ steps.logs.outputs.report }}
+      - name: Results
+        run: test "${{ steps.tests.outcome }}" ==  "success"

@@ -37,12 +37,12 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       warmedContainerKeepingTimeout: Option[String] = None)
 ```
 
-So those can be configured in the same way that operators configure the `invocationPerMinute` limit.
+So those can be configured in the same way that operators configure the `invocationsPerMinute` limit.
 
 ```json
 {
   "_id": "guest/limits",
-  "invocationPerMinutes": 10,
+  "invocationsPerMinute": 10,
   "warmedContainerKeepingCount": 8,
   "warmedContainerKeepingTimeout": "24 hours"
 }

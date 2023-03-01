@@ -19,13 +19,16 @@ package org.apache.openwhisk.core.entity
 
 import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.core.ConfigKeys
+import org.apache.openwhisk.http.Messages
 import pureconfig._
 import pureconfig.generic.auto._
+
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import spray.json._
 
+case class NamespaceConcurrencyLimitConfig(min: Int, max: Int)
 case class ConcurrencyLimitConfig(min: Int, max: Int, std: Int)
 
 /**
@@ -39,18 +42,53 @@ case class ConcurrencyLimitConfig(min: Int, max: Int, std: Int)
  *
  * @param maxConcurrent the max number of concurrent activations in a single container
  */
-protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extends AnyVal
+protected[entity] class ConcurrencyLimit private (val maxConcurrent: Int) extends AnyVal {
+
+  /** It checks the namespace memory limit setting value  */
+  @throws[ActionConcurrencyLimitException]
+  protected[core] def checkNamespaceLimit(user: Identity): Unit = {
+    val concurrencyMax = user.limits.allowedMaxActionConcurrency
+    val concurrencyMin = user.limits.allowedMinActionConcurrency
+    try {
+      require(
+        maxConcurrent <= concurrencyMax,
+        Messages.concurrencyExceedsAllowedThreshold(maxConcurrent, concurrencyMax))
+      require(maxConcurrent >= concurrencyMin, Messages.concurrencyBelowAllowedThreshold(maxConcurrent, concurrencyMin))
+    } catch {
+      case e: IllegalArgumentException => throw ActionConcurrencyLimitException(e.getMessage)
+    }
+  }
+}
 
 protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] {
   //since tests require override to the default config, load the "test" config, with fallbacks to default
   val config = ConfigFactory.load().getConfig("test")
   private val concurrencyConfig =
     loadConfigWithFallbackOrThrow[ConcurrencyLimitConfig](config, ConfigKeys.concurrencyLimit)
+  private val namespaceConcurrencyDefaultConfig = try {
+    loadConfigWithFallbackOrThrow[NamespaceConcurrencyLimitConfig](config, ConfigKeys.namespaceConcurrencyLimit)
+  } catch {
+    case _: Throwable =>
+      // Supports backwards compatibility for openwhisk that do not use the namespace default limit
+      NamespaceConcurrencyLimitConfig(concurrencyConfig.min, concurrencyConfig.max)
+  }
 
-  /** These values are set once at the beginning. Dynamic configuration updates are not supported at the moment. */
+  /**
+   * These system limits and namespace default limits are set once at the beginning.
+   * Dynamic configuration updates are not supported at the moment.
+   */
   protected[core] val MIN_CONCURRENT: Int = concurrencyConfig.min
   protected[core] val MAX_CONCURRENT: Int = concurrencyConfig.max
   protected[core] val STD_CONCURRENT: Int = concurrencyConfig.std
+
+  /** Default namespace limit used if there is no namespace-specific limit */
+  protected[core] val MIN_CONCURRENT_DEFAULT: Int = namespaceConcurrencyDefaultConfig.min
+  protected[core] val MAX_CONCURRENT_DEFAULT: Int = namespaceConcurrencyDefaultConfig.max
+
+  require(
+    MAX_CONCURRENT >= MAX_CONCURRENT_DEFAULT,
+    "The system max limit must be greater than the namespace max limit.")
+  require(MIN_CONCURRENT <= MIN_CONCURRENT_DEFAULT, "The system min limit must be less than the namespace min limit.")
 
   /** A singleton ConcurrencyLimit with default value */
   protected[core] val standardConcurrencyLimit = ConcurrencyLimit(STD_CONCURRENT)
@@ -67,8 +105,6 @@ protected[core] object ConcurrencyLimit extends ArgNormalizer[ConcurrencyLimit] 
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(concurrency: Int): ConcurrencyLimit = {
-    require(concurrency >= MIN_CONCURRENT, s"concurrency $concurrency below allowed threshold of $MIN_CONCURRENT")
-    require(concurrency <= MAX_CONCURRENT, s"concurrency $concurrency exceeds allowed threshold of $MAX_CONCURRENT")
     new ConcurrencyLimit(concurrency)
   }
 

@@ -37,7 +37,7 @@ protected[entity] abstract class Limits {
  * Limits on a specific action. Includes the following properties
  * {
  *   timeout: maximum duration in msecs an action is allowed to consume in [100 msecs, 5 minutes],
- *   memory: maximum memory in megabytes an action is allowed to consume within system limit, default [128 MB, 512 MB],
+ *   memory: maximum memory in megabytes an action is allowed to consume within namespace limit, default [128 MB, 512 MB],
  *   logs: maximum logs line in megabytes an action is allowed to generate [10 MB],
  *   concurrency: maximum number of concurrently processed activations per container [1, 200]
  * }
@@ -53,6 +53,14 @@ protected[core] case class ActionLimits(timeout: TimeLimit = TimeLimit(),
                                         concurrency: ConcurrencyLimit = ConcurrencyLimit())
     extends Limits {
   override protected[entity] def toJson = ActionLimits.serdes.write(this)
+
+  @throws[ActionLimitsException]
+  def checkLimits(user: Identity): Unit = {
+    timeout.checkNamespaceLimit(user)
+    memory.checkNamespaceLimit(user)
+    concurrency.checkNamespaceLimit(user)
+    logs.checkNamespaceLimit(user)
+  }
 }
 
 /**

@@ -29,6 +29,11 @@ distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 project.archivesBaseName = "openwhisk-user-events"
 
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 dependencies {
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
     implementation project(':common:scala')
@@ -40,7 +45,13 @@ dependencies {
 
     testImplementation "junit:junit:4.11"
     testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
-    testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
+    testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}"
+    constraints {
+        testImplementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0")
+        testImplementation('org.apache.avro:avro:1.11.1') {
+            because 'embeddedkafka dependency cannot be upgraded currently and avro in embedded kafka 2.4.0 has vulns'
+        }
+    }
     testImplementation "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
     testImplementation "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
     testImplementation "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"

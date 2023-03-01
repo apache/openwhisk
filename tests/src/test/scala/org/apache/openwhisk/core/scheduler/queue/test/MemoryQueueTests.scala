@@ -1534,7 +1534,7 @@ class MemoryQueueTests
     // This test pilot mimic the decision maker who disable the namespace throttling when there is enough capacity.
     decisionMaker.setAutoPilot((sender: ActorRef, msg) => {
       msg match {
-        case QueueSnapshot(_, _, _, _, _, _, _, _, _, _, NamespaceThrottled, _) =>
+        case QueueSnapshot(_, _, _, _, _, _, _, _, _, _, _, NamespaceThrottled, _) =>
           sender ! DisableNamespaceThrottling
 
         case _ =>

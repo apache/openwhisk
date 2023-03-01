@@ -32,6 +32,11 @@ distDocker.dependsOn 'bootJar'
 
 project.archivesBaseName = "openwhisk-standalone"
 
+scoverage {
+    scoverageVersion.set("${gradle.scala.scoverageVersion}")
+    scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
+}
+
 task copySwagger(type: Copy) {
     def version = "3.6.0"
     mkdir("$buildDir/tmp/swagger")
@@ -164,7 +169,13 @@ dependencies {
     implementation project(':tools:admin')
     implementation "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 
-    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}"
+    constraints {
+        implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0")
+        implementation('org.apache.avro:avro:1.11.1') {
+            because 'embeddedkafka dependency cannot be upgraded currently and avro in embedded kafka 2.4.0 has vulns'
+        }
+    }
     implementation "org.scala-lang:scala-reflect:${gradle.scala.version}"
     implementation "ch.megard:akka-http-cors_${gradle.scala.depVersion}:0.4.2"
 
