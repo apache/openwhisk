@@ -46,10 +46,10 @@ import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcu
 import pureconfig.loadConfigOrThrow
 import spray.json._
 import pureconfig.generic.auto._
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 import java.time.{Duration, Instant}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
@@ -139,6 +139,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
                   checkToDropStaleActivation: (Clock,
                                                Queue[TimeSeriesActivationEntry],
                                                Long,
+                                               AtomicLong,
                                                String,
                                                WhiskActionMetaData,
                                                MemoryQueueState,
@@ -173,6 +174,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
   private[queue] var queue = Queue.empty[TimeSeriesActivationEntry]
   private[queue] var in = new AtomicInteger(0)
+  private[queue] val lastActivationPulledTime = new AtomicLong(Instant.now.toEpochMilli)
   private[queue] val namespaceContainerCount = NamespaceContainerCount(invocationNamespace, etcdClient, watcherService)
   private[queue] var averageDuration: Option[Double] = None
   private[queue] var averageDurationBuffer = AverageRingBuffer(queueConfig.durationBufferSize)
@@ -920,6 +922,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         clock,
         queue,
         actionRetentionTimeout,
+        lastActivationPulledTime,
         invocationNamespace,
         actionMetaData,
         stateName,
@@ -1024,6 +1027,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
         MetricEmitter.emitHistogramMetric(
           LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString, action.toStringWithoutVersion),
           totalTimeInScheduler.toMillis)
+        lastActivationPulledTime.set(Instant.now.toEpochMilli)
         res.trySuccess(Right(msg))
         in.decrementAndGet()
         stay
@@ -1049,6 +1053,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       MetricEmitter.emitHistogramMetric(
         LoggingMarkers.SCHEDULER_WAIT_TIME(action.asString, action.toStringWithoutVersion),
         totalTimeInScheduler.toMillis)
+      lastActivationPulledTime.set(Instant.now.toEpochMilli)
 
       sender ! GetActivationResponse(Right(msg))
       tryDisableActionThrottling()
@@ -1186,6 +1191,7 @@ object MemoryQueue {
   def checkToDropStaleActivation(clock: Clock,
                                  queue: Queue[TimeSeriesActivationEntry],
                                  maxRetentionMs: Long,
+                                 lastActivationExecutedTime: AtomicLong,
                                  invocationNamespace: String,
                                  actionMetaData: WhiskActionMetaData,
                                  stateName: MemoryQueueState,
@@ -1201,6 +1207,13 @@ object MemoryQueue {
       logging.info(
         this,
         s"[$invocationNamespace:$action:$stateName] some activations are stale msg: ${queue.head.msg.activationId}.")
+      val currentTime = Instant.now.toEpochMilli
+      if (currentTime - lastActivationExecutedTime.get() > maxRetentionMs) {
+        MetricEmitter.emitGaugeMetric(
+          LoggingMarkers
+            .SCHEDULER_QUEUE_NOT_PROCESSING(invocationNamespace, action.asString, action.toStringWithoutVersion),
+          1)
+      }
 
       queueRef ! DropOld
     }

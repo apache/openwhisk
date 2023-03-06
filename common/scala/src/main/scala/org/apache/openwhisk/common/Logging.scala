@@ -612,6 +612,13 @@ object LoggingMarkers {
       counter,
       Some(actionWithoutVersion),
       Map("namespace" -> namespace, "action" -> actionWithVersion))(MeasurementUnit.none)
+  def SCHEDULER_QUEUE_NOT_PROCESSING(namespace: String, actionWithVersion: String, actionWithoutVersion: String) =
+    LogMarkerToken(
+      scheduler,
+      "queueNotProcessing",
+      counter,
+      Some(actionWithoutVersion),
+      Map("namespace" -> namespace, "action" -> actionWithVersion))(MeasurementUnit.none)
 
   /*
    * General markers
