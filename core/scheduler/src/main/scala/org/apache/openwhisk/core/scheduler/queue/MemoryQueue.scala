@@ -1207,8 +1207,8 @@ object MemoryQueue {
       logging.info(
         this,
         s"[$invocationNamespace:$action:$stateName] some activations are stale msg: ${queue.head.msg.activationId}.")
-      val currentTime = Instant.now.toEpochMilli
-      if (currentTime - lastActivationExecutedTime.get() > maxRetentionMs) {
+      val timeSinceLastActivationGrabbed = clock.now().toEpochMilli - lastActivationExecutedTime.get()
+      if (timeSinceLastActivationGrabbed > maxRetentionMs && timeSinceLastActivationGrabbed > actionMetaData.limits.timeout.millis) {
         MetricEmitter.emitGaugeMetric(
           LoggingMarkers
             .SCHEDULER_QUEUE_NOT_PROCESSING(invocationNamespace, action.asString, action.toStringWithoutVersion),
