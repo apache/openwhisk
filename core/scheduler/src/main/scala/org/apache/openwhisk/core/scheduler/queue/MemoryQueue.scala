@@ -576,7 +576,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     case Event(DropOld, _) =>
       if (queue.nonEmpty && Duration
             .between(queue.head.timestamp, clock.now())
-            .compareTo(Duration.ofMillis(actionRetentionTimeout)) < 0) {
+            .compareTo(Duration.ofMillis(actionRetentionTimeout)) >= 0) {
         logging.error(
           this,
           s"[$invocationNamespace:$action:$stateName] Drop some stale activations for $revision, existing container is ${containers.size}, inProgress container is ${creationIds.size}, state data: $stateData, in is $in, current: ${queue.size}.")
