@@ -66,6 +66,7 @@ dependencies {
         resolutionStrategy.force "com.typesafe.akka:akka-http-spray-json_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-parsing_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-http_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+        resolutionStrategy.force "com.google.protobuf:protoc:${gradle.protoc.version}"
     }
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
     implementation project(':common:scala')
