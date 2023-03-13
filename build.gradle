@@ -17,7 +17,7 @@
 
 buildscript {
     repositories {
-        jcenter()
+        mavenCentral()
     }
     dependencies {
         classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
@@ -101,7 +101,7 @@ subprojects {
         if (project.plugins.hasPlugin('application')) {
             //Ensure that dist archive name does not contain version
             distTar {
-                archiveName = "${project.name}.tar"
+                archiveFileName = "${project.name}.tar"
             }
 
             //Avoid generating the zip files from maven installations
