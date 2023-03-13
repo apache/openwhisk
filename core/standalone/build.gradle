@@ -145,6 +145,16 @@ processResources {
     }
 }
 
+// This normalization has been added in order to get a cache hit
+// when running tasks whose consider as inputs the resources
+normalization {
+    runtimeClasspath {
+        properties('**/git.properties') {
+            ignoreProperty 'git.build.time'
+        }
+    }
+}
+
 task copyBootJarToBin(type:Copy){
     from ("${buildDir}/libs")
     into file("${project.rootProject.projectDir}/bin")
