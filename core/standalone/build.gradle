@@ -144,8 +144,7 @@ processResources {
     }
 }
 
-// This normalization has been added in order to get a cache hit
-// when running tasks whose consider as inputs the resources
+// Ignores the property `git.build.time` in `git.properties` files to allow `compileScala` task to be cached
 normalization {
     runtimeClasspath {
         properties('**/git.properties') {
