@@ -27,12 +27,6 @@ gradleEnterprise {
     }
 }
 
-buildCache {
-    local {
-        enabled = true
-    }
-}
-
 include 'common:scala'
 
 include 'core:controller'

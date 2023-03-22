@@ -144,15 +144,6 @@ processResources {
     }
 }
 
-// Ignores the property `git.build.time` in `git.properties` files to allow `compileScala` task to be cached
-normalization {
-    runtimeClasspath {
-        properties('**/git.properties') {
-            ignoreProperty 'git.build.time'
-        }
-    }
-}
-
 task copyBootJarToBin(type:Copy){
     from ("${buildDir}/libs")
     into file("${project.rootProject.projectDir}/bin")
