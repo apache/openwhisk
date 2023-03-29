@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.scheduler
 
 import akka.Done
-import akka.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown, ExtendedActorSystem, Props}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.management.scaladsl.AkkaManagement
@@ -429,7 +429,7 @@ case class SchedulingConfig(staleThreshold: FiniteDuration,
                             namespaceOverProvisionBeforeThrottleRatio: Double)
 
 class CompatibleKryoInitializer extends DefaultKryoInitializer {
-  override def preInit(kryo: ScalaKryo, system: ExtendedActorSystem): Unit = {
+  override def preInit(kryo: ScalaKryo): Unit = {
     kryo.setDefaultSerializer(classOf[com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer[_]])
   }
 }
