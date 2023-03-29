@@ -961,7 +961,7 @@ class FunctionPullingContainerProxyTests
     }
     client.send(machine, ClientClosed)
 
-    probe.expectMsgAllOf(ContainerRemoved(false), Transition(machine, Running, Removing))
+    probe.expectMsgAllOf(ContainerRemoved(true), Transition(machine, Running, Removing))
 
     awaitAssert {
       factory.calls should have size 1
@@ -1614,7 +1614,7 @@ class FunctionPullingContainerProxyTests
     client.expectMsg(GracefulShutdown)
     client.send(machine, ClientClosed)
 
-    probe.expectMsgAllOf(ContainerRemoved(false), Transition(machine, Running, Removing))
+    probe.expectMsgAllOf(ContainerRemoved(true), Transition(machine, Running, Removing))
 
     awaitAssert {
       factory.calls should have size 1
