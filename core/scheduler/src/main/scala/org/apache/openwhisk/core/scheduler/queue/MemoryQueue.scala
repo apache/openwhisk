@@ -694,6 +694,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     cleanUpWatcher()
     cleanUpData()
 
+    context.parent ! queueRemovedMsg
+
     goto(Removed) using NoData()
   }
 
