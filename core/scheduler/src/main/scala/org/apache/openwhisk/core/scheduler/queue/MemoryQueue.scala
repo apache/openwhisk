@@ -456,6 +456,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
     // This is not supposed to happen. This will ensure the queue does not run forever.
     // This can happen when QueueManager could not respond with QueueRemovedCompleted for some reason.
+    // Note: Activation messages can be received while waiting to timeout which resets the state timeout.
+    // Therefore the state timeout must be set externally on transition to prevent the queue stuck waiting
+    // to remove forever cycling activations between the manager and this fsm.
     case Event(StateTimeout, _: NoData) =>
       context.parent ! queueRemovedMsg
 
@@ -677,6 +680,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     case Uninitialized -> _ => unstashAll()
     case _ -> Flushing      => startTimerWithFixedDelay("StopQueue", StateTimeout, queueConfig.flushGrace)
     case Flushing -> _      => cancelTimer("StopQueue")
+    case _ -> Removed       => startTimerWithFixedDelay("RemovedQueue", StateTimeout, queueConfig.stopGrace)
+    case Removed -> _       => cancelTimer("RemovedQueue") //Removed state is a sink so shouldn't be able to hit this.
   }
 
   onTermination {
