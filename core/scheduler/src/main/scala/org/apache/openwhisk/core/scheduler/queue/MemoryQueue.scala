@@ -699,12 +699,16 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     cleanUpWatcher()
     cleanUpData()
 
+    context.parent ! queueRemovedMsg
+
     goto(Removed) using NoData()
   }
 
   private def cleanUpActorsAndGotoRemoved(data: FlushingData) = {
     cleanUpActors(data)
     cleanUpData()
+
+    context.parent ! queueRemovedMsg
 
     goto(Removed) using NoData()
   }
