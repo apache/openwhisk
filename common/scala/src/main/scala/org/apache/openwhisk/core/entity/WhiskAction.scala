@@ -73,6 +73,16 @@ case class WhiskActionPut(exec: Option[Exec] = None,
       case _ => this
     } getOrElse this
   }
+
+  protected[core] def getPermissions(): Option[String] = {
+    annotations match {
+      case Some(value) =>
+        value
+          .get(WhiskAction.permissionsFieldName)
+          .map(value => value.convertTo[String])
+      case None => None
+    }
+  }
 }
 
 abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntity(name, "action") {
@@ -348,6 +358,27 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
   val execFieldName = "exec"
   val requireWhiskAuthHeader = "x-require-whisk-auth"
+
+  // annotation permission key name
+  val permissionsFieldName = "permissions"
+
+  val defaultPermissions = "rwxr-x"
+
+  // For more information about permission, please refer to the online manual at
+  // https://github.com/apache/openwhisk/blob/master/docs/actions.md#action-permission-management
+  val permissionList = List(
+    defaultPermissions,
+    "rwxr--",
+    "r-xr-x",
+    "r-xr--",
+    "r--r--",
+    "rw-r--",
+    "rwx--x",
+    "rwx---",
+    "r-x--x",
+    "r-x---",
+    "r-----",
+    "rw----")
 
   override val collectionName = "actions"
   override val cacheEnabled = true

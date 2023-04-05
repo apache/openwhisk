@@ -36,8 +36,11 @@ import org.apache.openwhisk.core.loadBalancer.{LoadBalancer, ShardingContainerPo
 import org.apache.openwhisk.http.ErrorResponse
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.connector.MessagingProvider
+import org.apache.openwhisk.core.database.ArtifactStore
 import org.apache.openwhisk.spi.SpiLoader
 import org.apache.openwhisk.spi.Spi
+
+import spray.json.DefaultJsonProtocol._
 
 object types {
   type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -242,6 +245,159 @@ protected[core] abstract class EntitlementProvider(
           }
       }
       .getOrElse(Future.successful(()))
+  }
+
+  /**
+   * Checks if action operation(get/write/execute) whether feasible
+   *
+   * @param operation the action operation, e.g. get/write/execute
+   * @param user the user who get/write/execute the action
+   * @param entityStore  store to write the action to
+   * @param entityName entityName
+   * @param permissions the passed permission code
+   * @return a promise that completes with success iff action operation is feasible
+   */
+  protected[core] def checkActionPermissions(
+    operation: String,
+    user: Identity,
+    entityStore: ArtifactStore[WhiskEntity],
+    entityName: FullyQualifiedEntityName,
+    get: (ArtifactStore[WhiskEntity], DocId, DocRevision, Boolean) => Future[WhiskAction],
+    permissions: Option[String] = None)(implicit transid: TransactionId): Future[Unit] = {
+    operation match {
+      case "create" =>
+        permissions
+          .map { value =>
+            if (WhiskAction.permissionList.contains(value)) {
+              Future.successful(())
+            } else {
+              val errorInfo =
+                s"give error permission code: ${value}, available permission is in ${WhiskAction.permissionList}"
+              Future.failed(RejectRequest(Forbidden, Some(ErrorResponse(errorInfo, transid))))
+            }
+          }
+          .getOrElse(Future.successful(()))
+      case "update" =>
+        get(entityStore, entityName.toDocId, DocRevision.empty, true)
+          .flatMap { whiskAction =>
+            val currentPermissions = whiskAction.annotations
+              .get(WhiskAction.permissionsFieldName)
+              .map(value => value.convertTo[String])
+              .getOrElse(WhiskAction.defaultPermissions)
+
+            val errorInfo = s"have no permission to ${operation} this action"
+            permissions match {
+              case Some(value) =>
+                if (!WhiskAction.permissionList.contains(value)) {
+                  val errorInfo =
+                    s"give error permission code: ${value}, available permission is in ${WhiskAction.permissionList}"
+                  Future.failed(RejectRequest(Forbidden, Some(ErrorResponse(errorInfo, transid))))
+                } else {
+                  val passedUpdatePermission = value.charAt(1)
+                  if (passedUpdatePermission == 'w') { // make it to modifiable
+                    Future.successful(())
+                  } else {
+                    val currentUpdatePermission = currentPermissions.charAt(1)
+                    if (currentUpdatePermission == '-') {
+                      Future.failed(RejectRequest(Forbidden, Some(ErrorResponse(errorInfo, transid))))
+                    } else {
+                      Future.successful(())
+                    }
+                  }
+                }
+              case None =>
+                val currentUpdatePermission = currentPermissions.charAt(1)
+                if (currentUpdatePermission == '-') {
+                  Future.failed(RejectRequest(Forbidden, Some(ErrorResponse(errorInfo, transid))))
+                } else {
+                  Future.successful(())
+                }
+            }
+          }
+          .recoverWith {
+            case t: RejectRequest =>
+              Future.failed(t)
+            case _ =>
+              Future.successful(())
+          }
+      case "remove" =>
+        get(entityStore, entityName.toDocId, DocRevision.empty, true)
+          .flatMap { whiskAction =>
+            val currentPermissions = whiskAction.annotations
+              .get(WhiskAction.permissionsFieldName)
+              .map(value => value.convertTo[String])
+              .getOrElse(WhiskAction.defaultPermissions)
+
+            val currentUpdatePermission = currentPermissions.charAt(1)
+            if (currentUpdatePermission == '-') {
+              val errorInfo = s"have no permission to ${operation} this action"
+              Future.failed(RejectRequest(Forbidden, Some(ErrorResponse(errorInfo, transid))))
+            } else {
+              Future.successful(())
+            }
+          }
+          .recoverWith {
+            case t: RejectRequest =>
+              Future.failed(t)
+            case _ =>
+              Future.successful(())
+          }
+      case "invoke" =>
+        get(entityStore, entityName.toDocId, DocRevision.empty, true)
+          .flatMap { whiskAction =>
+            val currentPermissions = whiskAction.annotations
+              .get(WhiskAction.permissionsFieldName)
+              .map(value => value.convertTo[String])
+              .getOrElse(WhiskAction.defaultPermissions)
+
+            // the user who is owner by default
+            var currentExecutePermission = currentPermissions.charAt(2)
+            var errorInfo = s"have no permission to ${operation} this action"
+            if (user.namespace.name.asString != entityName.path.root.asString) { // the user who invoke the shared action
+              currentExecutePermission = currentPermissions.charAt(5)
+              errorInfo = s"have no permission to ${operation} this shared action"
+            }
+            if (currentExecutePermission == '-') { //have no permission
+              Future.failed(RejectRequest(Forbidden, Some(ErrorResponse(errorInfo, transid))))
+            } else {
+              Future.successful(())
+            }
+          }
+          .recoverWith {
+            case t: RejectRequest =>
+              Future.failed(t)
+            case _ =>
+              Future.successful(())
+          }
+      case _ =>
+        // download the code
+        get(entityStore, entityName.toDocId, DocRevision.empty, true)
+          .flatMap { whiskAction =>
+            val currentPermissions = whiskAction.annotations
+              .get(WhiskAction.permissionsFieldName)
+              .map(value => value.convertTo[String])
+              .getOrElse(WhiskAction.defaultPermissions)
+
+            if (user.namespace.name.asString != entityName.path.root.asString) { // the shared user who download the action
+              val errorInfo = s"have no permission to download this shared action"
+              val downloadPermissionOfSharedUser = currentPermissions.charAt(3)
+              if (downloadPermissionOfSharedUser == '-') {
+                Future.failed(RejectRequest(Forbidden, Some(ErrorResponse(errorInfo, transid))))
+              } else {
+                Future.successful(())
+              }
+            } else {
+              // the owner has download permission on any situation
+              Future.successful(())
+            }
+          }
+          .recoverWith {
+            case t: RejectRequest =>
+              Future.failed(t)
+            case _ =>
+              Future.successful(())
+          }
+    }
   }
 
   /**
