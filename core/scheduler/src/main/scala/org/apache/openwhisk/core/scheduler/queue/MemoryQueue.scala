@@ -1222,6 +1222,11 @@ object MemoryQueue {
           LoggingMarkers
             .SCHEDULER_QUEUE_NOT_PROCESSING(invocationNamespace, action.asString, action.toStringWithoutVersion),
           1)
+      } else {
+        MetricEmitter.emitGaugeMetric(
+          LoggingMarkers
+            .SCHEDULER_QUEUE_NOT_PROCESSING(invocationNamespace, action.asString, action.toStringWithoutVersion),
+          0)
       }
 
       queueRef ! DropOld
