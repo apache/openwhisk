@@ -153,19 +153,24 @@ class SchedulingDecisionMaker(
               Running)
           // need more containers and a message is already processed
           case (Running, Some(duration)) =>
-            // we can safely get the value as we already checked the existence
-            val containerThroughput = (staleThreshold / duration) * maxActionConcurrency
+            // we can safely get the value as we already checked the existence, have extra protection in case duration is somehow negative
+            val containerThroughput = if (duration <= 0) {
+              maxActionConcurrency
+            } else {
+              (staleThreshold / duration) * maxActionConcurrency
+            }
             val expectedTps = containerThroughput * (existing + inProgress)
             val availableNonStaleActivations = availableMsg - staleActivationNum
 
             var staleContainerProvision = 0
             if (staleActivationNum > 0) {
+
               val num = ceiling(staleActivationNum.toDouble / containerThroughput)
               // if it tries to create more containers than existing messages, we just create shortage
               staleContainerProvision = (if (num > staleActivationNum) staleActivationNum else num) - inProgress
             }
 
-            if (availableNonStaleActivations >= expectedTps && existing + inProgress < availableNonStaleActivations) {
+            if (availableNonStaleActivations >= expectedTps && existing + inProgress < availableNonStaleActivations && duration > 0) {
               val num = ceiling((availableNonStaleActivations / containerThroughput) - existing - inProgress)
               // if it tries to create more containers than existing messages, we just create shortage
               val actualNum =
@@ -202,7 +207,11 @@ class SchedulingDecisionMaker(
           // this case is for that as a last resort.
           case (Removing, Some(duration)) if staleActivationNum > 0 =>
             // we can safely get the value as we already checked the existence
-            val containerThroughput = (staleThreshold / duration) * maxActionConcurrency
+            val containerThroughput = if (duration <= 0) {
+              maxActionConcurrency
+            } else {
+              (staleThreshold / duration) * maxActionConcurrency
+            }
             val num = ceiling(staleActivationNum.toDouble / containerThroughput)
             // if it tries to create more containers than existing messages, we just create shortage
             val actualNum = (if (num > staleActivationNum) staleActivationNum else num) - inProgress
