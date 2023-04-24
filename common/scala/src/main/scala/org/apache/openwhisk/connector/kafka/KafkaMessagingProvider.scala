@@ -64,7 +64,7 @@ object KafkaMessagingProvider extends MessagingProvider {
 
     Try(AdminClient.create(commonConfig + (AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts)))
       .flatMap(client => {
-        val partitions = 1
+        val partitions = topicConfig.getOrElse("partitions", "1").toInt
         val nt = new NewTopic(topic, partitions, kafkaConfig.replicationFactor).configs(topicConfig.asJava)
 
         def createTopic(retries: Int = 5): Try[Unit] = {

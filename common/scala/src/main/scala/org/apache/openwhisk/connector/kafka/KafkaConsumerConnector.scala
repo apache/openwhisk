@@ -55,6 +55,7 @@ class KafkaConsumerConnector(
 
   // Currently consumed offset, is used to calculate the topic lag.
   // It is updated from one thread in "peek", no concurrent data structure is necessary
+  // Note: Currently, this value used for metric reporting will not be accurate if using a multi-partition topic.
   private var offset: Long = 0
 
   // Markers for metrics, initialized only once
