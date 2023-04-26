@@ -28,7 +28,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.SubjectHandler.SubjectView
-import org.apache.openwhisk.core.database.WhisksHandler.ROOT_NS
+import org.apache.openwhisk.core.database.WhisksHandler.{FULL_NAME, ROOT_NS}
 import org.apache.openwhisk.core.database._
 import org.apache.openwhisk.core.entity._
 
@@ -48,14 +48,18 @@ class DocumentHandlerTests extends FlatSpec with Matchers with ScalaFutures with
 
   it should "return JsObject when namespace is simple name" in {
     WhisksHandler.computedFields(JsObject(("namespace", JsString("foo")))) shouldBe JsObject((ROOT_NS, JsString("foo")))
-    WhisksHandler.computedFields(newRule("foo").toDocumentRecord) shouldBe JsObject((ROOT_NS, JsString("foo")))
+    WhisksHandler.computedFields(newRule("foo").toDocumentRecord) shouldBe JsObject(
+      (ROOT_NS, JsString("foo")),
+      (FULL_NAME, JsString("foo/foo")))
   }
 
   it should "return JsObject when namespace is path" in {
     WhisksHandler.computedFields(JsObject(("namespace", JsString("foo/bar")))) shouldBe
       JsObject((ROOT_NS, JsString("foo")))
 
-    WhisksHandler.computedFields(newRule("foo/bar").toDocumentRecord) shouldBe JsObject((ROOT_NS, JsString("foo")))
+    WhisksHandler.computedFields(newRule("foo/bar").toDocumentRecord) shouldBe JsObject(
+      (ROOT_NS, JsString("foo")),
+      (FULL_NAME, JsString("foo/bar/foo")))
   }
 
   private def newRule(ns: String): WhiskRule = {

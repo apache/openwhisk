@@ -26,6 +26,7 @@ import kamon.metric.MeasurementUnit
 import org.apache.openwhisk.common.{LogMarkerToken, TransactionId, WhiskInstants}
 import org.apache.openwhisk.core.database.ActivationHandler.NS_PATH
 import org.apache.openwhisk.core.database.WhisksHandler.ROOT_NS
+import org.apache.openwhisk.core.database.WhisksHandler.FULL_NAME
 import org.apache.openwhisk.core.database.cosmosdb.CosmosDBConstants.{alias, computed, deleted}
 import org.apache.openwhisk.core.database.{
   ActivationHandler,
@@ -143,6 +144,7 @@ private[cosmosdb] abstract class SimpleMapper extends CosmosDBViewMapper {
 private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
   private val NS = "namespace"
   private val ROOT_NS_C = s"$computed.$ROOT_NS"
+  private val FULL_NAME_C = s"$computed.$FULL_NAME"
   private val TYPE = "entityType"
   private val UPDATED = "updated"
   private val PUBLISH = "publish"
@@ -169,7 +171,8 @@ private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
       viewConditions(ddoc, view).map(q => (s"${q._1} AND", q._2)).getOrElse((NOTHING, Nil))
 
     val params = ("@entityType", entityType) :: ("@namespace", namespace) :: vcParams
-    val baseCondition = s"$vc r.$TYPE = @entityType AND (r.$NS = @namespace OR r.$ROOT_NS_C = @namespace)"
+    val baseCondition =
+      s"$vc r.$TYPE = @entityType AND (r.$NS = @namespace OR r.$ROOT_NS_C = @namespace OR r.$FULL_NAME_C = @namespace)"
 
     (startKey, endKey) match {
       case (_ :: Nil, _ :: `TOP` :: Nil) =>
@@ -194,7 +197,8 @@ private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
   }
 
   override protected def orderByField(ddoc: String, view: String): String = view match {
-    case "actions" | "rules" | "triggers" | "packages" | "packages-public" if ddoc.startsWith("whisks") =>
+    case "actions" | "action-versions" | "rules" | "triggers" | "packages" | "packages-public"
+        if ddoc.startsWith("whisks") =>
       s"r.$UPDATED"
     case _ => throw UnsupportedView(s"$ddoc/$view")
   }

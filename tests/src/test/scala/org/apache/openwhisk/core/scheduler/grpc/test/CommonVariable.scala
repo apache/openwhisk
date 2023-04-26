@@ -29,12 +29,17 @@ trait CommonVariable {
   val testEntityName = EntityName(testAction)
   val testDocRevision = DocRevision("1-test-revision")
   val testContainerId = "fakeContainerId"
-  val semVer = SemVer(0, 1, 1)
+  val semVer = SemVer(0, 0, 1)
   val testVersion = Some(semVer)
   val testFQN = FullyQualifiedEntityName(testEntityPath, testEntityName, testVersion)
   val testExec = CodeExecAsString(RuntimeManifest("nodejs:14", ImageName("testImage")), "testCode", None)
   val testExecMetadata =
     CodeExecMetaDataAsString(testExec.manifest, entryPoint = testExec.entryPoint)
   val testActionMetaData =
-    WhiskActionMetaData(testEntityPath, testEntityName, testExecMetadata, version = semVer)
+    WhiskActionMetaData(
+      testEntityPath,
+      testEntityName,
+      DocId(s"$testEntityPath/$testEntityName@$semVer"),
+      testExecMetadata,
+      version = semVer)
 }

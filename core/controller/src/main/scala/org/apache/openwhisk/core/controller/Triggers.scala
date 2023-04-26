@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.controller
 import java.time.{Clock, Instant}
 import scala.collection.immutable.Map
 import scala.concurrent.Future
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -43,6 +43,7 @@ import org.apache.openwhisk.core.entitlement.Collection
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.types.EntityStore
 import org.apache.openwhisk.http.ErrorResponse
+import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.core.database.UserContext
 
@@ -91,6 +92,9 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   import RestApiCommons.emptyEntityToJsObject
 
+  /** JSON response formatter. */
+  import RestApiCommons.jsonDefaultResponsePrinter
+
   /**
    * Creates or updates trigger if it already exists. The PUT content is deserialized into a WhiskTriggerPut
    * which is a subset of WhiskTrigger (it eschews the namespace and entity name since the former is derived
@@ -107,11 +111,23 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskTriggerPut]) { content =>
-        putEntity(WhiskTrigger, entityStore, entityName.toDocId, overwrite, update(content) _, () => {
-          create(content, entityName)
-        }, postProcess = Some { trigger =>
-          completeAsTriggerResponse(trigger)
-        })
+        onComplete(WhiskActionVersionList.getMatchedDocId(entityName, None, entityStore)) {
+          case Success(docId) =>
+            putEntity(
+              WhiskTrigger,
+              entityStore,
+              docId.getOrElse(entityName.toDocId),
+              overwrite,
+              update(content) _,
+              () => {
+                create(content, entityName)
+              },
+              postProcess = Some { trigger =>
+                completeAsTriggerResponse(trigger)
+              })
+          case Failure(f) =>
+            terminate(InternalServerError)
+        }
       }
     }
   }

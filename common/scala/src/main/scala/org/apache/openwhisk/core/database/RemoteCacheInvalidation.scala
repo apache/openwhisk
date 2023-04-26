@@ -32,13 +32,16 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.Message
 import org.apache.openwhisk.core.connector.MessageFeed
 import org.apache.openwhisk.core.connector.MessagingProvider
-import org.apache.openwhisk.core.entity.CacheKey
-import org.apache.openwhisk.core.entity.ControllerInstanceId
-import org.apache.openwhisk.core.entity.WhiskAction
-import org.apache.openwhisk.core.entity.WhiskActionMetaData
-import org.apache.openwhisk.core.entity.WhiskPackage
-import org.apache.openwhisk.core.entity.WhiskRule
-import org.apache.openwhisk.core.entity.WhiskTrigger
+import org.apache.openwhisk.core.entity.{
+  CacheKey,
+  ControllerInstanceId,
+  WhiskAction,
+  WhiskActionMetaData,
+  WhiskActionVersionList,
+  WhiskPackage,
+  WhiskRule,
+  WhiskTrigger
+}
 import org.apache.openwhisk.spi.SpiLoader
 import pureconfig._
 
@@ -92,6 +95,7 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
           WhiskPackage.removeId(msg.key)
           WhiskRule.removeId(msg.key)
           WhiskTrigger.removeId(msg.key)
+          WhiskActionVersionList.removeId(msg.key)
         }
       }
       case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")

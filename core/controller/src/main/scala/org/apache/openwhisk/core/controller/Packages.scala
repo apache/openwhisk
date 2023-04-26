@@ -87,13 +87,18 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
           onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
             case Success(_) =>
-              putEntity(
-                WhiskPackage,
-                entityStore,
-                entityName.toDocId,
-                overwrite,
-                update(request) _,
-                () => create(request, entityName))
+              onComplete(WhiskActionVersionList.getMatchedDocId(entityName, None, entityStore)) {
+                case Success(docId) =>
+                  putEntity(
+                    WhiskPackage,
+                    entityStore,
+                    docId.getOrElse(entityName.toDocId),
+                    overwrite,
+                    update(request) _,
+                    () => create(request, entityName))
+                case Failure(f) =>
+                  terminate(InternalServerError)
+              }
             case Failure(f) =>
               rewriteEntitlementFailure(f)
           }
@@ -149,14 +154,19 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
               case Right(list) if list.nonEmpty && force =>
                 Future sequence {
                   list.map(action => {
-                    WhiskAction.get(
-                      entityStore,
-                      wp.fullyQualifiedName(false)
-                        .add(action.fullyQualifiedName(false).name)
-                        .toDocId) flatMap { actionWithRevision =>
+                    WhiskAction.get(entityStore, action.docid) flatMap { actionWithRevision =>
                       WhiskAction.del(entityStore, actionWithRevision.docinfo)
                     }
                   })
+                } andThen {
+                  case _ =>
+                    list.foreach { action =>
+                      WhiskActionVersionList.deleteCache(action.fullyQualifiedName(false))
+                      val version = WhiskActionDefaultVersion(action.namespace, action.name, None)
+                      WhiskActionDefaultVersion.get(entityStore, version.docid) foreach { versionWithRevision =>
+                        WhiskActionDefaultVersion.del(entityStore, versionWithRevision.docinfo)
+                      }
+                    }
                 } flatMap { _ =>
                   Future.successful({})
                 }

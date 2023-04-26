@@ -123,6 +123,7 @@ private object ActivationViewMapper extends MemoryViewMapper {
 private object WhisksViewMapper extends MemoryViewMapper {
   private val NS = "namespace"
   private val ROOT_NS = WhisksHandler.ROOT_NS
+  private val FULL_NAME = WhisksHandler.FULL_NAME
   private val TYPE = "entityType"
   private val UPDATED = "updated"
   private val PUBLISH = "publish"
@@ -140,20 +141,23 @@ private object WhisksViewMapper extends MemoryViewMapper {
     val matchTypeAndView = equal(d, TYPE, entityType) && matchViewConditions(ddoc, view, d)
     val matchNS = equal(d, NS, startKey.head.asInstanceOf[String])
     val matchRootNS = equal(c, ROOT_NS, startKey.head.asInstanceOf[String])
+    val matchFullName = equal(c, FULL_NAME, startKey.head.asInstanceOf[String])
 
     //Here ddocs for actions, rules and triggers use
     //namespace and namespace/packageName as first key
 
     val filterResult = (startKey, endKey) match {
       case (ns :: Nil, _ :: `TOP` :: Nil) =>
-        (matchTypeAndView && matchNS) || (matchTypeAndView && matchRootNS)
+        (matchTypeAndView && matchNS) || (matchTypeAndView && matchRootNS) || (matchTypeAndView && matchFullName)
 
       case (ns :: (since: Number) :: Nil, _ :: `TOP` :: `TOP` :: Nil) =>
         (matchTypeAndView && matchNS && gte(d, UPDATED, since)) ||
-          (matchTypeAndView && matchRootNS && gte(d, UPDATED, since))
+          (matchTypeAndView && matchRootNS && gte(d, UPDATED, since)) ||
+          (matchTypeAndView && matchFullName && gte(d, UPDATED, since))
       case (ns :: (since: Number) :: Nil, _ :: (upto: Number) :: `TOP` :: Nil) =>
         (matchTypeAndView && matchNS && gte(d, UPDATED, since) && lte(d, UPDATED, upto)) ||
-          (matchTypeAndView && matchRootNS && gte(d, UPDATED, since) && lte(d, UPDATED, upto))
+          (matchTypeAndView && matchRootNS && gte(d, UPDATED, since) && lte(d, UPDATED, upto)) ||
+          (matchTypeAndView && matchFullName && gte(d, UPDATED, since) && lte(d, UPDATED, upto))
 
       case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
     }
@@ -177,7 +181,8 @@ private object WhisksViewMapper extends MemoryViewMapper {
 
   override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]): Seq[JsObject] = {
     view match {
-      case "actions" | "rules" | "triggers" | "packages" | "packages-public" if ddoc.startsWith("whisks") =>
+      case "actions" | "action-versions" | "rules" | "triggers" | "packages" | "packages-public"
+          if ddoc.startsWith("whisks") =>
         numericSort(s, descending, UPDATED)
       case _ => throw UnsupportedView(s"$ddoc/$view")
     }

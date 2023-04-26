@@ -19,6 +19,7 @@ package org.apache.openwhisk.core.controller
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import org.apache.kafka.common.errors.RecordTooLargeException
 import akka.actor.ActorSystem
@@ -33,7 +34,14 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.{FeatureFlags, WhiskConfig}
 import org.apache.openwhisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import org.apache.openwhisk.core.controller.actions.PostActionActivation
-import org.apache.openwhisk.core.database.{ActivationStore, CacheChangeNotification, NoDocumentException}
+import org.apache.openwhisk.core.database.{
+  ActivationStore,
+  ArtifactStoreException,
+  CacheChangeNotification,
+  DocumentConflictException,
+  DocumentTypeMismatchException,
+  NoDocumentException
+}
 import org.apache.openwhisk.core.entitlement._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.types.EntityStore
@@ -107,6 +115,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
   /** Config flag for Execute Only for Actions in Shared Packages */
   protected def executeOnly =
     loadConfigOrThrow[Boolean](ConfigKeys.sharedPackageExecuteOnly)
+
+  private val actionMaxVersionLimit =
+    loadConfigOrThrow[Int](ConfigKeys.actionVersionLimit)
 
   /** Entity normalizer to JSON object. */
   import RestApiCommons.emptyEntityToJsObject
@@ -209,24 +220,82 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-    parameter('overwrite ? false) { overwrite =>
-      entity(as[WhiskActionPut]) { content =>
-        val request = content.resolve(user.namespace)
-        val check = for {
-          checkLimits <- checkActionLimits(user, content)
-          checkAdditionalPrivileges <- entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap(_ =>
-            entitlementProvider.check(user, content.exec))
-        } yield (checkAdditionalPrivileges, checkLimits)
+    parameter('overwrite ? false, 'deleteOld ? false, 'defaultVersion.as[String] ? "") {
+      (overwrite, deleteOld, defaultVersion) =>
+        Try {
+          SemVer(defaultVersion)
+        } match {
+          case Success(version) =>
+            onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
+              case Success(result) if (result.versionMappings.contains(version)) =>
+                val dv = WhiskActionDefaultVersion(entityName.path, entityName.name, Some(version))
+                putEntity(
+                  WhiskActionDefaultVersion,
+                  entityStore,
+                  dv.docid,
+                  true,
+                  (old: WhiskActionDefaultVersion) =>
+                    Future.successful(dv.revision[WhiskActionDefaultVersion](old.rev)),
+                  () => Future.successful(dv),
+                  postProcess = Some { version: WhiskActionDefaultVersion =>
+                    WhiskActionVersionList.deleteCache(entityName)
+                    complete(OK, version)
+                  })
+              case Success(_) =>
+                terminate(NotFound, s"[PUT] entity doesn't has version $version")
+              case Failure(_) =>
+                terminate(InternalServerError)
+            }
+          case Failure(_) =>
+            entity(as[WhiskActionPut]) { content =>
+              val request = content.resolve(user.namespace)
+              val check = for {
+                checkLimits <- checkActionLimits(user, content)
+                checkAdditionalPrivileges <- entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap(_ =>
+                  entitlementProvider.check(user, content.exec))
+              } yield (checkAdditionalPrivileges, checkLimits)
 
-        onComplete(check) {
-          case Success(_) =>
-            putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request) _, () => {
-              make(user, entityName, request)
-            })
-          case Failure(f) =>
-            super.handleEntitlementFailure(f)
+              onComplete(check) {
+                case Success(_) =>
+                  onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
+                    case Success(result) if (result.versionMappings.size >= actionMaxVersionLimit && !deleteOld) =>
+                      terminate(
+                        Forbidden,
+                        s"[PUT] entity has ${result.versionMappings.size} versions exist which exceed maximum limit, delete one of them before create new one or pass deleteOld=true to delete oldest version automatically")
+                    case Success(result) =>
+                      val id = result.matchedDocId(None).getOrElse(entityName.toDocId)
+                      putEntity(
+                        WhiskAction,
+                        entityStore,
+                        id,
+                        true,
+                        update(user, request) _,
+                        () => {
+                          make(user, entityName, request)
+                        },
+                        postProcess = Some { action: WhiskAction =>
+                          // delete oldest version when created successfully
+                          if (result.versionMappings.size >= actionMaxVersionLimit) {
+                            val docid = result.versionMappings.minBy(_._1)._2
+                            WhiskAction.get(entityStore, docid) flatMap { entity =>
+                              WhiskAction.del(entityStore, DocInfo ! (docid.id, entity.rev.rev)).map(_ => entity)
+                            } andThen {
+                              case _ =>
+                                WhiskActionVersionList.deleteCache(entityName)
+                            }
+                          } else {
+                            WhiskActionVersionList.deleteCache(entityName)
+                          }
+                          complete(OK, action)
+                        })
+                    case Failure(f) =>
+                      terminate(InternalServerError)
+                  }
+                case Failure(f) =>
+                  super.handleEntitlementFailure(f)
+              }
+            }
         }
-      }
     }
   }
 
@@ -246,10 +315,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter(
       'blocking ? false,
       'result ? false,
+      'version.as[SemVer] ?,
       'timeout.as[FiniteDuration] ? controllerActivationConfig.maxWaitForBlockingActivation) {
-      (blocking, result, waitOverride) =>
+      (blocking, result, version, waitOverride) =>
         entity(as[Option[JsObject]]) { payload =>
-          getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+          getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName, version), Some {
             act: WhiskActionMetaData =>
               // resolve the action --- special case for sequences that may contain components with '_' as default package
               val action = act.resolve(user.namespace)
@@ -339,12 +409,98 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-    deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future.successful({}))
+    parameter('version.as[SemVer] ?, 'deleteAll ? false) { (version, deleteAll) =>
+      onComplete(WhiskActionVersionList.get(entityName, entityStore, false)) {
+        case Success(results) =>
+          version match {
+            case Some(_) =>
+              val docId = results.matchedDocId(version).getOrElse(entityName.toDocId)
+              deleteEntity(
+                WhiskAction,
+                entityStore,
+                docId,
+                (a: WhiskAction) => Future.successful({}),
+                postProcess = Some { action: WhiskAction =>
+                  // when default version is deleted or all versions are deleted, delete the default version entity
+                  if (version == results.defaultVersion || results.versionMappings.size == 1)
+                    deleteDefaultVersion(
+                      WhiskActionDefaultVersion(entityName.path, entityName.name, results.defaultVersion))
+                  WhiskActionVersionList.deleteCache(entityName)
+                  complete(OK, action)
+                })
+            case None if !deleteAll && results.versionMappings.size > 1 =>
+              terminate(
+                Forbidden,
+                s"[DEL] entity version not provided, you need to specify deleteAll=true to delete all versions for action $entityName")
+            case None =>
+              val fs =
+                if (results.versionMappings.isEmpty)
+                  Seq(WhiskAction.get(entityStore, entityName.toDocId) flatMap { entity =>
+                    WhiskAction.del(entityStore, entity.docinfo).map(_ => entity)
+                  })
+                else
+                  results.versionMappings.values.map { docid =>
+                    WhiskAction.get(entityStore, docid) flatMap { entity =>
+                      WhiskAction.del(entityStore, DocInfo ! (docid.id, entity.rev.rev)).map(_ => entity)
+                    }
+                  }
+              val deleteFuture = Future.sequence(fs).andThen {
+                case _ =>
+                  WhiskActionVersionList
+                    .deleteCache(entityName) // invalidate version list cache after all deletion completed
+                  deleteDefaultVersion(WhiskActionDefaultVersion(
+                    entityName.path,
+                    entityName.name,
+                    results.defaultVersion)) // delete default version entity since all versions are deleted
+              }
+
+              onComplete(deleteFuture) {
+                case Success(entities) =>
+                  complete(OK, entities.last)
+                case Failure(t: NoDocumentException) =>
+                  logging.debug(this, s"[DEL] entity does not exist")
+                  terminate(NotFound)
+                case Failure(t: DocumentConflictException) =>
+                  logging.debug(this, s"[DEL] entity conflict: ${t.getMessage}")
+                  terminate(Conflict, conflictMessage)
+                case Failure(RejectRequest(code, message)) =>
+                  logging.debug(this, s"[DEL] entity rejected with code $code: $message")
+                  terminate(code, message)
+                case Failure(t: DocumentTypeMismatchException) =>
+                  logging.debug(this, s"[DEL] entity conformance check failed: ${t.getMessage}")
+                  terminate(Conflict, conformanceMessage)
+                case Failure(t: ArtifactStoreException) =>
+                  logging.error(this, s"[DEL] entity unreadable")
+                  terminate(InternalServerError, t.getMessage)
+                case Failure(t: Throwable) =>
+                  logging.error(this, s"[DEL] entity failed: ${t.getMessage}")
+                  terminate(InternalServerError)
+              }
+          }
+        case Failure(t) =>
+          terminate(InternalServerError, t.getMessage)
+      }
+    }
+  }
+
+  private def deleteDefaultVersion(defaultVersion: WhiskActionDefaultVersion)(implicit transid: TransactionId): Unit = {
+    WhiskActionDefaultVersion.get(entityStore, defaultVersion.docid) map { entity =>
+      WhiskActionDefaultVersion.del(entityStore, defaultVersion.docid.asDocInfo(entity.rev)) andThen {
+        case Success(_) =>
+          logging.info(this, s"[DEL] default version for ${defaultVersion.fullyQualifiedName(false)} is deleted")
+        case Failure(t) =>
+          logging.error(
+            this,
+            s"[DEL] failed to delete default version for ${defaultVersion.fullyQualifiedName(false)}, error: $t")
+      }
+    }
   }
 
   /** Checks for package binding case. we don't want to allow get for a package binding in shared package */
-  private def fetchEntity(entityName: FullyQualifiedEntityName, env: Option[Parameters], code: Boolean)(
-    implicit transid: TransactionId) = {
+  private def fetchEntity(entityName: FullyQualifiedEntityName,
+                          env: Option[Parameters],
+                          code: Boolean,
+                          version: Option[SemVer])(implicit transid: TransactionId) = {
     val resolvedPkg: Future[Either[String, FullyQualifiedEntityName]] = if (entityName.path.defaultPackage) {
       Future.successful(Right(entityName))
     } else {
@@ -363,7 +519,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           case Left(f) => terminate(Forbidden, f)
           case Right(_) =>
             if (code) {
-              getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName), Some {
+              getEntity(WhiskAction.resolveActionAndMergeParameters(entityStore, entityName, version), Some {
                 action: WhiskAction =>
                   val mergedAction = env map {
                     action inherit _
@@ -371,7 +527,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                   complete(OK, mergedAction)
               })
             } else {
-              getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
+              getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName, version), Some {
                 action: WhiskActionMetaData =>
                   val mergedAction = env map {
                     action inherit _
@@ -396,13 +552,20 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    parameter('code ? true) { code =>
-      //check if execute only is enabled, and if there is a discrepancy between the current user's namespace
-      //and that of the entity we are trying to fetch
-      if (executeOnly && user.namespace.name != entityName.namespace) {
+    parameter('code ? true, 'version.as[SemVer] ?, 'showVersions ? false) { (code, version, showVersions) =>
+      if (showVersions) {
+        onComplete(WhiskActionVersionList.get(entityName, entityStore)) {
+          case Success(res) =>
+            complete(OK, res)
+          case Failure(_) =>
+            terminate(InternalServerError)
+        }
+        //check if execute only is enabled, and if there is a discrepancy between the current user's namespace
+        //and that of the entity we are trying to fetch
+      } else if (executeOnly && user.namespace.name != entityName.namespace) {
         terminate(Forbidden, forbiddenGetAction(entityName.path.asString))
       } else {
-        fetchEntity(entityName, env, code)
+        fetchEntity(entityName, env, code, version)
       }
     }
   }
@@ -599,7 +762,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       content.version getOrElse action.version.upPatch,
       content.publish getOrElse action.publish,
       WhiskActionsApi.amendAnnotations(newAnnotations, exec, create = false))
-      .revision[WhiskAction](action.docinfo.rev)
   }
 
   /**
@@ -716,13 +878,16 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
           } else {
             // check whether component is a sequence or an atomic action
             // if the component does not exist, the future will fail with appropriate error
-            WhiskAction.get(entityStore, resolvedComponent.toDocId) flatMap { wskComponent =>
-              wskComponent.exec match {
-                case SequenceExec(seqComponents) =>
-                  // sequence action, count the number of atomic actions in this sequence
-                  countAtomicActionsAndCheckCycle(origSequence, seqComponents)
-                case _ => Future successful 1 // atomic action count is one
-              }
+            WhiskActionVersionList.getMatchedDocId(resolvedComponent, resolvedComponent.version, entityStore) flatMap {
+              docId =>
+                WhiskAction.get(entityStore, docId.getOrElse(resolvedComponent.toDocId)) flatMap { wskComponent =>
+                  wskComponent.exec match {
+                    case SequenceExec(seqComponents) =>
+                      // sequence action, count the number of atomic actions in this sequence
+                      countAtomicActionsAndCheckCycle(origSequence, seqComponents)
+                    case _ => Future successful 1 // atomic action count is one
+                  }
+                }
             }
           }
         }
@@ -758,6 +923,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
 
   /** Custom unmarshaller for query parameters "skip" for "list" operations. */
   private implicit val stringToListSkip: Unmarshaller[String, ListSkip] = RestApiCommons.stringToListSkip(collection)
+
+  private implicit val stringToSemVer: Unmarshaller[String, SemVer] = Unmarshaller.strict[String, SemVer] { value =>
+    SemVer(value)
+  }
 
 }
 

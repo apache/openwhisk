@@ -137,6 +137,7 @@ class ElasticSearchDurationCheckerTests
       WhiskActionMetaData(
         EntityPath(namespace),
         EntityName(actionName),
+        DocId(s"$namespace/$actionName@0.0.1"),
         jsMetaData(Some("jsMain"), binary = false),
         limits = actionLimits(actionMem, concurrency))
 
@@ -208,6 +209,7 @@ class ElasticSearchDurationCheckerTests
       WhiskActionMetaData(
         EntityPath(s"$namespace/$packageName"),
         EntityName(actionName),
+        DocId(s"$namespace/$packageName/$actionName@0.0.1"),
         jsMetaData(Some("jsMain"), binary = false),
         limits = actionLimits(actionMem, concurrency))
 
@@ -286,6 +288,7 @@ class ElasticSearchDurationCheckerTests
       WhiskActionMetaData(
         EntityPath(s"$namespace/$boundPackageName"),
         EntityName(actionName),
+        DocId(s"$namespace/$boundPackageName/$actionName@0.0.1"),
         jsMetaData(Some("jsMain"), binary = false),
         limits = actionLimits(actionMem, concurrency),
         binding = Some(EntityPath(s"$namespace/$packageName")))
@@ -363,6 +366,7 @@ class ElasticSearchDurationCheckerTests
       WhiskActionMetaData(
         EntityPath(s"$namespace"),
         EntityName(actionName),
+        DocId(s"$namespace/$actionName@0.0.1"),
         jsMetaData(Some("jsMain"), binary = false),
         limits = actionLimits(actionMem, concurrency))
 
@@ -383,6 +387,7 @@ class ElasticSearchDurationCheckerTests
         WhiskActionMetaData(
           EntityPath(s"$namespace/$boundPackageName"),
           EntityName(actionName),
+          DocId(s"$namespace/$boundPackageName/$actionName@0.0.1"),
           jsMetaData(Some("jsMain"), false),
           limits = actionLimits(actionMem, concurrency),
           binding = Some(EntityPath(s"${namespace}/${packageName}")))

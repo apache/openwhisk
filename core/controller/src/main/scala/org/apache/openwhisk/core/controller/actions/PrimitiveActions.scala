@@ -183,6 +183,7 @@ protected[actions] trait PrimitiveActions {
       action.rev,
       user,
       activationId, // activation id created here
+      action.docid,
       activeAckTopicIndex,
       waitForResponse.isDefined,
       args,

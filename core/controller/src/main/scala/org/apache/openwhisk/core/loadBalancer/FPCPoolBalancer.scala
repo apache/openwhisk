@@ -537,6 +537,7 @@ class FPCPoolBalancer(config: WhiskConfig,
         val metadata = ExecutableWhiskActionMetaData(
           WarmUp.warmUpAction.path,
           WarmUp.warmUpAction.name,
+          DocId(WarmUp.warmUpAction.asString),
           CodeExecMetaDataAsString(manifest, false, entryPoint = None))
         CreateQueue(
           WarmUp.warmUpActionIdentity.namespace.name.asString,

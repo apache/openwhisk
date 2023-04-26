@@ -20,6 +20,7 @@ package system.basic
 import java.io.File
 import java.nio.charset.StandardCharsets
 
+import akka.http.scaladsl.model.StatusCodes.NotFound
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common._
@@ -49,6 +50,37 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers with
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("empty.js")))
     }
+  }
+
+  it should "save multi versions for an action and invoke them" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "multiVersion"
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
+      action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
+    }
+
+    // invoke the default version
+    var run = wsk.action.invoke(name, Map("payload" -> "world".toJson))
+    withActivation(wsk.activation, run) { activation =>
+      activation.response.status shouldBe "success"
+      activation.response.result shouldBe Some(JsObject("payload" -> "world".toJson))
+      activation.logs.get.mkString(" ") shouldBe empty
+    }
+
+    // invoke the first version
+    run = wsk.action.invoke(name, Map("payload" -> "world".toJson), version = Some("0.0.1"))
+    withActivation(wsk.activation, run) { activation =>
+      activation.response.status shouldBe "success"
+      activation.response.result shouldBe Some(JsObject("payload" -> "hello, world!".toJson))
+      activation.logs.get.mkString(" ") should include(s"hello, world!")
+    }
+
+    // invoke a non-exist version
+    wsk.action.invoke(
+      name,
+      Map("payload" -> "world".toJson),
+      version = Some("0.0.3"),
+      expectedExitCode = NotFound.intValue)
   }
 
   it should "invoke an action returning a promise" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

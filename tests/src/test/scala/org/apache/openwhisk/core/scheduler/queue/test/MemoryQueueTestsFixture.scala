@@ -91,13 +91,14 @@ class MemoryQueueTestsFixture
   val fqn = FullyQualifiedEntityName(EntityPath(testNamespace), EntityName(testAction), Some(SemVer(0, 0, 1)))
   val revision = DocRevision("1-testRev")
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
-  val action = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testAction), exec)
+  val action = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testAction), DocId(s"$testNamespace/$testAction@0.0.1"), exec)
   val execMetadata =
     CodeExecMetaDataAsString(RuntimeManifest(action.exec.kind, ImageName("test")), entryPoint = Some("test"))
   val actionMetadata =
     WhiskActionMetaData(
       action.namespace,
       action.name,
+      action.docId,
       execMetadata,
       action.parameters,
       action.limits,
@@ -125,6 +126,7 @@ class MemoryQueueTestsFixture
       BasicAuthenticationAuthKey(uuid, Secret()),
       Set.empty),
     ActivationId.generate(),
+    action.docId,
     ControllerInstanceId("0"),
     blocking = false,
     content = None)
@@ -301,6 +303,7 @@ class MemoryQueueTestsFixture
           BasicAuthenticationAuthKey(uuid, Secret()),
           Set.empty),
         ActivationId.generate(),
+        action.docId,
         ControllerInstanceId("0"),
         blocking = false,
         content = None)

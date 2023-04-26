@@ -21,6 +21,9 @@
     "triggers": {
       "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isTrigger = function (doc) { return (doc.exec === undefined && doc.binding === undefined && doc.parameters !== undefined) };\n  if (isTrigger(doc)) try {\n    var ns = doc.namespace.split(PATHSEP);\n    var root = ns[0];\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations,\n      updated: doc.updated\n    };\n    emit([doc.namespace, doc.updated], value);\n    if (root !== doc.namespace) {\n      emit([root, doc.updated], value);\n    }\n  } catch (e) {}\n}",
       "reduce": "_count"
+    },
+    "action-versions": {
+      "map": "function (doc) {\n  var isAction = function (doc) { return (doc.exec !== undefined) };\n  if (isAction(doc)) try {\n    var value = {\n      _id: doc.namespace + \"/\" + doc.name + \"/default\",\n      namespace: doc.namespace,\n      name: doc.name,\n      docId: doc._id,\n      version: doc.version\n    };\n    emit([doc.namespace + \"/\" + doc.name], value);\n  } catch (e) {}\n}"
     }
   }
 }

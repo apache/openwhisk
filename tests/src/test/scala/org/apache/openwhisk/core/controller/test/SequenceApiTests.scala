@@ -65,12 +65,12 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
       end = Instant.now)
 
     putSimpleSequenceInDB(seqName, namespace, Vector(compName1, compName2))
-    deleteAction(DocId(s"$namespace/$compName2"))
+    deleteAction(DocId(s"$namespace/$compName2@0.0.1"))
     loadBalancer.whiskActivationStub = Some((1.milliseconds, Right(comp1Activation)))
 
     Post(s"$collectionPath/$seqName?blocking=true") ~> Route.seal(routes(creds)) ~> check {
-      deleteAction(DocId(s"$namespace/$seqName"))
-      deleteAction(DocId(s"$namespace/$compName1"))
+      deleteAction(DocId(s"$namespace/$seqName@0.0.1"))
+      deleteAction(DocId(s"$namespace/$compName1@0.0.1"))
       status should be(BadGateway)
       val response = responseAs[JsObject]
       response.fields("response") shouldBe ActivationResponse.applicationError(sequenceComponentNotFound).toExtendedJson
@@ -196,7 +196,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     // update the sequence
     Put(s"$collectionPath/${seqName.name}?overwrite=true", updatedContent) ~> Route.seal(routes(creds)) ~> check {
-      deleteAction(DocId(s"$namespace/${seqName.name}"))
+      deleteAction(DocId(s"$namespace/${seqName.name}@0.0.1"))
       status should be(BadRequest)
       responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
     }
@@ -215,7 +215,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     // create an action sequence
     Put(s"$collectionPath/${seqName.name}", content) ~> Route.seal(routes(creds)) ~> check {
-      deleteAction(DocId(s"$namespace/${seqName.name}"))
+      deleteAction(DocId(s"$namespace/${seqName.name}@0.0.1"))
       status should be(OK)
     }
   }
@@ -246,7 +246,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     // create an action sequence
     Put(s"$collectionPath/${seqName.name}", content) ~> Route.seal(routes(creds)) ~> check {
-      deleteAction(DocId(s"$namespace/${seqName.name}"))
+      deleteAction(DocId(s"$namespace/${seqName.name}@0.0.1"))
       status should be(OK)
       val response = responseAs[String]
     }
@@ -285,7 +285,7 @@ class SequenceApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     // update the sequence
     Put(s"$collectionPath/$pkg/${seqName.name}?overwrite=true", updatedContent) ~> Route.seal(routes(creds)) ~> check {
-      deleteAction(DocId(s"$namespace/$pkg/${seqName.name}"))
+      deleteAction(DocId(s"$namespace/$pkg/${seqName.name}@0.0.1"))
       status should be(BadRequest)
       responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
     }

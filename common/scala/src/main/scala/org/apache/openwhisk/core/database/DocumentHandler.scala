@@ -96,13 +96,17 @@ abstract class SimpleHandler extends DocumentHandler {
     provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Seq[JsObject]] = {
     //Query result from CouchDB have below object structure with actual result in `value` key
     //So transform the result to confirm to that structure
-    val viewResult = JsObject(
-      "id" -> js.fields("_id"),
-      "key" -> createKey(ddoc, view, startKey, js),
-      "value" -> computeView(ddoc, view, js))
+    val value = computeView(ddoc, view, js)
+    val viewResult = JsObject("id" -> js.fields("_id"), "key" -> createKey(ddoc, view, startKey, js), "value" -> value)
 
-    val result = if (includeDocs) JsObject(viewResult.fields + ("doc" -> js)) else viewResult
-    Future.successful(Seq(result))
+    if (includeDocs) value.fields.get("_id") match {
+      case Some(JsString(id)) if id != js.fields("_id") =>
+        provider.get(DocId(id)).map { doc =>
+          Seq(JsObject(viewResult.fields + ("doc" -> doc.getOrElse(js))))
+        }
+      case _ =>
+        Future.successful(Seq(JsObject(viewResult.fields + ("doc" -> js))))
+    } else Future.successful(Seq(viewResult))
   }
 
   /**
@@ -115,6 +119,28 @@ abstract class SimpleHandler extends DocumentHandler {
    * Key is an array which matches the view query key
    */
   protected def createKey(ddoc: String, view: String, startKey: List[Any], js: JsObject): JsArray
+
+  /**
+   * Finds and transforms annotation with matching key.
+   *
+   * @param js js object having annotations array
+   * @param key annotation key
+   * @param vtr transformer function to map annotation value
+   * @param default default value to use if no matching annotation found
+   * @return annotation value matching given key
+   */
+  protected[database] def annotationValue[T](js: JsObject, key: String, vtr: JsValue => T, default: T): T = {
+    js.fields.get("annotations") match {
+      case Some(JsArray(e)) =>
+        e.view
+          .map(_.asJsObject.getFields("key", "value"))
+          .collectFirst {
+            case Seq(JsString(`key`), v: JsValue) => vtr(v) //match annotation with given key
+          }
+          .getOrElse(default)
+      case _ => default
+    }
+  }
 }
 
 object ActivationHandler extends SimpleHandler {
@@ -177,35 +203,15 @@ object ActivationHandler extends SimpleHandler {
     }, name)
   }
 
-  /**
-   * Finds and transforms annotation with matching key.
-   *
-   * @param js js object having annotations array
-   * @param key annotation key
-   * @param vtr transformer function to map annotation value
-   * @param default default value to use if no matching annotation found
-   * @return annotation value matching given key
-   */
-  protected[database] def annotationValue[T](js: JsObject, key: String, vtr: JsValue => T, default: T): T = {
-    js.fields.get("annotations") match {
-      case Some(JsArray(e)) =>
-        e.view
-          .map(_.asJsObject.getFields("key", "value"))
-          .collectFirst {
-            case Seq(JsString(`key`), v: JsValue) => vtr(v) //match annotation with given key
-          }
-          .getOrElse(default)
-      case _ => default
-    }
-  }
-
   private def dropNull(fields: JsField*) = JsObject(fields.filter(_._2 != JsNull): _*)
 }
 
 object WhisksHandler extends SimpleHandler {
   val ROOT_NS = "rootns"
+  val FULL_NAME = "fullname"
   private val commonFields = Set("namespace", "name", "version", "publish", "annotations", "updated")
   private val actionFields = commonFields ++ Set("limits", "exec.binary")
+  private val actionVersionFields = commonFields ++ Set("_id", "docId")
   private val packageFields = commonFields ++ Set("binding")
   private val packagePublicFields = commonFields
   private val ruleFields = commonFields
@@ -213,6 +219,7 @@ object WhisksHandler extends SimpleHandler {
 
   protected val supportedTables = Set(
     "whisks.v2.1.0/actions",
+    "whisks.v2.1.0/action-versions",
     "whisks.v2.1.0/packages",
     "whisks.v2.1.0/packages-public",
     "whisks.v2.1.0/rules",
@@ -223,13 +230,20 @@ object WhisksHandler extends SimpleHandler {
       case Some(JsString(namespace)) =>
         val ns = namespace.split(PATHSEP)
         val rootNS = if (ns.length > 1) ns(0) else namespace
-        JsObject((ROOT_NS, JsString(rootNS)))
+        js.fields.get("name") match {
+          case Some(JsString(name)) =>
+            val fullName = s"$namespace$PATHSEP$name"
+            JsObject((ROOT_NS, JsString(rootNS)), (FULL_NAME, JsString(fullName)))
+          case _ =>
+            JsObject((ROOT_NS, JsString(rootNS)))
+        }
       case _ => JsObject.empty
     }
   }
 
   override def fieldsRequiredForView(ddoc: String, view: String): Set[String] = view match {
     case "actions"         => actionFields
+    case "action-versions" => actionVersionFields
     case "packages"        => packageFields
     case "packages-public" => packagePublicFields
     case "rules"           => ruleFields
@@ -239,6 +253,7 @@ object WhisksHandler extends SimpleHandler {
 
   def computeView(ddoc: String, view: String, js: JsObject): JsObject = view match {
     case "actions"         => computeActionView(js)
+    case "action-versions" => computeActionVersionsView(js)
     case "packages"        => computePackageView(js)
     case "packages-public" => computePublicPackageView(js)
     case "rules"           => computeRulesView(js)
@@ -256,6 +271,7 @@ object WhisksHandler extends SimpleHandler {
 
   def getEntityTypeForDesignDoc(ddoc: String, view: String): String = view match {
     case "actions"                      => "action"
+    case "action-versions"              => "action"
     case "rules"                        => "rule"
     case "triggers"                     => "trigger"
     case "packages" | "packages-public" => "package"
@@ -287,6 +303,12 @@ object WhisksHandler extends SimpleHandler {
     val base = js.fields.filterKeys(commonFields ++ Set("limits")).toMap
     val exec_binary = JsHelpers.getFieldPath(js, "exec", "binary")
     JsObject(base + ("exec" -> JsObject("binary" -> exec_binary.getOrElse(JsFalse))))
+  }
+
+  private def computeActionVersionsView(js: JsObject): JsObject = {
+    val base = js.fields.filterKeys(actionVersionFields).toMap
+    val defaultId = js.fields("namespace") + "/" + js.fields("name") + "/default"
+    JsObject(base + ("_id" -> JsString(defaultId), "docId" -> js.fields("_id")))
   }
 }
 

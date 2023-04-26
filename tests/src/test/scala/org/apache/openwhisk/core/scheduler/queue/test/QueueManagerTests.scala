@@ -84,7 +84,7 @@ class QueueManagerTests
   val messageTransId = TransactionId(TransactionId.testing.meta.id)
   val uuid = UUID()
 
-  val action = ExecutableWhiskAction(testEntityPath, testEntityName, testExec)
+  val action = ExecutableWhiskAction(testEntityPath, testEntityName, DocId(s"${testEntityPath.namespace}/${testEntityName.name}@0.0.1"), testExec)
   val testLeaderKey = QueueKeys.queue(testInvocationNamespace, action.fullyQualifiedName(false), true)
 
   val activationMessage = ActivationMessage(
@@ -97,6 +97,7 @@ class QueueManagerTests
       BasicAuthenticationAuthKey(uuid, Secret()),
       Set.empty),
     ActivationId.generate(),
+    action.docId,
     ControllerInstanceId("0"),
     blocking = false,
     content = None)
@@ -143,6 +144,7 @@ class QueueManagerTests
     WhiskActionMetaData(
       action.namespace,
       action.name,
+      action.docid,
       exec,
       action.parameters,
       action.limits,
@@ -458,6 +460,7 @@ class QueueManagerTests
         BasicAuthenticationAuthKey(uuid, Secret()),
         Set.empty),
       ActivationId.generate(),
+      action.docId,
       ControllerInstanceId("0"),
       blocking = false,
       content = None)
@@ -543,6 +546,7 @@ class QueueManagerTests
         BasicAuthenticationAuthKey(uuid, Secret()),
         Set.empty),
       ActivationId.generate(),
+      action.docId,
       ControllerInstanceId("0"),
       blocking = false,
       content = None)
@@ -1108,7 +1112,7 @@ class QueueManagerTests
     val watcher = TestProbe()
 
     val warmUpActionMetaData =
-      WhiskActionMetaData(warmUpAction.namespace.toPath, warmUpAction.name, testExecMetadata, version = semVer)
+      WhiskActionMetaData(warmUpAction.namespace.toPath, warmUpAction.name, DocId(s"${warmUpAction.namespace}/${warmUpAction.name}@0.0.1"), testExecMetadata, version = semVer)
 
     val warmUpQueueCreationMessage =
       CreateQueue(warmUpAction.namespace.toString, warmUpAction, testDocRevision, warmUpActionMetaData)

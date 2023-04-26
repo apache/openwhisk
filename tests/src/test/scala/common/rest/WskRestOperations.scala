@@ -201,7 +201,7 @@ trait RestDeleteFromCollectionOperations extends DeleteFromCollectionOperations 
   override def delete(name: String, expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
     val (ns, entityName) = getNamespaceEntityName(name)
     val path = Path(s"$basePath/namespaces/$ns/$noun/$entityName")
-    val resp = requestEntity(DELETE, path)(wp)
+    val resp = requestEntity(DELETE, path, Map("deleteAll" -> "true"))(wp)
     val rr = new RestResult(resp.status, getTransactionId(resp), getRespData(resp))
     validateStatusCode(expectedExitCode, rr.statusCode.intValue)
     rr
@@ -272,6 +272,7 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
     update: Boolean = false,
     web: Option[String] = None,
     websecure: Option[String] = None,
+    deleteOld: Boolean = true,
     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
     val (namespace, actionName) = getNamespaceEntityName(name)
@@ -381,8 +382,9 @@ class RestActionOperations(implicit val actorSystem: ActorSystem)
                       parameterFile: Option[String] = None,
                       blocking: Boolean = false,
                       result: Boolean = false,
+                      version: Option[String] = None,
                       expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
-    super.invokeAction(name, parameters, parameterFile, blocking, result, expectedExitCode = expectedExitCode)
+    super.invokeAction(name, parameters, parameterFile, blocking, result, version, expectedExitCode = expectedExitCode)
   }
 
   private def readCodeFromFile(artifact: Option[String]): Option[String] = {
@@ -1326,6 +1328,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
                    parameterFile: Option[String] = None,
                    blocking: Boolean = false,
                    result: Boolean = false,
+                   version: Option[String] = None,
                    web: Boolean = false,
                    expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
     val (ns, actName) = getNamespaceEntityName(name)
@@ -1334,7 +1337,9 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
       if (web) Path(s"$basePath/web/$systemNamespace/$actName.http")
       else Path(s"$basePath/namespaces/$ns/actions/$actName")
 
-    val paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
+    val paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString) ++ version
+      .map(value => Map("version" -> value))
+      .getOrElse(Map.empty)
 
     val input = parameterFile map { pf =>
       Some(FileUtils.readFileToString(new File(pf), StandardCharsets.UTF_8))

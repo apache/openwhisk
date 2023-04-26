@@ -21,6 +21,8 @@ import spray.json.deserializationError
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
+
+import scala.annotation.tailrec
 import scala.util.Try
 
 /**
@@ -34,7 +36,7 @@ import scala.util.Try
  *
  * @param (major, minor, patch) for the semantic version
  */
-protected[core] class SemVer private (private val version: (Int, Int, Int)) extends AnyVal {
+protected[core] class SemVer private (private val version: (Int, Int, Int)) extends AnyVal with Ordered[SemVer] {
 
   protected[core] def major = version._1
   protected[core] def minor = version._2
@@ -46,6 +48,24 @@ protected[core] class SemVer private (private val version: (Int, Int, Int)) exte
 
   protected[entity] def toJson = JsString(toString)
   override def toString = s"$major.$minor.$patch"
+
+  protected[core] def versionList = Seq(major, minor, patch)
+
+  override def compare(that: SemVer): Int = {
+    compareVersion(that)
+  }
+
+  @tailrec
+  private def compareVersion(that: SemVer, depth: Int = 0): Int = {
+    require(depth >= 0 && depth <= 2, "depth exceed the limit of 0 to 2")
+    val result = versionList(depth) - that.versionList(depth)
+    if (result != 0)
+      result
+    else if (depth == 2)
+      0
+    else
+      compareVersion(that, depth + 1)
+  }
 }
 
 protected[core] object SemVer {
@@ -78,7 +98,7 @@ protected[core] object SemVer {
    * @return SemVer instance
    * @thrown IllegalArgumentException if string is not a valid semantic version
    */
-  protected[entity] def apply(str: String): SemVer = {
+  protected[core] def apply(str: String): SemVer = {
     try {
       val parts = if (str != null && str.nonEmpty) str.split('.') else Array[String]()
       val major = if (parts.size >= 1) parts(0).toInt else 0

@@ -93,12 +93,14 @@ class ContainerManagerTests
   val resourcesStrictPolicy = false
 
   val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
-  val action = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testAction), exec)
+  val docId = DocId(s"$testNamespace/$testAction@0.0.1")
+  val action = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testAction), docId, exec)
   val execMetadata = CodeExecMetaDataAsString(exec.manifest, entryPoint = exec.entryPoint)
   val actionMetadata =
     WhiskActionMetaData(
       action.namespace,
       action.name,
+      docId,
       execMetadata,
       action.parameters,
       action.limits,
@@ -973,12 +975,14 @@ class ContainerManagerTests
         ContainerManager.props(factory(mockJobManager), mockMessaging(), testsid, mockEtcd, config, mockWatcher.ref))
 
     val exec = BlackBoxExec(ExecManifest.ImageName("image"), None, None, native = false, binary = false)
-    val action = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testAction), exec)
+    val docId = DocId(s"$testNamespace/$testAction@0.0.1")
+    val action = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testAction), docId, exec)
     val execMetadata = BlackBoxExecMetaData(exec.image, exec.entryPoint, exec.native, exec.binary)
     val actionMetadata =
       WhiskActionMetaData(
         action.namespace,
         action.name,
+        docId,
         execMetadata,
         action.parameters,
         action.limits,

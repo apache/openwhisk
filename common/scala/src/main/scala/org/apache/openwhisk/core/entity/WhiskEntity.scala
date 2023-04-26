@@ -58,7 +58,7 @@ abstract class WhiskEntity protected[entity] (en: EntityName, val entityType: St
     FullyQualifiedEntityName(namespace, en, if (withVersion) Some(version) else None)
 
   /** The primary key for the entity in the datastore */
-  override final def docid = fullyQualifiedName(false).toDocId
+  override def docid = fullyQualifiedName(false).toDocId
 
   /**
    * Returns a JSON object with the fields specific to this abstract class.
@@ -125,13 +125,14 @@ object WhiskEntity {
 object WhiskDocumentReader extends DocumentReader {
   override def read[A](ma: Manifest[A], value: JsValue) = {
     val doc = ma.runtimeClass match {
-      case x if x == classOf[WhiskAction]         => WhiskAction.serdes.read(value)
-      case x if x == classOf[WhiskActionMetaData] => WhiskActionMetaData.serdes.read(value)
-      case x if x == classOf[WhiskPackage]        => WhiskPackage.serdes.read(value)
-      case x if x == classOf[WhiskActivation]     => WhiskActivation.serdes.read(value)
-      case x if x == classOf[WhiskTrigger]        => WhiskTrigger.serdes.read(value)
-      case x if x == classOf[WhiskRule]           => WhiskRule.serdes.read(value)
-      case _                                      => throw DocumentUnreadable(Messages.corruptedEntity)
+      case x if x == classOf[WhiskAction]               => WhiskAction.serdes.read(value)
+      case x if x == classOf[WhiskActionMetaData]       => WhiskActionMetaData.serdes.read(value)
+      case x if x == classOf[WhiskPackage]              => WhiskPackage.serdes.read(value)
+      case x if x == classOf[WhiskActivation]           => WhiskActivation.serdes.read(value)
+      case x if x == classOf[WhiskTrigger]              => WhiskTrigger.serdes.read(value)
+      case x if x == classOf[WhiskRule]                 => WhiskRule.serdes.read(value)
+      case x if x == classOf[WhiskActionDefaultVersion] => WhiskActionDefaultVersion.serdes.read(value)
+      case _                                            => throw DocumentUnreadable(Messages.corruptedEntity)
     }
     value.asJsObject.fields.get("entityType").foreach {
       case JsString(entityType) if (doc.entityType != entityType) =>
