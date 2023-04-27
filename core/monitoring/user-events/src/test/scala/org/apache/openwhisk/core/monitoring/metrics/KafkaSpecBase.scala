@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
-import net.manub.embeddedkafka.EmbeddedKafka
+import akka.kafka.testkit.scaladsl.ScalatestKafkaSpec
+import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 
@@ -30,11 +30,24 @@ abstract class KafkaSpecBase
     with ScalaFutures
     with FlatSpecLike
     with EmbeddedKafka
-    with EmbeddedKafkaLike
     with IntegrationPatience
     with Eventually
     with EventsTestHelper { this: Suite =>
-  implicit val timeoutConfig: PatienceConfig = PatienceConfig(1.minute)
+  implicit val timeoutConfig: PatienceConfig = PatienceConfig(5.minute)
   override val sleepAfterProduce: FiniteDuration = 10.seconds
-  override protected val topicCreationTimeout = 60.seconds
+  override protected val topicCreationTimeout = 120.seconds
+
+  lazy implicit val embeddedKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
+
+  override def bootstrapServers = s"localhost:${embeddedKafkaConfig.kafkaPort}"
+
+  override def setUp(): Unit = {
+    EmbeddedKafka.start()(embeddedKafkaConfig)
+    super.setUp()
+  }
+
+  override def cleanUp(): Unit = {
+    super.cleanUp()
+    EmbeddedKafka.stop()
+  }
 }

@@ -17,26 +17,17 @@
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
 import java.net.UnknownHostException
-
 import akka.Done
 import akka.actor.CoordinatedShutdown
-import akka.kafka.testkit.scaladsl.{EmbeddedKafkaLike, ScalatestKafkaSpec}
+import akka.kafka.testkit.scaladsl.ScalatestKafkaSpec
 import com.typesafe.config.ConfigFactory
-import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
+import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
 import org.apache.openwhisk.core.database.{CacheInvalidationMessage, RemoteCacheInvalidation}
 import org.apache.openwhisk.core.database.cosmosdb.{CosmosDBArtifactStoreProvider, CosmosDBTestSupport}
-import org.apache.openwhisk.core.entity.{
-  DocumentReader,
-  EntityName,
-  EntityPath,
-  WhiskDocumentReader,
-  WhiskEntity,
-  WhiskEntityJsonFormat,
-  WhiskPackage
-}
+import org.apache.openwhisk.core.entity.{DocumentReader, EntityName, EntityPath, WhiskDocumentReader, WhiskEntity, WhiskEntityJsonFormat, WhiskPackage}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
@@ -48,7 +39,6 @@ import scala.util.Random
 @RunWith(classOf[JUnitRunner])
 class CacheInvalidatorTests
     extends ScalatestKafkaSpec(6061)
-    with EmbeddedKafkaLike
     with EmbeddedKafka
     with CosmosDBTestSupport
     with Matchers
@@ -58,7 +48,19 @@ class CacheInvalidatorTests
   private implicit val logging = new AkkaLogging(system.log)
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
 
-  override def createKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
+  def createKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
+
+  override def bootstrapServers = s"localhost:$kafkaPort"
+
+  override def setUp(): Unit = {
+    EmbeddedKafka.start()(createKafkaConfig)
+    super.setUp()
+  }
+
+  override def cleanUp(): Unit = {
+    super.cleanUp()
+    EmbeddedKafka.stop()
+  }
 
   behavior of "CosmosDB CacheInvalidation"
 
