@@ -68,8 +68,8 @@ class KafkaLauncher(
     val t = Try {
       createDir("zookeeper")
       createDir("kafka")
-      EmbeddedKafka.startZooKeeper(FileSystems.getDefault.getPath("zookeeper"))
-      EmbeddedKafka.startKafka(FileSystems.getDefault.getPath("kafka"))
+      EmbeddedKafka.startZooKeeper(FileSystems.getDefault.getPath(workDir.getPath,"zookeeper"))
+      EmbeddedKafka.startKafka(FileSystems.getDefault.getPath(workDir.getPath,"kafka"))
     }
 
     Future

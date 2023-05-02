@@ -36,6 +36,7 @@ abstract class KafkaSpecBase
   implicit val timeoutConfig: PatienceConfig = PatienceConfig(5.minute)
   override val sleepAfterProduce: FiniteDuration = 10.seconds
   override protected val topicCreationTimeout = 120.seconds
+  override protected val producerPublishTimeout: FiniteDuration = 60.seconds
 
   lazy implicit val embeddedKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
 
