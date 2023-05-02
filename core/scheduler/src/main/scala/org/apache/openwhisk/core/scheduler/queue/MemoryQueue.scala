@@ -1218,17 +1218,10 @@ object MemoryQueue {
         s"[$invocationNamespace:$action:$stateName] some activations are stale msg: ${queue.head.msg.activationId}.")
       val timeSinceLastActivationGrabbed = clock.now().toEpochMilli - lastActivationExecutedTime.get()
       if (timeSinceLastActivationGrabbed > maxRetentionMs && timeSinceLastActivationGrabbed > actionMetaData.limits.timeout.millis) {
-        MetricEmitter.emitGaugeMetric(
+        MetricEmitter.emitCounterMetric(
           LoggingMarkers
-            .SCHEDULER_QUEUE_NOT_PROCESSING(invocationNamespace, action.asString, action.toStringWithoutVersion),
-          1)
-      } else {
-        MetricEmitter.emitGaugeMetric(
-          LoggingMarkers
-            .SCHEDULER_QUEUE_NOT_PROCESSING(invocationNamespace, action.asString, action.toStringWithoutVersion),
-          0)
+            .SCHEDULER_QUEUE_NOT_PROCESSING(invocationNamespace, action.asString, action.toStringWithoutVersion))
       }
-
       queueRef ! DropOld
     }
   }
