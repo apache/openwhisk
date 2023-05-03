@@ -33,9 +33,9 @@ abstract class KafkaSpecBase
     with IntegrationPatience
     with Eventually
     with EventsTestHelper { this: Suite =>
-  implicit val timeoutConfig: PatienceConfig = PatienceConfig(5.minute)
+  implicit val timeoutConfig: PatienceConfig = PatienceConfig(1.minute)
   override val sleepAfterProduce: FiniteDuration = 10.seconds
-  override protected val topicCreationTimeout = 120.seconds
+  override protected val topicCreationTimeout = 60.seconds
   override protected val producerPublishTimeout: FiniteDuration = 60.seconds
 
   lazy implicit val embeddedKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
