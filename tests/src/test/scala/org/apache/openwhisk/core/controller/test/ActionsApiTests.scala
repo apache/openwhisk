@@ -627,7 +627,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(is)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -655,7 +655,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(is)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -683,7 +683,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(is)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -711,7 +711,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(is)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -739,7 +739,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(is)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -767,7 +767,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(is)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -795,7 +795,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(is)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -823,7 +823,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(is)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -851,7 +851,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(is)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -864,12 +864,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "reject create when max concurrency is greater than maximum allowed namespace limit" in {
     implicit val tid = transid()
 
-    val allowed = ConcurrencyLimit.MAX_CONCURRENT - 2
-    val is = ConcurrencyLimit.MAX_CONCURRENT - 1
+    val allowed = IntraConcurrencyLimit.MAX_CONCURRENT - 2
+    val is = IntraConcurrencyLimit.MAX_CONCURRENT - 1
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(maxActionConcurrency = Some(ConcurrencyLimit(allowed))))
+      .copy(limits = UserLimits(maxActionConcurrency = Some(IntraConcurrencyLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -879,7 +879,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(is)))))
+          Some(IntraConcurrencyLimit(is)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -892,12 +892,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "reject create if exceeds the system max concurrency limit and indicate namespace limit in message" in {
     implicit val tid = transid()
 
-    val allowed = ConcurrencyLimit.MAX_CONCURRENT_DEFAULT - 1
-    val is = ConcurrencyLimit.MAX_CONCURRENT + 1
+    val allowed = IntraConcurrencyLimit.MAX_CONCURRENT_DEFAULT - 1
+    val is = IntraConcurrencyLimit.MAX_CONCURRENT + 1
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(maxActionConcurrency = Some(ConcurrencyLimit(allowed))))
+      .copy(limits = UserLimits(maxActionConcurrency = Some(IntraConcurrencyLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -907,7 +907,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(is)))))
+          Some(IntraConcurrencyLimit(is)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
@@ -920,12 +920,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "reject create when max concurrency is less than minimum allowed namespace limit" in {
     implicit val tid = transid()
 
-    val allowed = ConcurrencyLimit.MIN_CONCURRENT + 2
-    val is = ConcurrencyLimit.MIN_CONCURRENT + 1
+    val allowed = IntraConcurrencyLimit.MIN_CONCURRENT + 2
+    val is = IntraConcurrencyLimit.MIN_CONCURRENT + 1
 
     val credsWithNamespaceLimits = WhiskAuthHelpers
       .newIdentity()
-      .copy(limits = UserLimits(minActionConcurrency = Some(ConcurrencyLimit(allowed))))
+      .copy(limits = UserLimits(minActionConcurrency = Some(IntraConcurrencyLimit(allowed))))
 
     val content = WhiskActionPut(
       Some(jsDefault("_")),
@@ -935,12 +935,38 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(is)))))
+          Some(IntraConcurrencyLimit(is)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)
       responseAs[String] should include {
         Messages.concurrencyBelowAllowedThreshold(is, allowed)
+      }
+    }
+  }
+
+  it should "reject create when max instance concurrency is greater than namespace's concurrency" in {
+    implicit val tid = transid()
+
+    val credsWithNamespaceLimits = WhiskAuthHelpers
+      .newIdentity()
+      .copy(limits = UserLimits(concurrentInvocations = Some(30)))
+
+    val content = WhiskActionPut(
+      Some(jsDefault("_")),
+      Some(Parameters("x", "X")),
+      Some(
+        ActionLimitsOption(
+          None,
+          None,
+          None,
+          None,
+          Some(InstanceConcurrencyLimit(40)))))
+
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.maxActionInstanceConcurrencyExceedsNamespace(30)
       }
     }
   }
@@ -1751,7 +1777,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(TimeLimit(TimeLimit.MAX_DURATION)),
           Some(MemoryLimit(MemoryLimit.MAX_MEMORY)),
           Some(LogLimit(LogLimit.MAX_LOGSIZE)),
-          Some(ConcurrencyLimit(ConcurrencyLimit.MAX_CONCURRENT)))))
+          Some(IntraConcurrencyLimit(IntraConcurrencyLimit.MAX_CONCURRENT)))))
     put(entityStore, action)
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)

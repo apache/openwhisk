@@ -43,7 +43,7 @@ import org.apache.openwhisk.core.entity.{
   ActivationEntityLimit,
   ActivationResponse,
   ByteSize,
-  ConcurrencyLimit,
+  IntraConcurrencyLimit,
   Exec,
   LogLimit,
   MemoryLimit,
@@ -126,11 +126,11 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     }
     val toConcurrencyString = concurrency match {
       case None                                             => "None"
-      case Some(ConcurrencyLimit.MIN_CONCURRENT)            => s"${ConcurrencyLimit.MIN_CONCURRENT} (= min)"
-      case Some(ConcurrencyLimit.STD_CONCURRENT)            => s"${ConcurrencyLimit.STD_CONCURRENT} (= std)"
-      case Some(ConcurrencyLimit.MAX_CONCURRENT)            => s"${ConcurrencyLimit.MAX_CONCURRENT} (= max)"
-      case Some(c) if (c < ConcurrencyLimit.MIN_CONCURRENT) => s"${c} (< min)"
-      case Some(c) if (c > ConcurrencyLimit.MAX_CONCURRENT) => s"${c} (> max)"
+      case Some(IntraConcurrencyLimit.MIN_CONCURRENT)            => s"${IntraConcurrencyLimit.MIN_CONCURRENT} (= min)"
+      case Some(IntraConcurrencyLimit.STD_CONCURRENT)            => s"${IntraConcurrencyLimit.STD_CONCURRENT} (= std)"
+      case Some(IntraConcurrencyLimit.MAX_CONCURRENT)            => s"${IntraConcurrencyLimit.MAX_CONCURRENT} (= max)"
+      case Some(c) if (c < IntraConcurrencyLimit.MIN_CONCURRENT) => s"${c} (< min)"
+      case Some(c) if (c > IntraConcurrencyLimit.MAX_CONCURRENT) => s"${c} (> max)"
       case Some(c)                                          => s"${c} (allowed)"
     }
     val toExpectedResultString: String = if (ec == SUCCESS_EXIT) "allow" else "reject"
@@ -143,10 +143,10 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
       mem <- Seq(None, Some(MemoryLimit.MIN_MEMORY), Some(MemoryLimit.MAX_MEMORY))
       log <- Seq(None, Some(LogLimit.MIN_LOGSIZE), Some(LogLimit.MAX_LOGSIZE))
-      concurrency <- if (!concurrencyEnabled || (ConcurrencyLimit.MIN_CONCURRENT == ConcurrencyLimit.MAX_CONCURRENT)) {
-        Seq(None, Some(ConcurrencyLimit.MIN_CONCURRENT))
+      concurrency <- if (!concurrencyEnabled || (IntraConcurrencyLimit.MIN_CONCURRENT == IntraConcurrencyLimit.MAX_CONCURRENT)) {
+        Seq(None, Some(IntraConcurrencyLimit.MIN_CONCURRENT))
       } else {
-        Seq(None, Some(ConcurrencyLimit.MIN_CONCURRENT), Some(ConcurrencyLimit.MAX_CONCURRENT))
+        Seq(None, Some(IntraConcurrencyLimit.MIN_CONCURRENT), Some(IntraConcurrencyLimit.MAX_CONCURRENT))
       }
     } yield PermutationTestParameter(time, mem, log, concurrency)
   } ++
@@ -181,7 +181,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
         "timeout" -> parm.timeout.getOrElse(TimeLimit.STD_DURATION).toMillis.toJson,
         "memory" -> parm.memory.getOrElse(MemoryLimit.STD_MEMORY).toMB.toInt.toJson,
         "logs" -> parm.logs.getOrElse(LogLimit.STD_LOGSIZE).toMB.toInt.toJson,
-        "concurrency" -> parm.concurrency.getOrElse(ConcurrencyLimit.STD_CONCURRENT).toJson)
+        "concurrency" -> parm.concurrency.getOrElse(IntraConcurrencyLimit.STD_CONCURRENT).toJson)
 
       val name = "ActionLimitTests-" + Instant.now.toEpochMilli
       val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = (parm.ec == SUCCESS_EXIT)) {

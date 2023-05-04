@@ -16,9 +16,9 @@
 # limitations under the License.
 #
 -->
-# Concurrency
+# Intra Instance Concurrency
 
-Concurrency in actions can improve container reuse, and may be beneficial in cases where:
+Concurrency within a container instance of an actions can improve container reuse, and may be beneficial in cases where:
 
 * your action can tolerate multiple activations being processed at once
 * you can rely on external log collection (e.g. via docker log drivers or some decoupled collection process like fluentd)
@@ -29,7 +29,7 @@ Concurrent activation processing within the same action container can be enabled
 
 * enable the akka http client at invoker config
   * e.g. CONFIG_whisk_containerPool_akkaClient=true
-* use a kind that supports concurrency (currently only `nodejs:14`, and `nodejs:12`)
+* use a kind that supports concurrency (**currently only the nodejs family / language**)
 * enable concurrency at runtime container env (nodejs container only allows concurrency when started with an env var __OW_ALLOW_CONCURRENT=true)
   * e.g. CONFIG_whisk_containerFactory_containerArgs_extraArgs_env_0="__OW_ALLOW_CONCURRENT=true"
 * disable log collection at invoker

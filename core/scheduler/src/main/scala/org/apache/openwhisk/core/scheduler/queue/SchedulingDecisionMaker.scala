@@ -57,14 +57,18 @@ class SchedulingDecisionMaker(
       existingContainerCountInNs,
       inProgressContainerCountInNs,
       averageDuration,
-      limit,
+      namespaceLimit,
+      actionLimit,
       maxActionConcurrency,
       stateName,
       _) = snapshot
     val totalContainers = existing + inProgress
     val availableMsg = currentMsg + incoming.get()
+    val actionCapacity = actionLimit - totalContainers
+    val namespaceCapacity = namespaceLimit - existingContainerCountInNs - inProgressContainerCountInNs
+    val overProvisionCapacity = ceiling(namespaceLimit * schedulingConfig.namespaceOverProvisionBeforeThrottleRatio) - existingContainerCountInNs - inProgressContainerCountInNs
 
-    if (limit <= 0) {
+    if (Math.min(namespaceLimit, actionLimit) <= 0) {
       // this is an error case, the limit should be bigger than 0
       stateName match {
         case Flushing => Future.successful(DecisionResults(Skip, 0))
@@ -74,14 +78,15 @@ class SchedulingDecisionMaker(
       val capacity = if (schedulingConfig.allowOverProvisionBeforeThrottle && totalContainers == 0) {
         // if space available within the over provision ratio amount above namespace limit, create one container for new
         // action so namespace traffic can attempt to re-balance without blocking entire action
-        if ((ceiling(limit * schedulingConfig.namespaceOverProvisionBeforeThrottleRatio) - existingContainerCountInNs - inProgressContainerCountInNs) > 0) {
+        if (overProvisionCapacity > 0) {
           1
         } else {
           0
         }
       } else {
-        limit - existingContainerCountInNs - inProgressContainerCountInNs
+        Math.min(namespaceCapacity, actionCapacity)
       }
+
       if (capacity <= 0) {
         stateName match {
 
@@ -91,15 +96,12 @@ class SchedulingDecisionMaker(
            * However, if the container exists(totalContainers != 0), the activation is not treated as a failure and the activation is delivered to the container.
            */
           case Running
-              if !schedulingConfig.allowOverProvisionBeforeThrottle || (schedulingConfig.allowOverProvisionBeforeThrottle && ceiling(
-                limit * schedulingConfig.namespaceOverProvisionBeforeThrottleRatio) - existingContainerCountInNs - inProgressContainerCountInNs <= 0) =>
+              if !schedulingConfig.allowOverProvisionBeforeThrottle || (schedulingConfig.allowOverProvisionBeforeThrottle && overProvisionCapacity <= 0) =>
             logging.info(
               this,
-              s"there is no capacity activations will be dropped or throttled, (availableMsg: $availableMsg totalContainers: $totalContainers, limit: $limit, namespaceContainers: ${existingContainerCountInNs}, namespaceInProgressContainer: ${inProgressContainerCountInNs}) [$invocationNamespace:$action]")
+              s"there is no capacity activations will be dropped or throttled, (availableMsg: $availableMsg totalContainers: $totalContainers, actionLimit: $actionLimit, namespaceLimit: $namespaceLimit, namespaceContainers: $existingContainerCountInNs, namespaceInProgressContainer: $inProgressContainerCountInNs) [$invocationNamespace:$action]")
             Future.successful(DecisionResults(EnableNamespaceThrottling(dropMsg = totalContainers == 0), 0))
-          case NamespaceThrottled
-              if schedulingConfig.allowOverProvisionBeforeThrottle && ceiling(
-                limit * schedulingConfig.namespaceOverProvisionBeforeThrottleRatio) - existingContainerCountInNs - inProgressContainerCountInNs > 0 =>
+          case NamespaceThrottled if schedulingConfig.allowOverProvisionBeforeThrottle && overProvisionCapacity > 0 =>
             Future.successful(DecisionResults(DisableNamespaceThrottling, 0))
           // do nothing
           case _ =>
@@ -147,6 +149,7 @@ class SchedulingDecisionMaker(
               0,
               availableMsg,
               capacity,
+              namespaceCapacity,
               actualNum,
               staleActivationNum,
               0.0,
@@ -182,6 +185,7 @@ class SchedulingDecisionMaker(
                 containerThroughput,
                 availableMsg,
                 capacity,
+                namespaceCapacity,
                 actualNum + staleContainerProvision,
                 staleActivationNum,
                 duration,
@@ -193,6 +197,7 @@ class SchedulingDecisionMaker(
                 containerThroughput,
                 availableMsg,
                 capacity,
+                namespaceCapacity,
                 staleContainerProvision,
                 staleActivationNum,
                 duration,
@@ -221,6 +226,7 @@ class SchedulingDecisionMaker(
               containerThroughput,
               availableMsg,
               capacity,
+              namespaceCapacity,
               actualNum,
               staleActivationNum,
               duration,
@@ -238,6 +244,7 @@ class SchedulingDecisionMaker(
               0,
               availableMsg,
               capacity,
+              namespaceCapacity,
               actualNum,
               staleActivationNum,
               0.0,
@@ -256,16 +263,25 @@ class SchedulingDecisionMaker(
                                    containerThroughput: Double,
                                    availableMsg: Int,
                                    capacity: Int,
+                                   namespaceCapacity: Int,
                                    actualNum: Int,
                                    staleActivationNum: Int,
                                    duration: Double = 0.0,
                                    state: MemoryQueueState) = {
     if (actualNum > capacity) {
-      // containers can be partially created. throttling should be enabled
-      logging.info(
-        this,
-        s"[$state] enable namespace throttling and add $capacity container, staleActivationNum: $staleActivationNum, duration: ${duration}, containerThroughput: $containerThroughput, availableMsg: $availableMsg, existing: $existing, inProgress: $inProgress, capacity: $capacity [$invocationNamespace:$action]")
-      Future.successful(DecisionResults(EnableNamespaceThrottling(dropMsg = false), capacity))
+      if (capacity >= namespaceCapacity) {
+        // containers can be partially created. throttling should be enabled
+        logging.info(
+          this,
+          s"[$state] enable namespace throttling and add $capacity container, staleActivationNum: $staleActivationNum, duration: $duration, containerThroughput: $containerThroughput, availableMsg: $availableMsg, existing: $existing, inProgress: $inProgress, capacity: $capacity [$invocationNamespace:$action]")
+        Future.successful(DecisionResults(EnableNamespaceThrottling(dropMsg = false), capacity))
+      } else {
+        logging.info(
+          this,
+          s"[$state] reached max containers allowed for this action adding $capacity containers, but there is still capacity on the namespace so namespace throttling is not turned on." +
+            s" staleActivationNum: $staleActivationNum, duration: $duration, containerThroughput: $containerThroughput, availableMsg: $availableMsg, existing: $existing, inProgress: $inProgress, capacity: $capacity [$invocationNamespace:$action]")
+        Future.successful(DecisionResults(AddContainer, capacity))
+      }
     } else if (actualNum <= 0) {
       // it means nothing
       Future.successful(DecisionResults(Skip, 0))
@@ -274,7 +290,7 @@ class SchedulingDecisionMaker(
       // we need to create one more container than expected because existing container would already took the message
       logging.info(
         this,
-        s"[$state]add $actualNum container, staleActivationNum: $staleActivationNum, duration: ${duration}, containerThroughput: $containerThroughput, availableMsg: $availableMsg, existing: $existing, inProgress: $inProgress, capacity: $capacity [$invocationNamespace:$action]")
+        s"[$state]add $actualNum container, staleActivationNum: $staleActivationNum, duration: $duration, containerThroughput: $containerThroughput, availableMsg: $availableMsg, existing: $existing, inProgress: $inProgress, capacity: $capacity [$invocationNamespace:$action]")
       Future.successful(DecisionResults(AddContainer, actualNum))
     }
   }

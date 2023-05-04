@@ -944,8 +944,16 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       if (averageDurationBuffer.nonEmpty) {
         averageDuration = Some(averageDurationBuffer.average)
       }
+
       getUserLimit(invocationNamespace).andThen {
-        case Success(limit) =>
+        case Success(namespaceLimit) =>
+          // extra safeguard to use namespace limit if action limit exceeds due to namespace limit being lowered
+          // by operator after action is deployed
+          val actionLimit = actionMetaData.limits.instances
+            .map(limit =>
+              if (limit.maxConcurrentInstances > namespaceLimit) InstanceConcurrencyLimit(namespaceLimit) else limit)
+            .getOrElse(InstanceConcurrencyLimit(namespaceLimit))
+            .maxConcurrentInstances
           decisionMaker ! QueueSnapshot(
             initialized,
             in,
@@ -956,7 +964,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
             namespaceContainerCount.existingContainerNumByNamespace,
             namespaceContainerCount.inProgressContainerNumByNamespace,
             averageDuration,
-            limit,
+            namespaceLimit,
+            actionLimit,
             actionMetaData.limits.concurrency.maxConcurrent,
             stateName,
             self)
@@ -1244,7 +1253,8 @@ case class QueueSnapshot(initialized: Boolean,
                          existingContainerCountInNamespace: Int,
                          inProgressContainerCountInNamespace: Int,
                          averageDuration: Option[Double],
-                         limit: Int,
+                         namespaceLimit: Int,
+                         actionLimit: Int,
                          maxActionConcurrency: Int,
                          stateName: MemoryQueueState,
                          recipient: ActorRef)

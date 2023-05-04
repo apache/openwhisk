@@ -100,7 +100,7 @@ class ContainerPoolTests
     EntityPath("actionSpace"),
     EntityName("actionName"),
     exec,
-    limits = ActionLimits(concurrency = ConcurrencyLimit(if (concurrencyEnabled) 3 else 1)))
+    limits = ActionLimits(concurrency = IntraConcurrencyLimit(if (concurrencyEnabled) 3 else 1)))
   val differentAction = action.copy(name = EntityName("actionName2"))
   val largeAction =
     action.copy(
@@ -1103,13 +1103,13 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
     val data = warmedData(
       active = maxConcurrent,
-      action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent))))
+      action = createAction(limits = ActionLimits(concurrency = IntraConcurrencyLimit(maxConcurrent))))
     val pool = Map('warm -> data)
     ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe None
 
     val data2 = warmedData(
       active = maxConcurrent - 1,
-      action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent))))
+      action = createAction(limits = ActionLimits(concurrency = IntraConcurrencyLimit(maxConcurrent))))
     val pool2 = Map('warm -> data2)
 
     ContainerPool.schedule(data2.action, data2.invocationNamespace, pool2) shouldBe Some('warm, data2)
@@ -1120,7 +1120,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
     val maxConcurrent = if (concurrencyEnabled) 25 else 1
 
-    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val action = createAction(limits = ActionLimits(concurrency = IntraConcurrencyLimit(maxConcurrent)))
     val data = warmingData(active = maxConcurrent - 1, action = action)
     val pool = Map('warming -> data)
     ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warming, data)
@@ -1135,7 +1135,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
     val maxConcurrent = if (concurrencyEnabled) 25 else 1
 
-    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val action = createAction(limits = ActionLimits(concurrency = IntraConcurrencyLimit(maxConcurrent)))
     val data = warmingColdData(active = maxConcurrent - 1, action = action)
     val data2 = warmedData(active = maxConcurrent - 1, action = action)
     val pool = Map('warming -> data, 'warm -> data2)
@@ -1146,7 +1146,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
     val maxConcurrent = if (concurrencyEnabled) 25 else 1
 
-    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val action = createAction(limits = ActionLimits(concurrency = IntraConcurrencyLimit(maxConcurrent)))
     val data = warmingColdData(active = maxConcurrent - 1, action = action)
     val pool = Map('warmingCold -> data)
     ContainerPool.schedule(data.action, data.invocationNamespace, pool) shouldBe Some('warmingCold, data)
@@ -1162,7 +1162,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
     val maxConcurrent = if (concurrencyEnabled) 25 else 1
 
-    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val action = createAction(limits = ActionLimits(concurrency = IntraConcurrencyLimit(maxConcurrent)))
     val data = warmingColdData(active = maxConcurrent - 1, action = action)
     val data2 = warmedData(active = maxConcurrent - 1, action = action)
     val pool = Map('warmingCold -> data, 'warm -> data2)
@@ -1173,7 +1173,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val concurrencyEnabled = Option(WhiskProperties.getProperty("whisk.action.concurrency")).exists(_.toBoolean)
     val maxConcurrent = if (concurrencyEnabled) 25 else 1
 
-    val action = createAction(limits = ActionLimits(concurrency = ConcurrencyLimit(maxConcurrent)))
+    val action = createAction(limits = ActionLimits(concurrency = IntraConcurrencyLimit(maxConcurrent)))
     val data = warmingColdData(active = maxConcurrent - 1, action = action)
     val data2 = warmingData(active = maxConcurrent - 1, action = action)
     val pool = Map('warmingCold -> data, 'warming -> data2)
