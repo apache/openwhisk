@@ -59,9 +59,8 @@ class InvokerReactive(
   instance: InvokerInstanceId,
   producer: MessageProducer,
   poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool),
-  limitsConfig: IntraConcurrencyLimitConfig = loadConfigOrThrow[IntraConcurrencyLimitConfig](ConfigKeys.concurrencyLimit))(
-  implicit actorSystem: ActorSystem,
-  logging: Logging)
+  limitsConfig: IntraConcurrencyLimitConfig = loadConfigOrThrow[IntraConcurrencyLimitConfig](
+    ConfigKeys.concurrencyLimit))(implicit actorSystem: ActorSystem, logging: Logging)
     extends InvokerCore {
 
   implicit val ec: ExecutionContext = actorSystem.dispatcher

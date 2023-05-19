@@ -42,7 +42,7 @@ case class IntraConcurrencyLimitConfig(min: Int, max: Int, std: Int)
  *
  * @param maxConcurrent the max number of concurrent activations in a single container
  */
-protected[entity] class IntraConcurrencyLimit private(val maxConcurrent: Int) extends AnyVal {
+protected[entity] class IntraConcurrencyLimit private (val maxConcurrent: Int) extends AnyVal {
 
   /** It checks the namespace memory limit setting value  */
   @throws[ActionConcurrencyLimitException]

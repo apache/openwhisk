@@ -23,7 +23,14 @@ import akka.http.scaladsl.model.StatusCodes.{BadRequest, MethodNotAllowed, OK}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
 import akka.http.scaladsl.server.Route
 import org.apache.openwhisk.core.controller.WhiskLimitsApi
-import org.apache.openwhisk.core.entity.{IntraConcurrencyLimit, EntityPath, LogLimit, MemoryLimit, TimeLimit, UserLimits}
+import org.apache.openwhisk.core.entity.{
+  EntityPath,
+  IntraConcurrencyLimit,
+  LogLimit,
+  MemoryLimit,
+  TimeLimit,
+  UserLimits
+}
 import org.apache.openwhisk.core.entity.size._
 
 import scala.concurrent.duration._

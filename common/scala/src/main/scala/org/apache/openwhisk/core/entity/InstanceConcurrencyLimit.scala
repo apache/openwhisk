@@ -39,7 +39,7 @@ import spray.json._
  *
  * @param maxConcurrentInstances the max number of concurrent activations in a single container
  */
-protected[entity] class InstanceConcurrencyLimit private(val maxConcurrentInstances: Int) extends AnyVal
+protected[entity] class InstanceConcurrencyLimit private (val maxConcurrentInstances: Int) extends AnyVal
 
 protected[core] object InstanceConcurrencyLimit extends ArgNormalizer[InstanceConcurrencyLimit] {
 
