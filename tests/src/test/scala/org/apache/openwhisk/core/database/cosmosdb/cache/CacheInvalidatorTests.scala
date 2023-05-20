@@ -27,7 +27,15 @@ import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
 import org.apache.openwhisk.core.database.{CacheInvalidationMessage, RemoteCacheInvalidation}
 import org.apache.openwhisk.core.database.cosmosdb.{CosmosDBArtifactStoreProvider, CosmosDBTestSupport}
-import org.apache.openwhisk.core.entity.{DocumentReader, EntityName, EntityPath, WhiskDocumentReader, WhiskEntity, WhiskEntityJsonFormat, WhiskPackage}
+import org.apache.openwhisk.core.entity.{
+  DocumentReader,
+  EntityName,
+  EntityPath,
+  WhiskDocumentReader,
+  WhiskEntity,
+  WhiskEntityJsonFormat,
+  WhiskPackage
+}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner

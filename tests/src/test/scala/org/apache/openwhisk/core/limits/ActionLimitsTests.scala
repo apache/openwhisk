@@ -43,8 +43,8 @@ import org.apache.openwhisk.core.entity.{
   ActivationEntityLimit,
   ActivationResponse,
   ByteSize,
-  IntraConcurrencyLimit,
   Exec,
+  IntraConcurrencyLimit,
   LogLimit,
   MemoryLimit,
   TimeLimit
@@ -125,13 +125,13 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
       case Some(l)                               => s"${l} (allowed)"
     }
     val toConcurrencyString = concurrency match {
-      case None                                             => "None"
+      case None                                                  => "None"
       case Some(IntraConcurrencyLimit.MIN_CONCURRENT)            => s"${IntraConcurrencyLimit.MIN_CONCURRENT} (= min)"
       case Some(IntraConcurrencyLimit.STD_CONCURRENT)            => s"${IntraConcurrencyLimit.STD_CONCURRENT} (= std)"
       case Some(IntraConcurrencyLimit.MAX_CONCURRENT)            => s"${IntraConcurrencyLimit.MAX_CONCURRENT} (= max)"
       case Some(c) if (c < IntraConcurrencyLimit.MIN_CONCURRENT) => s"${c} (< min)"
       case Some(c) if (c > IntraConcurrencyLimit.MAX_CONCURRENT) => s"${c} (> max)"
-      case Some(c)                                          => s"${c} (allowed)"
+      case Some(c)                                               => s"${c} (allowed)"
     }
     val toExpectedResultString: String = if (ec == SUCCESS_EXIT) "allow" else "reject"
   }

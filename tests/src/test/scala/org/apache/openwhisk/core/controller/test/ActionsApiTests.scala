@@ -955,13 +955,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val content = WhiskActionPut(
       Some(jsDefault("_")),
       Some(Parameters("x", "X")),
-      Some(
-        ActionLimitsOption(
-          None,
-          None,
-          None,
-          None,
-          Some(InstanceConcurrencyLimit(40)))))
+      Some(ActionLimitsOption(None, None, None, None, Some(InstanceConcurrencyLimit(40)))))
 
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(credsWithNamespaceLimits)) ~> check {
       status should be(BadRequest)

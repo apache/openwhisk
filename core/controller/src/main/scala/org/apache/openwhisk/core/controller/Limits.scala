@@ -24,7 +24,7 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.entitlement.{Collection, Privilege, Resource}
 import org.apache.openwhisk.core.entitlement.Privilege.READ
-import org.apache.openwhisk.core.entity.{IntraConcurrencyLimit, Identity, LogLimit, MemoryLimit, TimeLimit}
+import org.apache.openwhisk.core.entity.{Identity, IntraConcurrencyLimit, LogLimit, MemoryLimit, TimeLimit}
 
 trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with AuthorizedRouteProvider {
 
@@ -65,8 +65,7 @@ trait WhiskLimitsApi extends Directives with AuthenticatedRouteProvider with Aut
               maxActionConcurrency = Some(IntraConcurrencyLimit(user.limits.allowedMaxActionConcurrency)),
               minActionConcurrency = Some(IntraConcurrencyLimit(user.limits.allowedMinActionConcurrency)),
               maxParameterSize = Some(user.limits.allowedMaxParameterSize),
-              maxActionInstances =
-                Some(user.limits.concurrentInvocations.getOrElse(concurrentInvocationsSystemDefault)))
+              maxActionInstances = Some(user.limits.concurrentInvocations.getOrElse(concurrentInvocationsSystemDefault)))
             pathEndOrSingleSlash { complete(OK, limits) }
           case _ => reject //should never get here
         }
