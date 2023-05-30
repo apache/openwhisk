@@ -20,6 +20,8 @@
 #then echo skipping setup ; exit 0
 #fi
 
+set -e
+
 # retries a command for five times and exits with the non-zero exit if even after
 # the retries the command did not succeed.
 function retry() {
