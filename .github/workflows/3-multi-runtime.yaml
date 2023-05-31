@@ -44,11 +44,14 @@ env:
 
   # github
   GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
-  GH_BRANCH: ${{ github.head_ref || github.ref_name }} 
+  GH_BRANCH: ${{ github.head_ref || github.ref_name }}
 
 jobs:
   openwhisk:
     runs-on: ubuntu-22.04
+    continue-on-error: false
+    strategy:
+      fail-fast: true
     steps:
       - name: Checkout
         uses: actions/checkout@v3
