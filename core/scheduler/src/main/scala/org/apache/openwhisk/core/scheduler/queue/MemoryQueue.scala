@@ -456,6 +456,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
 
     // This is not supposed to happen. This will ensure the queue does not run forever.
     // This can happen when QueueManager could not respond with QueueRemovedCompleted for some reason.
+    // Note: Activation messages can be received while waiting to timeout which resets the state timeout.
+    // Therefore the state timeout must be set externally on transition to prevent the queue stuck waiting
+    // to remove forever cycling activations between the manager and this fsm.
     case Event(StateTimeout, _: NoData) =>
       context.parent ! queueRemovedMsg
 
@@ -677,6 +680,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     case Uninitialized -> _ => unstashAll()
     case _ -> Flushing      => startTimerWithFixedDelay("StopQueue", StateTimeout, queueConfig.flushGrace)
     case Flushing -> _      => cancelTimer("StopQueue")
+    case _ -> Removed       => startTimerWithFixedDelay("RemovedQueue", StateTimeout, queueConfig.stopGrace)
+    case Removed -> _       => cancelTimer("RemovedQueue") //Removed state is a sink so shouldn't be able to hit this.
   }
 
   onTermination {
@@ -694,12 +699,16 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     cleanUpWatcher()
     cleanUpData()
 
+    context.parent ! queueRemovedMsg
+
     goto(Removed) using NoData()
   }
 
   private def cleanUpActorsAndGotoRemoved(data: FlushingData) = {
     cleanUpActors(data)
     cleanUpData()
+
+    context.parent ! queueRemovedMsg
 
     goto(Removed) using NoData()
   }
@@ -935,8 +944,16 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       if (averageDurationBuffer.nonEmpty) {
         averageDuration = Some(averageDurationBuffer.average)
       }
+
       getUserLimit(invocationNamespace).andThen {
-        case Success(limit) =>
+        case Success(namespaceLimit) =>
+          // extra safeguard to use namespace limit if action limit exceeds due to namespace limit being lowered
+          // by operator after action is deployed
+          val actionLimit = actionMetaData.limits.instances
+            .map(limit =>
+              if (limit.maxConcurrentInstances > namespaceLimit) InstanceConcurrencyLimit(namespaceLimit) else limit)
+            .getOrElse(InstanceConcurrencyLimit(namespaceLimit))
+            .maxConcurrentInstances
           decisionMaker ! QueueSnapshot(
             initialized,
             in,
@@ -947,7 +964,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
             namespaceContainerCount.existingContainerNumByNamespace,
             namespaceContainerCount.inProgressContainerNumByNamespace,
             averageDuration,
-            limit,
+            namespaceLimit,
+            actionLimit,
             actionMetaData.limits.concurrency.maxConcurrent,
             stateName,
             self)
@@ -1209,12 +1227,10 @@ object MemoryQueue {
         s"[$invocationNamespace:$action:$stateName] some activations are stale msg: ${queue.head.msg.activationId}.")
       val timeSinceLastActivationGrabbed = clock.now().toEpochMilli - lastActivationExecutedTime.get()
       if (timeSinceLastActivationGrabbed > maxRetentionMs && timeSinceLastActivationGrabbed > actionMetaData.limits.timeout.millis) {
-        MetricEmitter.emitGaugeMetric(
+        MetricEmitter.emitCounterMetric(
           LoggingMarkers
-            .SCHEDULER_QUEUE_NOT_PROCESSING(invocationNamespace, action.asString, action.toStringWithoutVersion),
-          1)
+            .SCHEDULER_QUEUE_NOT_PROCESSING(invocationNamespace, action.asString, action.toStringWithoutVersion))
       }
-
       queueRef ! DropOld
     }
   }
@@ -1237,7 +1253,8 @@ case class QueueSnapshot(initialized: Boolean,
                          existingContainerCountInNamespace: Int,
                          inProgressContainerCountInNamespace: Int,
                          averageDuration: Option[Double],
-                         limit: Int,
+                         namespaceLimit: Int,
+                         actionLimit: Int,
                          maxActionConcurrency: Int,
                          stateName: MemoryQueueState,
                          recipient: ActorRef)

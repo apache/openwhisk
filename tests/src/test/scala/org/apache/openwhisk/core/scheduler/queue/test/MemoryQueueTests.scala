@@ -654,13 +654,14 @@ class MemoryQueueTests
     fsm ! StateTimeout
     expectMsg(Transition(fsm, Idle, Removed))
     queueRef.queue.length shouldBe 0
+    parent.expectMsg(queueRemovedMsg)
+
     fsm ! message
 
     // queue is timed out again in the Removed state.
     parent.expectMsg(message)
 
     fsm ! StateTimeout
-    parent.expectMsg(queueRemovedMsg)
 
     expectNoMessage()
 
@@ -1103,10 +1104,7 @@ class MemoryQueueTests
     fsm ! message
     probe.expectMsg(ActivationResponse.developerError("nonExecutbleAction error"))
 
-    parent.expectMsgAnyOf(
-      2 * queueConfig.flushGrace + 5.seconds,
-      QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(action.rev), Some(leaderKey)),
-      Transition(fsm, Flushing, Removed))
+    parent.expectMsgAllOf(2 * queueConfig.flushGrace + 5.seconds, queueRemovedMsg, Transition(fsm, Flushing, Removed))
 
     fsm ! StateTimeout
     parent.expectMsg(queueRemovedMsg)
@@ -1409,10 +1407,7 @@ class MemoryQueueTests
 
     val duration = FiniteDuration(queueConfig.maxBlackboxRetentionMs, MILLISECONDS) + queueConfig.flushGrace
     probe.expectMsg(duration, ActivationResponse.whiskError("no available invokers"))
-    parent.expectMsgAnyOf(
-      duration,
-      QueueRemoved(testInvocationNamespace, fqn.toDocId.asDocInfo(action.rev), Some(leaderKey)),
-      Transition(fsm, Flushing, Removed))
+    parent.expectMsgAllOf(duration, queueRemovedMsg, Transition(fsm, Flushing, Removed))
     fsm ! QueueRemovedCompleted
     parent.expectTerminated(fsm)
 
@@ -1534,7 +1529,7 @@ class MemoryQueueTests
     // This test pilot mimic the decision maker who disable the namespace throttling when there is enough capacity.
     decisionMaker.setAutoPilot((sender: ActorRef, msg) => {
       msg match {
-        case QueueSnapshot(_, _, _, _, _, _, _, _, _, _, _, NamespaceThrottled, _) =>
+        case QueueSnapshot(_, _, _, _, _, _, _, _, _, _, _, _, NamespaceThrottled, _) =>
           sender ! DisableNamespaceThrottling
 
         case _ =>

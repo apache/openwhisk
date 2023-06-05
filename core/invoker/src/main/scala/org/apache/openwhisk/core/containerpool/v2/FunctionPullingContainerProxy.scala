@@ -611,7 +611,12 @@ class FunctionPullingContainerProxy(
       if (runningActivations.isEmpty) {
         logging.info(this, s"The Client closed in state: $stateName, action: ${data.action}")
         // Stop ContainerProxy(ActivationClientProxy will stop also when send ClientClosed to ContainerProxy).
-        cleanUp(data.container, None, false)
+        cleanUp(
+          data.container,
+          data.invocationNamespace,
+          data.action.fullyQualifiedName(withVersion = true),
+          data.action.rev,
+          None)
       } else {
         logging.info(
           this,

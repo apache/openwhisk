@@ -72,18 +72,23 @@ OpenWhisk has a few system limits, including how much memory an action can use a
 **Note:** This default limits are for the open source distribution; production deployments like IBM Cloud Functions likely have higher limits.
 As an operator or developer you can change some of the limits using [Ansible inventory variables](../ansible/README.md#changing-limits).
 
+**Note:** On Openwhisk 2.0 with the scheduler service, **concurrent** in the table below really means the max containers
+that can be provisioned at once for a namespace. The api _may_ be able to accept more activations than this number at once
+depending on a number of factors.
+
 The following table lists the default limits for actions.
 
-| limit | description | configurable | unit | default |
-| ----- | ----------- | ------------ | -----| ------- |
-| timeout | a container is not allowed to run longer than N milliseconds | per action |  milliseconds | 60000 |
-| memory | a container is not allowed to allocate more than N MB of memory | per action | MB | 256 |
-| logs | a container is not allowed to write more than N MB to stdout | per action | MB | 10 |
+| limit | description                                                                               | configurable | unit | default |
+| ----- |-------------------------------------------------------------------------------------------| ------------ | -----| ------- |
+| timeout | a container is not allowed to run longer than N milliseconds                              | per action |  milliseconds | 60000 |
+| memory | a container is not allowed to allocate more than N MB of memory                           | per action | MB | 256 |
+| logs | a container is not allowed to write more than N MB to stdout                              | per action | MB | 10 |
+ | instances | an action is not allowed to have more containers than this value (**new scheduler only**) | per action  | number | namespace concurrency limit |
 | concurrent | no more than N activations may be submitted per namespace either executing or queued for execution | per namespace | number | 100 |
-| minuteRate | no more than N activations may be submitted per namespace per minute | per namespace | number | 120 |
-| codeSize | the maximum size of the action code | configurable, limit per action | MB | 48 |
-| parameters | the maximum size of the parameters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
-| result | the maximum size of the action result | not configurable, limit per action | MB | 1 |
+| minuteRate | no more than N activations may be submitted per namespace per minute                      | per namespace | number | 120 |
+| codeSize | the maximum size of the action code                                                       | configurable, limit per action | MB | 48 |
+| parameters | the maximum size of the parameters that can be attached                                   | not configurable, limit per action/package/trigger | MB | 1 |
+| result | the maximum size of the action result                                                     | not configurable, limit per action | MB | 1 |
 
 ### Per action timeout (ms) (Default: 60s)
 * The timeout limit N is in the range [100ms..300000ms] and is set per action in milliseconds.
@@ -94,6 +99,15 @@ The following table lists the default limits for actions.
 * The memory limit M is in the range from [128MB..512MB] and is set per action in MB.
 * A user can change the limit when creating the action.
 * A container cannot have more memory allocated than the limit.
+
+### Per action max instance concurrency (Default: namespace limit for concurrent invocations) **Only applicable using new scheduler**
+* The max containers that will be created for an action before throttling in the range from [1..concurrentInvocations limit for namespace]
+* By default the max allowed containers / server instances for an action is equal to the namespace limit.
+* A user can change the limit when creating the action.
+* Defining a lower limit than the namespace limit means your max container concurrency will be the action defined limit.
+* If using actionConcurrency > 1 such that your action can handle multiple requests per instance, your true concurrency limit is actionContainerConcurrency * actionConcurrency.
+* The actions within a namespaces containerConcurrency total do not have to add up to the namespace limit though you can configure it that way to guarantee an action will get exactly the action container concurrency.
+* For example with a namespace limit of 30 with 2 actions each with a container limit of 20; if the first action is using 20, there will still be space for 10 for the other.
 
 ### Per action logs (MB) (Default: 10MB)
 * The log limit N is in the range [0MB..10MB] and is set per action.

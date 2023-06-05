@@ -107,7 +107,8 @@ object Invoker {
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
     val poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
-    val limitConfig: ConcurrencyLimitConfig = loadConfigOrThrow[ConcurrencyLimitConfig](ConfigKeys.concurrencyLimit)
+    val limitConfig: IntraConcurrencyLimitConfig =
+      loadConfigOrThrow[IntraConcurrencyLimitConfig](ConfigKeys.concurrencyLimit)
     val tags: Seq[String] = Some(loadConfigOrThrow[String](ConfigKeys.invokerResourceTags))
       .map(_.trim())
       .filter(_ != "")
@@ -236,11 +237,12 @@ object Invoker {
  * An Spi for providing invoker implementation.
  */
 trait InvokerProvider extends Spi {
-  def instance(config: WhiskConfig,
-               instance: InvokerInstanceId,
-               producer: MessageProducer,
-               poolConfig: ContainerPoolConfig,
-               limitsConfig: ConcurrencyLimitConfig)(implicit actorSystem: ActorSystem, logging: Logging): InvokerCore
+  def instance(
+    config: WhiskConfig,
+    instance: InvokerInstanceId,
+    producer: MessageProducer,
+    poolConfig: ContainerPoolConfig,
+    limitsConfig: IntraConcurrencyLimitConfig)(implicit actorSystem: ActorSystem, logging: Logging): InvokerCore
 }
 
 // this trait can be used to add common implementation

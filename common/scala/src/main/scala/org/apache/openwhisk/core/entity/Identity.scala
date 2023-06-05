@@ -43,13 +43,14 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       maxActionLogs: Option[LogLimit] = None,
                       minActionTimeout: Option[TimeLimit] = None,
                       maxActionTimeout: Option[TimeLimit] = None,
-                      minActionConcurrency: Option[ConcurrencyLimit] = None,
-                      maxActionConcurrency: Option[ConcurrencyLimit] = None,
+                      minActionConcurrency: Option[IntraConcurrencyLimit] = None,
+                      maxActionConcurrency: Option[IntraConcurrencyLimit] = None,
                       maxParameterSize: Option[ByteSize] = None,
                       maxPayloadSize: Option[ByteSize] = None,
                       truncationSize: Option[ByteSize] = None,
                       warmedContainerKeepingCount: Option[Int] = None,
-                      warmedContainerKeepingTimeout: Option[String] = None) {
+                      warmedContainerKeepingTimeout: Option[String] = None,
+                      maxActionInstances: Option[Int] = None) {
 
   def allowedMaxParameterSize: ByteSize = {
     val namespaceLimit = maxParameterSize getOrElse (Parameters.MAX_SIZE_DEFAULT)
@@ -73,16 +74,16 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
   }
 
   def allowedMaxActionConcurrency: Int = {
-    val namespaceLimit = maxActionConcurrency.map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MAX_CONCURRENT_DEFAULT)
-    if (namespaceLimit > ConcurrencyLimit.MAX_CONCURRENT) {
-      ConcurrencyLimit.MAX_CONCURRENT
+    val namespaceLimit = maxActionConcurrency.map(_.maxConcurrent) getOrElse (IntraConcurrencyLimit.MAX_CONCURRENT_DEFAULT)
+    if (namespaceLimit > IntraConcurrencyLimit.MAX_CONCURRENT) {
+      IntraConcurrencyLimit.MAX_CONCURRENT
     } else namespaceLimit
   }
 
   def allowedMinActionConcurrency: Int = {
-    val namespaceLimit = minActionConcurrency.map(_.maxConcurrent) getOrElse (ConcurrencyLimit.MIN_CONCURRENT_DEFAULT)
-    if (namespaceLimit < ConcurrencyLimit.MIN_CONCURRENT) {
-      ConcurrencyLimit.MIN_CONCURRENT
+    val namespaceLimit = minActionConcurrency.map(_.maxConcurrent) getOrElse (IntraConcurrencyLimit.MIN_CONCURRENT_DEFAULT)
+    if (namespaceLimit < IntraConcurrencyLimit.MIN_CONCURRENT) {
+      IntraConcurrencyLimit.MIN_CONCURRENT
     } else namespaceLimit
   }
 
@@ -127,13 +128,12 @@ case class UserLimits(invocationsPerMinute: Option[Int] = None,
       TimeLimit.MIN_DURATION
     } else namespaceLimit
   }
-
 }
 
 object UserLimits extends DefaultJsonProtocol {
   val standardUserLimits = UserLimits()
   private implicit val byteSizeSerdes = size.serdes
-  implicit val serdes = jsonFormat18(UserLimits.apply)
+  implicit val serdes = jsonFormat19(UserLimits.apply)
 }
 
 protected[core] case class Namespace(name: EntityName, uuid: UUID)

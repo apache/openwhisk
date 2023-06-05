@@ -44,11 +44,14 @@ env:
 
   # github
   GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
-  GH_BRANCH: ${{ github.head_ref || github.ref_name }} 
+  GH_BRANCH: ${{ github.head_ref || github.ref_name }}
 
 jobs:
   openwhisk:
     runs-on: ubuntu-22.04
+    continue-on-error: false
+    strategy:
+      fail-fast: true
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -79,9 +82,9 @@ jobs:
       - run: OPENWHISK_HOST="172.17.0.1" USERS="1" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-org.apache.openwhisk.ColdBlockingInvokeSimulation
         continue-on-error: true
       - name: Slack Notification
-        run: > 
-             ./tools/github/writeOnSlack.sh
-             "[$TEST_SUITE]" ${{ steps.tests.outcome }} on ${GH_BUILD}
-             $'\nbranch:' $GH_BRANCH
-             $'\nmessage:' "$(git log -1 --oneline | cat)"
-             $'\nCheck GitHub logs for results'
+        run: >
+          ./tools/github/writeOnSlack.sh
+          "[$TEST_SUITE]" ${{ steps.tests.outcome }} on ${GH_BUILD}
+          $'\nbranch:' $GH_BRANCH
+          $'\nmessage:' "$(git log -1 --oneline | cat)"
+          $'\nCheck GitHub logs for results'

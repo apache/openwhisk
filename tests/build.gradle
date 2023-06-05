@@ -239,9 +239,9 @@ dependencies {
             because 'swagger-request-validator-core cannot be upgraded to 2.x where vuln is remediated'
         }
     }
-    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0"
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.8.1"
     constraints {
-        implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.4.0")
+        implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.8.1")
         implementation('org.apache.avro:avro:1.11.1') {
             because 'embeddedkafka dependency cannot be upgraded currently and avro in embedded kafka 2.4.0 has vulns'
         }
@@ -255,7 +255,6 @@ dependencies {
     implementation "com.microsoft.azure:azure-cosmos:3.7.6"
     implementation 'org.testcontainers:elasticsearch:1.17.6'
     implementation 'org.testcontainers:mongodb:1.17.1'
-
     implementation project(':common:scala')
     implementation project(':core:controller')
     implementation project(':core:scheduler')
