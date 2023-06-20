@@ -55,8 +55,6 @@ jobs:
   openwhisk:
     runs-on: ubuntu-22.04
     continue-on-error: false
-    strategy:
-      fail-fast: true
     steps:
       - name: Checkout
         uses: actions/checkout@v3
