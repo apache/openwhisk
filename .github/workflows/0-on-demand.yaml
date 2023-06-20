@@ -56,6 +56,9 @@ env:
   GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
   GH_BRANCH: ${{ github.head_ref || github.ref_name }}
 
+  # https://ge.apache.org
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+
   # (optional) you need to add as secrets an ngrok token and a password to debug a build on demand
   NGROK_DEBUG: ${{ inputs.enable_ngrok_debug }}
   NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
