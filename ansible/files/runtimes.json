@@ -68,6 +68,20 @@
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
                 }
+            },
+            {
+                "kind": "nodejs:20",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-nodejs-v20",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "python": [
@@ -91,6 +105,20 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-python-v3.10",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            },
+            {
+                "kind": "python:3.11",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-python-v3.11",
                     "tag": "nightly"
                 },
                 "deprecated": false,
@@ -135,6 +163,20 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-swift-v5.4",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            },
+            {
+                "kind": "swift:5.7",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-swift-v5.7",
                     "tag": "nightly"
                 },
                 "deprecated": false,
