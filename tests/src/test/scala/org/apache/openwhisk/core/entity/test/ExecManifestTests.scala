@@ -270,7 +270,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |{ "runtimes": {
                  |    "nodef": [
                  |      {
-                 |        "kind": "nodejs:14",
+                 |        "kind": "nodejs:20",
                  |        "default": true,
                  |        "image": {
                  |          "name": "nodejsaction"
@@ -322,7 +322,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |""".stripMargin.parseJson.asJsObject
 
     val js14 = RuntimeManifest(
-      "nodejs:14",
+      "nodejs:20",
       ImageName("nodejsaction"),
       default = Some(true),
       stemCells = Some(List(StemCell(1, 128.MB), StemCell(1, 256.MB))))
@@ -364,7 +364,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
                  |{ "runtimes": {
                  |    "nodef": [
                  |      {
-                 |        "kind": "nodejs:14",
+                 |        "kind": "nodejs:20",
                  |        "default": true,
                  |        "image": {
                  |          "name": "nodejsaction"
@@ -445,7 +445,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
 
     val reactive = Some(ReactivePrewarmingConfig(1, 4, FiniteDuration(2, TimeUnit.MINUTES), 1, 1))
     val js14 = RuntimeManifest(
-      "nodejs:14",
+      "nodejs:20",
       ImageName("nodejsaction"),
       default = Some(true),
       stemCells = Some(List(StemCell(1, 128.MB, reactive), StemCell(1, 256.MB, reactive))))

@@ -114,7 +114,7 @@ class AttachmentCompatibilityTests
   it should "read existing base64 encoded code string" in {
     implicit val tid: TransactionId = transid()
     val exec = """{
-               |  "kind": "nodejs:14",
+               |  "kind": "nodejs:20",
                |  "code": "SGVsbG8gT3BlbldoaXNr"
                |}""".stripMargin.parseJson.asJsObject
     val (id, action) = makeActionJson(namespace, aname(), exec)
@@ -127,7 +127,7 @@ class AttachmentCompatibilityTests
   it should "read existing simple code string" in {
     implicit val tid: TransactionId = transid()
     val exec = """{
-                 |  "kind": "nodejs:14",
+                 |  "kind": "nodejs:20",
                  |  "code": "while (true)"
                  |}""".stripMargin.parseJson.asJsObject
     val (id, action) = makeActionJson(namespace, aname(), exec)
