@@ -75,7 +75,9 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
   // * With the introduction of Node.js 10, this was changed from "openFileLimit - 15" to
   //   "openFileLimit - 20".
   // * With Docker 18.09.3, we observed test failures and changed to "openFileLimit - 24".
-  val minExpectedOpenFiles = openFileLimit - 24
+  // * With the introduction of Node.js 20, this was changed from "openFileLimit - 24" to
+  //   "openFileLimit - 30".
+  val minExpectedOpenFiles = openFileLimit - 30
 
   behavior of "Action limits"
 

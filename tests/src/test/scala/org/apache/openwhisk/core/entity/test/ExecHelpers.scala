@@ -35,7 +35,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   private val config = new WhiskConfig(ExecManifest.requiredProperties)
   ExecManifest.initialize(config) should be a 'success
 
-  protected val NODEJS = "nodejs:14"
+  protected val NODEJS = "nodejs:20"
   protected val SWIFT5 = "swift:5.3"
   protected val BLACKBOX = "blackbox"
   protected val JAVA_DEFAULT = "java:8"

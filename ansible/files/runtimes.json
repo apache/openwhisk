@@ -3,7 +3,7 @@
         "This file describes the different languages (aka. managed action runtimes) supported by the system",
         "as well as blackbox images that support the runtime specification.",
         "Only actions with runtime families / kinds defined here can be created / read / updated / deleted / invoked.",
-        "Define a list of runtime families (example: 'nodejs') with at least one kind per family (example: 'nodejs:14').",
+        "Define a list of runtime families (example: 'nodejs') with at least one kind per family (example: 'nodejs:20').",
         "Each runtime family needs a default kind (default: true).",
         "When removing or renaming runtime families or runtime kinds from this file, preexisting actions",
         "with the affected kinds can no longer be read / updated / deleted / invoked. In order to remove or rename",
@@ -15,11 +15,25 @@
     "runtimes": {
         "nodejs": [
             {
-                "kind": "nodejs:14",
+                "kind": "nodejs:18",
+                "default": false,
+                "image": {
+                    "prefix": "openwhisk",
+                    "name": "action-nodejs-v18",
+                    "tag": "nightly"
+                },
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
+            },
+            {
+                "kind": "nodejs:20",
                 "default": true,
                 "image": {
                     "prefix": "openwhisk",
-                    "name": "action-nodejs-v14",
+                    "name": "action-nodejs-v20",
                     "tag": "nightly"
                 },
                 "deprecated": false,
@@ -40,54 +54,12 @@
                         }
                     }
                 ]
-            },
-            {
-                "kind": "nodejs:16",
-                "default": false,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-nodejs-v16",
-                    "tag": "nightly"
-                },
-                "deprecated": false,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
-                "kind": "nodejs:18",
-                "default": false,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-nodejs-v18",
-                    "tag": "nightly"
-                },
-                "deprecated": false,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
             }
         ],
         "python": [
             {
-                "kind": "python:3",
-                "default": true,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-python-v3.7",
-                    "tag": "nightly"
-                },
-                "deprecated": false,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
                 "kind": "python:3.10",
-                "default": false,
+                "default": true,
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-python-v3.10",
@@ -98,15 +70,13 @@
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
                 }
-            }
-        ],
-        "swift": [
+            },
             {
-                "kind": "swift:5.1",
+                "kind": "python:3.11",
                 "default": false,
                 "image": {
                     "prefix": "openwhisk",
-                    "name": "action-swift-v5.1",
+                    "name": "action-python-v3.11",
                     "tag": "nightly"
                 },
                 "deprecated": false,
@@ -114,7 +84,9 @@
                     "attachmentName": "codefile",
                     "attachmentType": "text/plain"
                 }
-            },
+            }
+        ],
+        "swift": [
             {
                 "kind": "swift:5.3",
                 "default": true,
@@ -130,11 +102,11 @@
                 }
             },
             {
-                "kind": "swift:5.4",
+                "kind": "swift:5.7",
                 "default": false,
                 "image": {
                     "prefix": "openwhisk",
-                    "name": "action-swift-v5.4",
+                    "name": "action-swift-v5.7",
                     "tag": "nightly"
                 },
                 "deprecated": false,
@@ -163,50 +135,8 @@
         ],
         "php": [
             {
-                "kind": "php:7.3",
-                "default": false,
-                "deprecated": true,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-php-v7.3",
-                    "tag": "nightly"
-                },
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
-                "kind": "php:7.4",
-                "default": true,
-                "deprecated": false,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-php-v7.4",
-                    "tag": "nightly"
-                },
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
-                "kind": "php:8.0",
-                "default": false,
-                "deprecated": false,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-php-v8.0",
-                    "tag": "nightly"
-                },
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
-            {
                 "kind": "php:8.1",
-                "default": false,
+                "default": true,
                 "deprecated": false,
                 "image": {
                     "prefix": "openwhisk",
@@ -237,22 +167,8 @@
         ],
         "go": [
             {
-                "kind": "go:1.17",
-                "default": true,
-                "deprecated": false,
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                },
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-golang-v1.17",
-                    "tag": "nightly"
-                }
-            },
-            {
                 "kind": "go:1.20",
-                "default": false,
+                "default": true,
                 "deprecated": false,
                 "attached": {
                     "attachmentName": "codefile",
@@ -266,21 +182,6 @@
             }
         ],
         "dotnet": [
-            {
-                "kind": "dotnet:2.2",
-                "default": false,
-                "deprecated": true,
-                "requireMain": true,
-                "image": {
-                    "prefix": "openwhisk",
-                    "name": "action-dotnet-v2.2",
-                    "tag": "nightly"
-                },
-                "attached": {
-                    "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
-                }
-            },
             {
                 "kind": "dotnet:3.1",
                 "default": true,

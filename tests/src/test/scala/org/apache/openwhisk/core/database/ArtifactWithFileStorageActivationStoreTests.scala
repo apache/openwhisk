@@ -152,7 +152,7 @@ class ArtifactWithFileStorageActivationStoreTests()
             response = response,
             logs = logs,
             duration = Some(101L),
-            annotations = Parameters("kind", "nodejs:14") ++ Parameters(
+            annotations = Parameters("kind", "nodejs:20") ++ Parameters(
               "limits",
               ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
               Parameters("waitTime", 16.toJson) ++
@@ -203,7 +203,7 @@ class ArtifactWithFileStorageActivationStoreTests()
             response = response,
             logs = logs,
             duration = Some(101L),
-            annotations = Parameters("kind", "nodejs:14") ++ Parameters(
+            annotations = Parameters("kind", "nodejs:20") ++ Parameters(
               "limits",
               ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
               Parameters("waitTime", 16.toJson) ++
@@ -315,7 +315,7 @@ class ArtifactWithFileStorageActivationStoreTests()
               response = response,
               logs = logs,
               duration = Some(101L),
-              annotations = Parameters("kind", "nodejs:14") ++ Parameters(
+              annotations = Parameters("kind", "nodejs:20") ++ Parameters(
                 "limits",
                 ActionLimits(TimeLimit(60.second), MemoryLimit(256.MB), LogLimit(10.MB)).toJson) ++
                 Parameters("waitTime", 16.toJson) ++

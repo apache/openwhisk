@@ -86,11 +86,11 @@ runtime kinds or language families.
 Prewarmed containers are created when an invoker starts, they are created according to runtimes.json's stemCells, e.g.
 ```
 {
-    "kind": "nodejs:14",
+    "kind": "nodejs:20",
     "default": true,
     "image": {
         "prefix": "openwhisk",
-        "name": "action-nodejs-v14",
+        "name": "action-nodejs-v20",
         "tag": "nightly"
     },
     "deprecated": false,
@@ -106,9 +106,9 @@ Prewarmed containers are created when an invoker starts, they are created accord
      ]
 }
 ```
-In the above example, there is only one runtime configuration, which is `nodejs:14`.
-It has a stem cell configuration and 2 containers with 256MB memory for `nodejs:14` will be provisioned when an invoker starts.
-When an activation with the `nodejs:14` kind arrives, one of the prewarm containers can be used to alleviate a cold start.
+In the above example, there is only one runtime configuration, which is `nodejs:20`.
+It has a stem cell configuration and 2 containers with 256MB memory for `nodejs:20` will be provisioned when an invoker starts.
+When an activation with the `nodejs:20` kind arrives, one of the prewarm containers can be used to alleviate a cold start.
 A prewarm container that is assigned to an action is moved to the busy pool and the invoker creates one more prewarm container to replenish the prewarm pool.
 In this way, when no reactive configuration is configured, an invoker always maintains the same number of prewarm containers.
 
@@ -117,11 +117,11 @@ In this way, when no reactive configuration is configured, an invoker always mai
 With a reactive configuration, the number of prewarm containers is dynamically controlled, e.g.
 ```
 {
-    "kind": "nodejs:14",
+    "kind": "nodejs:20",
     "default": true,
     "image": {
         "prefix": "openwhisk",
-        "name": "action-nodejs-v14",
+        "name": "action-nodejs-v20",
         "tag": "nightly"
     },
     "deprecated": false,
@@ -143,7 +143,7 @@ With a reactive configuration, the number of prewarm containers is dynamically c
      ]
 }
 ```
-In the above example, there is a reactive configuration for `nodejs:14` and there are 4 underlying configurations.
+In the above example, there is a reactive configuration for `nodejs:20` and there are 4 underlying configurations.
 * `minCount`: the minimum number of prewarm containers. The number of prewarm containers can't be fewer than this value
 * `maxCount`: the maximum number of prewarm containers. The number of prewarm containers cannot exceed this value
 * `ttl`: the amount of time that prewarm containers can exist without any activation. If no activation for the prewarm container arrives in the given time, the prewarm container will be removed
