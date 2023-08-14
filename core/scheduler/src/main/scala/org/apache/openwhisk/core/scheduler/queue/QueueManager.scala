@@ -184,7 +184,8 @@ class QueueManager(
       }
 
     case RecoverQueue(msg, action, actionMetaData) =>
-      QueuePool.keys.find(_.docInfo.id == action.toDocId) match {
+      QueuePool.keys.find(k =>
+        k.invocationNamespace == msg.user.namespace.name.asString && k.docInfo.id == action.toDocId) match {
         // a newer queue is created, send msg to new queue
         case Some(key) if key.docInfo.rev >= msg.revision =>
           QueuePool.get(key) match {
@@ -326,7 +327,8 @@ class QueueManager(
 
   private def handleCycle(msg: ActivationMessage)(implicit transid: TransactionId): Unit = {
     val action = msg.action
-    QueuePool.keys.find(_.docInfo.id == action.toDocId) match {
+    QueuePool.keys.find(k =>
+      k.invocationNamespace == msg.user.namespace.name.asString && k.docInfo.id == action.toDocId) match {
       // a newer queue is created, send msg to new queue
       case Some(key) if key.docInfo.rev >= msg.revision =>
         QueuePool.get(key) match {
