@@ -65,6 +65,8 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Check free space
         run: df -h
+      - name: "clean up"
+        run: sudo rm -rf /var/lib/docker/overlay2/*
       - id: tests
         name: Run Tests
         run: "./tools/github/run${{ env.TEST_SUITE }}Tests.sh"
