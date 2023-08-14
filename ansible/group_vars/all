@@ -211,7 +211,7 @@ invoker:
   userMemory: "{{ invoker_user_memory | default('2048m') }}"
   # Specify if it is allowed to deploy more than 1 invoker on a single machine.
   allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
-  # Specify if it should use docker-runc or docker to pause/unpause containers
+  # Specify if it should use runc or docker to pause/unpause containers
   useRunc: "{{ invoker_use_runc | default(true) }}"
   docker:
     become: "{{ invoker_docker_become | default(false) }}"

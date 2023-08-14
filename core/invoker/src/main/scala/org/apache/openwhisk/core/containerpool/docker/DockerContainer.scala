@@ -55,7 +55,7 @@ object DockerContainer {
    * @param network network to launch the container in
    * @param dnsServers list of dns servers to use in the container
    * @param name optional name for the container
-   * @param useRunc use docker-runc to pause/unpause container?
+   * @param useRunc use runc to pause/unpause container?
    * @return a Future which either completes with a DockerContainer or one of two specific failures
    */
   def create(transid: TransactionId,

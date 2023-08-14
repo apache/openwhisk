@@ -48,12 +48,12 @@ OpenWhisk used to support both shared state and a sharding model. The former has
 
 The sharding loadbalancer has the caveat of being limited in its scalability in its current implementation. It uses "horizontal" sharding, which means that the slots on each invoker are evenly divided to the loadbalancers. For example: In a system with 2 loadbalancers and invokers which have 16 slots each, each loadbalancer would get 8 slots on each invoker. In this specific case, a cluster of loadbalancers > 16 instances does not make sense, since each loadbalancer would only have a fraction of a slot above that. The code guards against that but it is strongly recommended not to deploy more sharding loadbalancers than there are slots on each invoker.
 
-# Invoker use of docker-runc
+# Invoker use of runc
 
-To improve performance, Invokers attempt to maintain warm containers for frequently executed actions. To optimize resource usage, the action containers are paused/unpaused between invocations.  The system can be configured to use either docker-runc or docker to perform the pause/unpause operations by setting the value of the environment variable INVOKER_USE_RUNC to true or false respectively. If not set, it will default to true (use docker-runc).
+To improve performance, Invokers attempt to maintain warm containers for frequently executed actions. To optimize resource usage, the action containers are paused/unpaused between invocations.  The system can be configured to use either runc or docker to perform the pause/unpause operations by setting the value of the environment variable INVOKER_USE_RUNC to true or false respectively. If not set, it will default to true (use runc).
 
-Using docker-runc obtains significantly better performance, but requires that the version of docker-runc within the invoker container is an exact version match to the docker-runc of the host environment.  Failure to get an exact version match will results in error messages like:
+Using runc obtains significantly better performance, but requires that the version of runc within the invoker container is an exact version match to the runc of the host environment.  Failure to get an exact version match will results in error messages like:
 ```
 2017-09-29T20:15:54.551Z] [ERROR] [#sid_102] [RuncClient] code: 1, stdout: , stderr: json: cannot unmarshal object into Go value of type []string [marker:invoker_runc.pause_error:6830148:259]
 ```
-When a docker-runc operations results in an error, the container will be killed by the invoker.  This results in missed opportunities for container reuse and poor performance.  Setting INVOKER_USE_RUNC to false can be used as a workaround until proper usage of docker-runc can be configured for the deployment.
+When a runc operations results in an error, the container will be killed by the invoker.  This results in missed opportunities for container reuse and poor performance.  Setting INVOKER_USE_RUNC to false can be used as a workaround until proper usage of runc can be configured for the deployment.
