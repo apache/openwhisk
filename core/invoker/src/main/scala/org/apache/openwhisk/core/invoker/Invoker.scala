@@ -188,7 +188,8 @@ object Invoker {
 
       // --uniqueName is defined with a valid value, id is empty, assign an id via zookeeper
       case CmdLineArgs(Some(unique), None, _, overwriteId) =>
-        if (config.zookeeperHosts.startsWith(":") || config.zookeeperHosts.endsWith(":") || config.zookeeperHosts.equals("")) {
+        if (config.zookeeperHosts.startsWith(":") || config.zookeeperHosts.endsWith(":") ||
+            config.zookeeperHosts.equals("")) {
           abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHosts})")
         }
         new InstanceIdAssigner(config.zookeeperHosts).setAndGetId(unique, overwriteId)
