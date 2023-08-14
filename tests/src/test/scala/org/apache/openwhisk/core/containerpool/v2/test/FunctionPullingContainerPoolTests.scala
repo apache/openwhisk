@@ -99,7 +99,7 @@ class FunctionPullingContainerPoolTests
   // those for the behavior testing here, as none of the contents will really
   // reach a container anyway. We merely assert that passing and extraction of
   // the values is done properly.
-  private val actionKind = "nodejs:8"
+  private val actionKind = "nodejs:20"
   private val exec = CodeExecAsString(RuntimeManifest(actionKind, ImageName("testImage")), "testCode", None)
   private val memoryLimit = MemoryLimit.STD_MEMORY.toMB.MB
   private val whiskAction = WhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
