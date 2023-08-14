@@ -93,6 +93,8 @@ object Invoker {
       kafkaHosts ++
       wskApiHost
 
+  def optionalProperties = zookeeperHosts.keys.toSet
+
   def initKamon(instance: Int): Unit = {
     // Replace the hostname of the invoker to the assigned id of the invoker.
     val newKamonConfig = Kamon.config
@@ -128,7 +130,7 @@ object Invoker {
     }
 
     // load values for the required properties from the environment
-    implicit val config = new WhiskConfig(requiredProperties)
+    implicit val config = new WhiskConfig(requiredProperties, optionalProperties)
 
     def abort(message: String) = {
       logger.error(this, message)(TransactionId.invoker)
