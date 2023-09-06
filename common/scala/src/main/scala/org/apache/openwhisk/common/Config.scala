@@ -141,8 +141,9 @@ object Config {
    */
   def readPropertiesFromSystemAndEnv(properties: scala.collection.mutable.Map[String, String],
                                      env: Map[String, String])(implicit logging: Logging) = {
+    val keys: Seq[String] = properties.keys.toSeq
     readPropertiesFromSystem(properties)
-    for (p <- properties.keys) {
+    for (p <- keys) {
       val envp = p.replace('.', '_').toUpperCase
       val envv = env.get(envp)
       if (envv.isDefined) {
@@ -153,7 +154,8 @@ object Config {
   }
 
   def readPropertiesFromSystem(properties: scala.collection.mutable.Map[String, String])(implicit logging: Logging) = {
-    for (p <- properties.keys) {
+    val keys: Seq[String] = properties.keys.toSeq
+    for (p <- keys) {
       val sysv = Option(System.getProperty(prefix + p))
       if (sysv.isDefined) {
         logging.info(this, s"system set value for $p")
