@@ -17,20 +17,16 @@
 
 package org.apache.openwhisk.core.containerpool.logging
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Either, Try}
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.HttpMethods.{GET, POST}
 import akka.http.scaladsl.model.headers.Accept
 import akka.stream.scaladsl.Flow
 
-import scala.concurrent.Promise
 import scala.util.Try
-
 import spray.json._
-
 import org.apache.openwhisk.http.PoolingRestClient
 import org.apache.openwhisk.http.PoolingRestClient._
 
@@ -154,8 +150,9 @@ class ElasticSearchRestClient(
   host: String,
   port: Int,
   httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None)(
-  implicit system: ActorSystem)
-    extends PoolingRestClient(protocol, host, port, 16 * 1024, httpFlow) {
+  implicit system: ActorSystem,
+  ec: ExecutionContext)
+    extends PoolingRestClient(protocol, host, port, 16 * 1024, httpFlow)(system, ec) {
 
   import ElasticSearchJsonProtocol._
 

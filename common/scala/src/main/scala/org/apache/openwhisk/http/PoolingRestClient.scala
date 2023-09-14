@@ -47,12 +47,10 @@ class PoolingRestClient(
   port: Int,
   queueSize: Int,
   httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None,
-  timeout: Option[FiniteDuration] = None)(implicit system: ActorSystem) {
+  timeout: Option[FiniteDuration] = None)(implicit system: ActorSystem, ec: ExecutionContext) {
   require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
   private val logging = new AkkaLogging(system.log)
-
-  protected implicit val context: ExecutionContext = system.dispatcher
 
   //if specified, override the ClientConnection idle-timeout and keepalive socket option value
   private val timeoutSettings = {
@@ -137,7 +135,7 @@ class PoolingRestClient(
   def shutdown(): Future[Unit] = {
     killSwitch.shutdown()
     Try(requestQueue.complete()).recover {
-      case t: IllegalStateException => logging.error(this, t.getMessage)
+      case t: IllegalStateException => logging.warn(this, t.getMessage)
     }
     Future.unit
   }

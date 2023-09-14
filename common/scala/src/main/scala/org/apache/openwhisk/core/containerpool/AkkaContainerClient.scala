@@ -70,8 +70,8 @@ protected class AkkaContainerClient(
   port: Int,
   timeout: FiniteDuration,
   queueSize: Int,
-  retryInterval: FiniteDuration = 100.milliseconds)(implicit logging: Logging, as: ActorSystem)
-    extends PoolingRestClient("http", hostname, port, queueSize, timeout = Some(timeout))
+  retryInterval: FiniteDuration = 100.milliseconds)(implicit logging: Logging, as: ActorSystem, ec: ExecutionContext)
+    extends PoolingRestClient("http", hostname, port, queueSize, timeout = Some(timeout))(as, ec)
     with ContainerClient {
 
   def close() = shutdown()
