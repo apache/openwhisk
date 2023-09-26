@@ -215,7 +215,14 @@ class FunctionPullingContainerProxyTests
 
   /** Creates an inspectable factory */
   def createFactory(response: Future[Container]) = LoggedFunction {
-    (_: TransactionId, _: String, _: ImageName, _: Boolean, _: ByteSize, _: Int, _: Option[Double], _: Option[ExecutableWhiskAction]) =>
+    (_: TransactionId,
+     _: String,
+     _: ImageName,
+     _: Boolean,
+     _: ByteSize,
+     _: Int,
+     _: Option[Double],
+     _: Option[ExecutableWhiskAction]) =>
       response
   }
 

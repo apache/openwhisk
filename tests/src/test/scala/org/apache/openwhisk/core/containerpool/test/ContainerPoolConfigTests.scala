@@ -54,7 +54,7 @@ class ContainerPoolConfigTests extends FlatSpec with Matchers {
   it should "correctly round container cpu limit" in {
     val (userMemory, memoryLimit, userCpus) = (768.MB, 256.MB, 2.0)
     val poolConfig = createPoolConfig(userMemory, Some(userCpus))
-    poolConfig.cpuLimit(memoryLimit) shouldBe Some(0.67) // calculated limit is 0.666..., rounded to 0.67
+    poolConfig.cpuLimit(memoryLimit) shouldBe Some(0.66667) // calculated limit is 0.666..., rounded to 0.66667
   }
 
   it should "use min container cpu limit when calculated limit is too low" in {

@@ -77,10 +77,11 @@ case class ContainerPoolConfig(userMemory: ByteSize,
     max((totalShare / (userMemory.toBytes / reservedMemory.toBytes)).toInt, 2) // The minimum allowed cpu-shares is 2
 
   private val minContainerCpus = 0.01 // The minimum cpus allowed by docker is 0.01
+  private val roundingMultiplier = 100000
   def cpuLimit(reservedMemory: ByteSize): Option[Double] = {
     userCpus.map(c => {
       val containerCpus = c / (userMemory.toBytes / reservedMemory.toBytes)
-      val roundedContainerCpus = round(containerCpus * 100).toDouble / 100 // Docker only allows decimal precision of 2
+      val roundedContainerCpus = round(containerCpus * roundingMultiplier).toDouble / roundingMultiplier // Only use decimal precision of 5
       max(roundedContainerCpus, minContainerCpus)
     })
   }
