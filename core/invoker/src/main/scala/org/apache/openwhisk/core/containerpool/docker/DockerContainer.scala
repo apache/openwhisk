@@ -63,6 +63,7 @@ object DockerContainer {
              registryConfig: Option[RuntimesRegistryConfig] = None,
              memory: ByteSize = 256.MB,
              cpuShares: Int = 0,
+             cpuLimit: Option[Double] = None,
              environment: Map[String, String] = Map.empty,
              network: String = "bridge",
              dnsServers: Seq[String] = Seq.empty,
@@ -101,6 +102,7 @@ object DockerContainer {
       dnsSearch.flatMap(d => Seq("--dns-search", d)) ++
       dnsOptions.flatMap(d => Seq(dnsOptString, d)) ++
       name.map(n => Seq("--name", n)).getOrElse(Seq.empty) ++
+      cpuLimit.map(c => Seq("--cpus", c.toString)).getOrElse(Seq.empty) ++
       params
 
     val registryConfigUrl = registryConfig.map(_.url).getOrElse("")

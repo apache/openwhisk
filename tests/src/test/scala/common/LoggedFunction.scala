@@ -92,6 +92,15 @@ class LoggedFunction7[A1, A2, A3, A4, A5, A6, A7, B](body: (A1, A2, A3, A4, A5, 
   }
 }
 
+class LoggedFunction8[A1, A2, A3, A4, A5, A6, A7, A8, B](body: (A1, A2, A3, A4, A5, A6, A7, A8) => B)
+  extends Function8[A1, A2, A3, A4, A5, A6, A7, A8, B] {
+  val calls = mutable.Buffer[(A1, A2, A3, A4, A5, A6, A7, A8)]()
+
+  override def apply(v1: A1, v2: A2, v3: A3, v4: A4, v5: A5, v6: A6, v7: A7, v8: A8): B = {
+    calls += ((v1, v2, v3, v4, v5, v6, v7, v8))
+    body(v1, v2, v3, v4, v5, v6, v7, v8)
+  }
+}
 class SynchronizedLoggedFunction1[A1, B](body: A1 => B) extends Function1[A1, B] {
   val calls = mutable.Buffer[A1]()
 
@@ -157,6 +166,8 @@ object LoggedFunction {
     new LoggedFunction6[A1, A2, A3, A4, A5, A6, B](body)
   def apply[A1, A2, A3, A4, A5, A6, A7, B](body: (A1, A2, A3, A4, A5, A6, A7) => B) =
     new LoggedFunction7[A1, A2, A3, A4, A5, A6, A7, B](body)
+  def apply[A1, A2, A3, A4, A5, A6, A7, A8, B](body: (A1, A2, A3, A4, A5, A6, A7, A8) => B) =
+    new LoggedFunction8[A1, A2, A3, A4, A5, A6, A7, A8, B](body)
 }
 
 object SynchronizedLoggedFunction {
