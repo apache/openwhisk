@@ -57,13 +57,14 @@ class DockerContainerFactory(instance: InvokerInstanceId,
     extends ContainerFactory {
 
   /** Create a container using docker cli */
-  override def createContainer(tid: TransactionId,
-                               name: String,
-                               actionImage: ExecManifest.ImageName,
-                               userProvidedImage: Boolean,
-                               memory: ByteSize,
-                               cpuShares: Int,
-                               cpuLimit: Option[Double])(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+  override def createContainer(
+    tid: TransactionId,
+    name: String,
+    actionImage: ExecManifest.ImageName,
+    userProvidedImage: Boolean,
+    memory: ByteSize,
+    cpuShares: Int,
+    cpuLimit: Option[Double])(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     val registryConfig =
       ContainerFactory.resolveRegistryConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig)
     val image = if (userProvidedImage) Left(actionImage) else Right(actionImage)
