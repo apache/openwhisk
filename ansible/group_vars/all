@@ -209,6 +209,7 @@ invoker:
   heap: "{{ invoker_heap | default('2g') }}"
   arguments: "{{ invoker_arguments | default('') }}"
   userMemory: "{{ invoker_user_memory | default('2048m') }}"
+  userCpus: "{{ invoker_user_cpus | default() }}"
   # Specify if it is allowed to deploy more than 1 invoker on a single machine.
   allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
   # Specify if it should use docker-runc or docker to pause/unpause containers
