@@ -137,6 +137,7 @@ class DockerContainerTests
     val image = "image"
     val memory = 128.MB
     val cpuShares = 1
+    val cpuLimit = 0.5
     val environment = Map("test" -> "hi")
     val network = "testwork"
     val name = "myContainer"
@@ -145,6 +146,7 @@ class DockerContainerTests
       image = Right(ImageName(image)),
       memory = memory,
       cpuShares = cpuShares,
+      cpuLimit = Some(cpuLimit),
       environment = environment,
       network = network,
       name = Some(name),
@@ -171,6 +173,7 @@ class DockerContainerTests
     args should contain inOrder ("--cpu-shares", cpuShares.toString)
     args should contain inOrder ("--network", network)
     args should contain inOrder ("--name", name)
+    args should contain inOrder ("--cpus", cpuLimit.toString)
 
     // Assert proper environment passing
     args should contain allOf ("-e", "test=hi")

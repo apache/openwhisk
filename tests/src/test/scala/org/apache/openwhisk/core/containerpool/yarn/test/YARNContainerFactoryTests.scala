@@ -176,7 +176,8 @@ class YARNContainerFactoryTests
       imageToCreate,
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
 
     Await.result(containerFuture, 60.seconds)
 
@@ -231,7 +232,8 @@ class YARNContainerFactoryTests
       imageNotToDelete,
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
 
     val containerFuture2 = factory.createContainer(
       TransactionId.testing,
@@ -239,7 +241,8 @@ class YARNContainerFactoryTests
       imageToDelete,
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
 
     val containerFuture3 = factory.createContainer(
       TransactionId.testing,
@@ -247,7 +250,8 @@ class YARNContainerFactoryTests
       imageToDelete,
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
 
     val containerFuture4 = factory.createContainer(
       TransactionId.testing,
@@ -255,7 +259,8 @@ class YARNContainerFactoryTests
       imageToDelete,
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
 
     val container1 = Await.result(containerFuture1, 30.seconds)
     val container2 = Await.result(containerFuture2, 30.seconds)
@@ -349,7 +354,8 @@ class YARNContainerFactoryTests
       images(0),
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
 
     val container2Future = factory.createContainer(
       TransactionId.testing,
@@ -357,7 +363,8 @@ class YARNContainerFactoryTests
       images(1),
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
 
     val container3Future = factory.createContainer(
       TransactionId.testing,
@@ -365,7 +372,8 @@ class YARNContainerFactoryTests
       images(0),
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
 
     Await.result(container1Future, 30.seconds)
     val container2 = Await.result(container2Future, 30.seconds)
@@ -463,14 +471,16 @@ class YARNContainerFactoryTests
       imageToCreate,
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
     val containerFuture1 = factory1.createContainer(
       TransactionId.testing,
       "name",
       imageToCreate,
       unuseduserProvidedImage = true,
       ByteSize(256, SizeUnits.MB),
-      1)
+      1,
+      None)
 
     Await.result(containerFuture0, 60.seconds)
     Await.result(containerFuture1, 60.seconds)

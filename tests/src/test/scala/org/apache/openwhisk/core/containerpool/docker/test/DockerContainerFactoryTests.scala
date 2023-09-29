@@ -140,7 +140,91 @@ class DockerContainerFactoryTests
         userImagesRegistryConfig,
         DockerContainerFactoryConfig(true))(actorSystem, executionContext, logging, dockerApiStub, mock[RuncApi])
 
-    val cf = factory.createContainer(tid, "testContainer", image, false, 10.MB, 32)
+    val cf = factory.createContainer(tid, "testContainer", image, false, 10.MB, 32, None)
+
+    val c = Await.result(cf, 5000.milliseconds)
+
+    Await.result(c.destroy(), 500.milliseconds)
+
+  }
+
+  it should "set the docker run args with cpu limit when provided" in {
+
+    val image = ExecManifest.runtimesManifest.manifests("nodejs:20").image
+
+    implicit val tid = TransactionId.testing
+    val dockerApiStub = mock[DockerApiWithFileAccess]
+    //setup run expectation
+    (dockerApiStub
+      .run(_: String, _: Seq[String])(_: TransactionId))
+      .expects(
+        image.resolveImageName(Some(runtimesRegistryConfig.url)),
+        List(
+          "--cpu-shares",
+          "32", //should be calculated as 1024/(numcore * sharefactor) via ContainerFactory.cpuShare
+          "--memory",
+          "10m",
+          "--memory-swap",
+          "10m",
+          "--network",
+          "net1",
+          "-e",
+          "__OW_API_HOST=",
+          "-e",
+          "k1=v1",
+          "-e",
+          "k2=v2",
+          "-e",
+          "k3=",
+          "--dns",
+          "dns1",
+          "--dns",
+          "dns2",
+          "--name",
+          "testContainer",
+          "--cpus",
+          "0.5",
+          "--extra1",
+          "e1",
+          "--extra1",
+          "e2",
+          "--extra2",
+          "e3",
+          "--extra2",
+          "e4"),
+        *)
+      .returning(Future.successful { ContainerId("fakecontainerid") })
+    //setup inspect expectation
+    (dockerApiStub
+      .inspectIPAddress(_: ContainerId, _: String)(_: TransactionId))
+      .expects(ContainerId("fakecontainerid"), "net1", *)
+      .returning(Future.successful { ContainerAddress("1.2.3.4", 1234) })
+    //setup rm expectation
+    (dockerApiStub
+      .rm(_: ContainerId)(_: TransactionId))
+      .expects(ContainerId("fakecontainerid"), *)
+      .returning(Future.successful(()))
+    //setup clientVersion exceptation
+    (dockerApiStub.clientVersion _)
+      .expects()
+      .returning("mock_test_client")
+
+    val factory =
+      new DockerContainerFactory(
+        InvokerInstanceId(0, userMemory = defaultUserMemory),
+        Map.empty,
+        ContainerArgsConfig(
+          "net1",
+          Seq("dns1", "dns2"),
+          Seq.empty,
+          Seq.empty,
+          Seq("k1=v1", "k2=v2", "k3"),
+          Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4"))),
+        runtimesRegistryConfig,
+        userImagesRegistryConfig,
+        DockerContainerFactoryConfig(true))(actorSystem, executionContext, logging, dockerApiStub, mock[RuncApi])
+
+    val cf = factory.createContainer(tid, "testContainer", image, false, 10.MB, 32, Some(0.5))
 
     val c = Await.result(cf, 5000.milliseconds)
 

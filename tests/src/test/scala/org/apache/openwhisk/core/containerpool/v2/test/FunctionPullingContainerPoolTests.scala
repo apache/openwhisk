@@ -201,6 +201,7 @@ class FunctionPullingContainerPoolTests
       prewarmPromotion,
       memorySyncInterval,
       batchDeletionSize,
+      Some(2),
       prewarmContainerCreationConfig)
 
   def sendAckToScheduler(producer: MessageProducer)(schedulerInstanceId: SchedulerInstanceId,
@@ -460,6 +461,7 @@ class FunctionPullingContainerPoolTests
       false,
       FiniteDuration(10, TimeUnit.SECONDS),
       10,
+      Some(2),
       prewarmContainerCreationConfig)
 
     val pool = system.actorOf(
