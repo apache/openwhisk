@@ -24,11 +24,13 @@ import akka.http.scaladsl.marshalling._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.unmarshalling._
-import akka.stream.{OverflowStrategy, QueueOfferResult}
 import akka.stream.scaladsl.{Flow, _}
+import akka.stream.{KillSwitches, QueueOfferResult}
+import org.apache.openwhisk.common.AkkaLogging
 import spray.json._
-import scala.concurrent.{ExecutionContext, Future, Promise}
+
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -45,10 +47,10 @@ class PoolingRestClient(
   port: Int,
   queueSize: Int,
   httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None,
-  timeout: Option[FiniteDuration] = None)(implicit system: ActorSystem) {
+  timeout: Option[FiniteDuration] = None)(implicit system: ActorSystem, ec: ExecutionContext) {
   require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
-  protected implicit val context: ExecutionContext = system.dispatcher
+  private val logging = new AkkaLogging(system.log)
 
   //if specified, override the ClientConnection idle-timeout and keepalive socket option value
   private val timeoutSettings = {
@@ -72,16 +74,19 @@ class PoolingRestClient(
   // Additional queue in case all connections are busy. Should hardly ever be
   // filled in practice but can be useful, e.g., in tests starting many
   // asynchronous requests in a very short period of time.
-  private val requestQueue = Source
-    .queue(queueSize, OverflowStrategy.dropNew)
+  private val ((requestQueue, killSwitch), sinkCompletion) = Source
+    .queue(queueSize)
     .via(httpFlow.getOrElse(pool))
+    .viaMat(KillSwitches.single)(Keep.both)
     .toMat(Sink.foreach({
       case (Success(response), p) =>
         p.success(response)
       case (Failure(error), p) =>
         p.failure(error)
-    }))(Keep.left)
-    .run
+    }))(Keep.both)
+    .run()
+
+  sinkCompletion.onComplete(_ => shutdown())
 
   /**
    * Execute an HttpRequest on the underlying connection pool.
@@ -96,10 +101,10 @@ class PoolingRestClient(
 
     // When the future completes, we know whether the request made it
     // through the queue.
-    requestQueue.offer(request -> promise).flatMap {
+    requestQueue.offer(request -> promise) match {
       case QueueOfferResult.Enqueued    => promise.future
-      case QueueOfferResult.Dropped     => Future.failed(new Exception("DB request queue is full."))
-      case QueueOfferResult.QueueClosed => Future.failed(new Exception("DB request queue was closed."))
+      case QueueOfferResult.Dropped     => Future.failed(new Exception("Request queue is full."))
+      case QueueOfferResult.QueueClosed => Future.failed(new Exception("Request queue was closed."))
       case QueueOfferResult.Failure(f)  => Future.failed(f)
     }
   }
@@ -127,7 +132,13 @@ class PoolingRestClient(
       }
     }
 
-  def shutdown(): Future[Unit] = Future.unit
+  def shutdown(): Future[Unit] = {
+    killSwitch.shutdown()
+    Try(requestQueue.complete()).recover {
+      case t: IllegalStateException => logging.warn(this, t.getMessage)
+    }
+    Future.unit
+  }
 }
 
 object PoolingRestClient {
