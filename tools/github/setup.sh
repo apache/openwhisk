@@ -73,7 +73,7 @@ retry docker pull alpine:3.5
 
 # exit if dummy test suite skipping the long compilation when debugging
 if [[ $TEST_SUITE =~ Dummy ]]
-then echo skiping setup ; exit 0
+then echo skipping setup ; exit 0
 fi
 
 # Basic check that all code compiles and dependencies are downloaded correctly.
