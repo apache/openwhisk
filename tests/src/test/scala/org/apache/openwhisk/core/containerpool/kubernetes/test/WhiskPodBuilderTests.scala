@@ -139,8 +139,8 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
     val (pod, _) = builder.buildPodSpec(name, testImage, 2.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
     withClue(Serialization.asYaml(pod)) {
       val c = getActionContainer(pod)
-      c.getResources.getLimits.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("1024Mi")
-      c.getResources.getRequests.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("1024Mi")
+      c.getResources.getLimits.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("1024")
+      c.getResources.getRequests.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("1024")
     }
   }
   it should "scale ephemeral storage when scale factor is given" in {
@@ -159,8 +159,8 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
     val (pod, _) = builder.buildPodSpec(name, testImage, 2.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
     withClue(Serialization.asYaml(pod)) {
       val c = getActionContainer(pod)
-      c.getResources.getLimits.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("2.5Mi")
-      c.getResources.getRequests.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("2.5Mi")
+      c.getResources.getLimits.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("2.5")
+      c.getResources.getRequests.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("2.5")
     }
   }
   it should "use ephemeral storage limit when scale factor suggests larger size" in {
