@@ -396,10 +396,6 @@ The script will start the standalone controller with Docker, and will also try t
 
 The default standalone controller image is published as `openwhisk/standalone:nightly` for convenience.
 
-You can specify a different image to this script and also pass additional parameters to Docker. The general format is:
-
-`bash <(curl -sL https://s.apache.org/openwhisk.sh) [<image-name>] [<additional-docker-parameters>...]`
-
 If you do not want to execute arbitrary code straight from the net, you can look at [this script](start.sh), check it and run it when you feel safe.
 
 If the playground is not enough, you can then install the [wsk CLI](https://github.com/apache/openwhisk-cli/releases) and retrieve the command line to configure `wsk` with:
@@ -412,11 +408,17 @@ To properly shut down OpenWhisk and any additional containers it has created, us
 
 ### Extra Args for the Standalone OpenWhisk Docker Image
 
-When running OpenWhisk Standalone using the docker image,  you can set environment variables to pass extra args with the `-e` flag.
+You can specify a different image to this script and/or pass additional parameters to Docker and/or to the standalone jar. The general format is:
+
+`bash <(curl -sL https://s.apache.org/openwhisk.sh) [<docker-parameters>...] [<image-name>] [<standalone-jar-options>...]`
+
+e.g.
+
+`bash <(curl -sL https://s.apache.org/openwhisk.sh) -e SOME_DOCKER_ENV=a openwhisk/standalone:nightly --no-ui`
 
 Extra args are useful to configure the JVM running OpenWhisk and to propagate additional environment variables to containers running images. This feature is useful for example to enable debugging for actions.
 
-You can pass additional parameters (for example set system properties) to the JVM running OpenWhisk setting the environment variable `JVM_EXTRA_ARGS`. For example `-e JVM_EXTRA_ARGS=-Dconfig.loads` allows to enable tracing of configuration. You can set any OpenWhisk parameter with feature.
+You can pass additional parameters (for example set system properties) to the JVM running OpenWhisk setting the environment variable `JVM_EXTRA_ARGS`. For example `-e JVM_EXTRA_ARGS=-Dconfig.loads` allows to enable tracing of configuration. You can set any OpenWhisk parameter with this feature.
 
 You can also set additional environment variables for each container running actions invoked by OpenWhisk by setting `CONTAINER_EXTRA_ENV`. For example, setting `-e CONTAINER_EXTRA_ENV=__OW_DEBUG_PORT=8081` enables debugging for those images supporting starting the action under a debugger, like the typescript runtime.
 
