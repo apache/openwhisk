@@ -74,7 +74,7 @@ case class KubernetesCpuScalingConfig(millicpus: Int, memory: ByteSize, maxMilli
 /**
  * Configuration for kubernetes ephemeral storage limit for the action container
  */
-case class KubernetesEphemeralStorageConfig(limit: ByteSize)
+case class KubernetesEphemeralStorageConfig(limit: ByteSize, scaleFactor: Double)
 
 /**
  * Exception to indicate a pod took too long to become ready.

@@ -133,7 +133,47 @@ class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport
       Some(KubernetesCpuScalingConfig(300, 3.MB, 1000)),
       false,
       None,
-      Some(KubernetesEphemeralStorageConfig(1.GB)))
+      Some(KubernetesEphemeralStorageConfig(1.GB, 0.0)))
+    val builder = new WhiskPodBuilder(kubeClient, config)
+
+    val (pod, _) = builder.buildPodSpec(name, testImage, 2.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
+    withClue(Serialization.asYaml(pod)) {
+      val c = getActionContainer(pod)
+      c.getResources.getLimits.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("1024Mi")
+      c.getResources.getRequests.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("1024Mi")
+    }
+  }
+  it should "scale ephemeral storage when scale factor is given" in {
+    val config = KubernetesClientConfig(
+      KubernetesClientTimeoutConfig(1.second, 1.second),
+      KubernetesInvokerNodeAffinity(false, "k", "v"),
+      true,
+      None,
+      None,
+      Some(KubernetesCpuScalingConfig(300, 3.MB, 1000)),
+      false,
+      None,
+      Some(KubernetesEphemeralStorageConfig(1.GB, 1.25)))
+    val builder = new WhiskPodBuilder(kubeClient, config)
+
+    val (pod, _) = builder.buildPodSpec(name, testImage, 2.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
+    withClue(Serialization.asYaml(pod)) {
+      val c = getActionContainer(pod)
+      c.getResources.getLimits.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("2.5Mi")
+      c.getResources.getRequests.asScala.get("ephemeral-storage").map(_.getAmount) shouldBe Some("2.5Mi")
+    }
+  }
+  it should "use ephemeral storage limit when scale factor suggests larger size" in {
+    val config = KubernetesClientConfig(
+      KubernetesClientTimeoutConfig(1.second, 1.second),
+      KubernetesInvokerNodeAffinity(false, "k", "v"),
+      true,
+      None,
+      None,
+      Some(KubernetesCpuScalingConfig(300, 3.MB, 1000)),
+      false,
+      None,
+      Some(KubernetesEphemeralStorageConfig(1.GB, 1000)))
     val builder = new WhiskPodBuilder(kubeClient, config)
 
     val (pod, _) = builder.buildPodSpec(name, testImage, 2.MB, Map("foo" -> "bar"), Map("fooL" -> "barV"), config)
