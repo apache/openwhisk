@@ -94,7 +94,7 @@ It will generate the `hosts` configuration file based on your environment settin
 > This file is generated automatically for an ephemeral CouchDB instance during `setup.yml`.
 
 The default configuration does not run multiple instances of core components (e.g., controller, invoker, kafka).
-You may elect to enable high-availability (HA) mode by passing tne Ansible option `-e mode=HA` when executing this playbook.
+You may elect to enable high-availability (HA) mode by passing the Ansible option `-e mode=HA` when executing this playbook.
 This will configure your deployment with multiple instances (e.g., two Kafka instances, and two invokers).
 
 In addition to the host file generation, you need to configure the database for your deployment. This is done
