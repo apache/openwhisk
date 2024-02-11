@@ -195,12 +195,13 @@ Set the value of pause-grace to 10s by default
   .
 ```
 
-#### Enable the scheduler
-- Make sure you enable the scheduler by configuring `scheduler_enable`.
+#### Disable the scheduler
+- You can disable the scheduler by configuring `scheduler_enable`.
+- The scheduler is enabled by default.
 
 **ansible/environments/local/group_vars/all**
 ```yaml
-scheduler_enable: true
+scheduler_enable: false
 ```
 
 #### [Optional] Enable ElasticSearch Activation Store
