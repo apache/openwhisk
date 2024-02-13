@@ -627,7 +627,7 @@ class FPCPoolBalancer(config: WhiskConfig,
       val missingHealths =
         if (healthsFromEtcd.isEmpty) Set.empty[InvokerHealth]
         else
-          ((0 to healthsFromEtcd.maxBy(_.id.toInt).id.toInt).toSet -- healthsFromEtcd.map(_.id.toInt))
+          ((healthsFromEtcd.minBy(_.id.toInt).id.toInt to healthsFromEtcd.maxBy(_.id.toInt).id.toInt).toSet -- healthsFromEtcd.map(_.id.toInt))
             .map(id => new InvokerHealth(InvokerInstanceId(id, Some(id.toString), userMemory = 0 MB), Offline))
       (healthsFromEtcd ++ missingHealths) sortBy (_.id.toInt)
     }
