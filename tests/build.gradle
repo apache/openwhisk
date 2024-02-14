@@ -58,6 +58,7 @@ def systemIncludes = [
             "org/apache/openwhisk/core/apigw/actions/test/**",
             "org/apache/openwhisk/core/database/test/*CacheConcurrencyTests*",
             "org/apache/openwhisk/core/controller/test/*ControllerApiTests*",
+            "org/apache/openwhisk/core/scheduler/queue/test/ElasticSearchDurationCheck*",
             "apigw/healthtests/**",
             "ha/**",
             "services/**",
@@ -78,7 +79,7 @@ ext.testSets = [
             "org/apache/openwhisk/core/limits/**",
             "org/apache/openwhisk/core/scheduler/**",
             "org/apache/openwhisk/core/invoker/test/*InvokerBootUpTests*",
-            "org/apache/openwhisk/core/loadBalancer/test/*FPCPoolBalancerTests*",
+            "org/apache/openwhisk/core/scheduler/queue/test/ElasticSearchDurationCheck*",
             "org/apache/openwhisk/common/etcd/**",
             "**/*CacheConcurrencyTests*",
             "**/*ControllerApiTests*",
@@ -89,6 +90,7 @@ ext.testSets = [
     "REQUIRE_SYSTEM" : [
         "includes" : systemIncludes,
         "excludes": [
+            "org/apache/openwhisk/core/loadBalancer/test/*FPCPoolBalancerTests*",
             "system/basic/WskMultiRuntimeTests*",
             'invokerShoot/**'
         ]
@@ -99,7 +101,6 @@ ext.testSets = [
             "org/apache/openwhisk/core/containerpool/v2/test/**",
             "org/apache/openwhisk/core/scheduler/**",
             "org/apache/openwhisk/core/invoker/test/*InvokerBootUpTests*",
-            "org/apache/openwhisk/core/loadBalancer/test/*FPCPoolBalancerTests*",
             "org/apache/openwhisk/core/service/**",
         ]
     ],
