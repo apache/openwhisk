@@ -19,7 +19,7 @@
 
 set -e
 
-cat > ${ROOTDIR}/common/scala/src/main/resources/reference.conf << EOL
+cat > ${GITHUB_WORKSPACE}/common/scala/src/main/resources/reference.conf << EOL
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
