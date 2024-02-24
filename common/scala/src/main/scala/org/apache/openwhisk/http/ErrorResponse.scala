@@ -70,7 +70,7 @@ object Messages {
   /** Standard message for too many concurrent activation requests within a time window. */
   val tooManyConcurrentRequests = s"Too many concurrent requests in flight."
   def tooManyConcurrentRequests(count: Int, allowed: Int) =
-    s"Too many concurrent requests in flight (count: $count, allowed: $allowed)."
+    s"Too many concurrent requests in flight (currently running: $count, allowed per controller: $allowed)."
 
   def maxActionInstanceConcurrencyExceedsNamespace(namespaceConcurrencyLimit: Int) =
     s"Max action instance concurrency must not exceed your namespace concurrency of $namespaceConcurrencyLimit."
