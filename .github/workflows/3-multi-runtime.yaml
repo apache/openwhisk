@@ -29,7 +29,7 @@ on:
 env:
   # openwhisk env
   TEST_SUITE: MultiRuntime
-  ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing -e container_pool_akka_client=false"
+  ANSIBLE_CMD: "ansible-playbook -i environments/local -e docker_image_prefix=testing"
   GRADLE_PROJS_SKIP: ""
 
   ## secrets
