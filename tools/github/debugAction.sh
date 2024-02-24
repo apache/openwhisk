@@ -33,8 +33,8 @@ fi
 echo "### Install ngrok ###"
 if ! test -e ./ngrok
 then
-  wget -q https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-386.zip
-  unzip ngrok-stable-linux-386.zip
+  wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-386.tgz
+  tar xvf ngrok-v3-stable-linux-386.tgz
   chmod +x ./ngrok
 fi
 
