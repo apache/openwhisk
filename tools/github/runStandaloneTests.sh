@@ -25,9 +25,6 @@ ROOTDIR="$SCRIPTDIR/../.."
 export ORG_GRADLE_PROJECT_testSetName="REQUIRE_STANDALONE"
 export GRADLE_COVERAGE=true
 
-# The standalone mode is only supported in the ShardingPoolBalancer
-./disable-scheduler.sh
-
 cd $ROOTDIR/ansible
 $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD properties.yml -e manifest_file="/ansible/files/runtimes-nodeonly.json"
