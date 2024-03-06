@@ -108,3 +108,7 @@ gradle.ext.curator = [version : '4.3.0']
 gradle.ext.kube_client = [version: '4.10.3']
 
 gradle.ext.netty = [version : '4.1.87.Final']
+
+gradle.ext.protoc = [version : '3.18.0']
+
+gradle.ext.swagger = [version : '3.6.0']
