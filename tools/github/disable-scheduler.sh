@@ -1,3 +1,25 @@
+#!/usr/bin/env bash
+
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+set -e
+
+cat > ${GITHUB_WORKSPACE}/common/scala/src/main/resources/reference.conf << EOL
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -23,12 +45,12 @@ whisk.spi {
   MessagingProvider = org.apache.openwhisk.connector.kafka.KafkaMessagingProvider
   ContainerFactoryProvider = org.apache.openwhisk.core.containerpool.docker.DockerContainerFactoryProvider
   LogStoreProvider = org.apache.openwhisk.core.containerpool.logging.DockerToActivationLogStoreProvider
-  LoadBalancerProvider = org.apache.openwhisk.core.loadBalancer.FPCPoolBalancer
-  EntitlementSpiProvider = org.apache.openwhisk.core.entitlement.FPCEntitlementProvider
+  LoadBalancerProvider = org.apache.openwhisk.core.loadBalancer.ShardingContainerPoolBalancer
+  EntitlementSpiProvider = org.apache.openwhisk.core.entitlement.LocalEntitlementProvider
   AuthenticationDirectiveProvider = org.apache.openwhisk.core.controller.BasicAuthenticationDirective
-  InvokerProvider = org.apache.openwhisk.core.invoker.FPCInvokerReactive
-  InvokerServerProvider = org.apache.openwhisk.core.invoker.FPCInvokerServer
-  DurationCheckerProvider = org.apache.openwhisk.core.scheduler.queue.ElasticSearchDurationCheckerProvider
+  InvokerProvider = org.apache.openwhisk.core.invoker.InvokerReactive
+  InvokerServerProvider = org.apache.openwhisk.core.invoker.DefaultInvokerServer
+  DurationCheckerProvider = org.apache.openwhisk.core.scheduler.queue.NoopDurationCheckerProvider
 }
 
 dispatchers {
@@ -87,3 +109,4 @@ dispatchers {
     executor = "thread-pool-executor"
   }
 }
+EOL

@@ -229,68 +229,6 @@ class ThrottleTests
       settleThrottles(alreadyWaited)
     }
   }
-
-  it should "throttle 'concurrent' activations of one action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "checkConcurrentActionThrottle"
-    assetHelper.withCleaner(wsk.action, name) {
-      val timeoutAction = Some(TestUtils.getTestActionFilename("sleep.js"))
-      (action, _) =>
-        action.create(name, timeoutAction)
-    }
-
-    // The sleep is necessary as the load balancer currently has a latency before recognizing concurrency.
-    val sleep = 15.seconds
-    // Adding a bit of overcommit since some loadbalancers rely on some overcommit. This won't hurt those who don't
-    // since all activations are taken into account to check for throttled invokes below.
-    val slowInvokes = (maximumConcurrentInvokes * 1.2).toInt
-    val fastInvokes = 4
-    val fastInvokeDuration = 4.seconds
-    val slowInvokeDuration = sleep + fastInvokeDuration
-
-    // These invokes will stay active long enough that all are issued and load balancer has recognized concurrency.
-    val startSlowInvokes = Instant.now
-    val slowResults = untilThrottled(slowInvokes) { () =>
-      wsk.action.invoke(
-        name,
-        Map("sleepTimeInMs" -> slowInvokeDuration.toMillis.toJson),
-        expectedExitCode = DONTCARE_EXIT)
-    }
-    val afterSlowInvokes = Instant.now
-    val slowIssueDuration = durationBetween(startSlowInvokes, afterSlowInvokes)
-    println(
-      s"$slowInvokes slow invokes (dur = ${slowInvokeDuration.toSeconds} sec) took ${slowIssueDuration.toSeconds} seconds to issue")
-
-    // Sleep to let the background thread get the newest values (refreshes every 2 seconds)
-    println(s"Sleeping for ${sleep.toSeconds} sec")
-    Thread.sleep(sleep.toMillis)
-
-    // These fast invokes will trigger the concurrency-based throttling.
-    val startFastInvokes = Instant.now
-    val fastResults = untilThrottled(fastInvokes) { () =>
-      wsk.action.invoke(
-        name,
-        Map("sleepTimeInMs" -> fastInvokeDuration.toMillis.toJson),
-        expectedExitCode = DONTCARE_EXIT)
-    }
-    val afterFastInvokes = Instant.now
-    val fastIssueDuration = durationBetween(afterFastInvokes, startFastInvokes)
-    println(
-      s"$fastInvokes fast invokes (dur = ${fastInvokeDuration.toSeconds} sec) took ${fastIssueDuration.toSeconds} seconds to issue")
-
-    val combinedResults = slowResults ++ fastResults
-    try {
-      val throttledCount = throttledActivations(combinedResults, tooManyConcurrentRequests(0, 0))
-      throttledCount should be > 0
-    } finally {
-      val alreadyWaited = durationBetween(afterSlowInvokes, Instant.now)
-      settleThrottles(alreadyWaited)
-      println("clearing activations")
-    }
-    // wait for the activations last, giving the activations time to complete and
-    // may avoid unnecessarily polling; if these fail, the throttle may not be settled
-    println("waiting for activations to complete")
-    waitForActivations(combinedResults)
-  }
 }
 
 @RunWith(classOf[JUnitRunner])
@@ -456,19 +394,6 @@ class NamespaceSpecificThrottleTests
           include(prefix(tooManyRequests(0, 0))) and include("allowed: 1")
         }
       }, 2, Some(1.second))
-  }
-
-  it should "respect overridden concurrent throttle of 0" in withAssetCleaner(zeroConcProps) { (wp, assetHelper) =>
-    implicit val props = wp
-    val actionName = "zeroConcurrentAction"
-
-    assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
-      action.create(actionName, defaultAction)
-    }
-
-    wsk.action.invoke(actionName, expectedExitCode = TooManyRequests.intValue).stderr should {
-      include(prefix(tooManyConcurrentRequests(0, 0))) and include("allowed: 0")
-    }
   }
 
   it should "not store an activation if disabled for this namespace" in withAssetCleaner(activationDisabled) {

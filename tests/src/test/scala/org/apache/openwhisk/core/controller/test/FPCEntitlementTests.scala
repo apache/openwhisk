@@ -37,6 +37,7 @@ class FPCEntitlementProviderTests extends ControllerTestCommon with ScalaFutures
     val someUser = WhiskAuthHelpers.newIdentity()
     val action = FullyQualifiedEntityName(EntityPath("testns"), EntityName("action"))
     val loadBalancer = mock[LoadBalancer]
+    (loadBalancer.clusterSize _).expects().returning(1).anyNumberOfTimes()
     (loadBalancer
       .checkThrottle(_: EntityPath, _: String))
       .expects(someUser.namespace.name.toPath, action.fullPath.asString)
