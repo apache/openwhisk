@@ -52,7 +52,7 @@ class RuncClientTests
   implicit val transid = TransactionId.testing
   val id = ContainerId("Id")
 
-  val runcCommand = "docker-runc"
+  val runcCommand = "runc"
 
   /** Returns a RuncClient with a mocked result for 'executeProcess' */
   def runcClient(result: Future[String]) = new RuncClient()(global) {

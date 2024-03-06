@@ -56,7 +56,7 @@ class RuncClient(timeouts: RuncClientTimeouts = loadConfigOrThrow[RuncClientTime
 
   // Determines how to run docker. Failure to find a Docker binary implies
   // a failure to initialize this instance of DockerClient.
-  protected val runcCmd: Seq[String] = Seq("/usr/bin/docker-runc")
+  protected val runcCmd: Seq[String] = Seq("/usr/bin/runc")
 
   def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
     runCmd(Seq("pause", id.asString), timeouts.pause).map(_ => ())
