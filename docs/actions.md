@@ -91,7 +91,7 @@ Prewarmed containers are created when an invoker starts, they are created accord
     "image": {
         "prefix": "openwhisk",
         "name": "action-nodejs-v20",
-        "tag": "nightly"
+        "tag": "1.22.0"
     },
     "deprecated": false,
     "attached": {
@@ -122,7 +122,7 @@ With a reactive configuration, the number of prewarm containers is dynamically c
     "image": {
         "prefix": "openwhisk",
         "name": "action-nodejs-v20",
-        "tag": "nightly"
+        "tag": "1.22.0"
     },
     "deprecated": false,
     "attached": {

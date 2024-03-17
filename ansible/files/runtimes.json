@@ -20,7 +20,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v18",
-                    "tag": "nightly"
+                    "tag": "1.22.0"
                 },
                 "deprecated": false,
                 "attached": {
@@ -34,7 +34,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-nodejs-v20",
-                    "tag": "nightly"
+                    "tag": "1.22.0"
                 },
                 "deprecated": false,
                 "attached": {
@@ -63,7 +63,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-python-v3.10",
-                    "tag": "nightly"
+                    "tag": "1.19.0"
                 },
                 "deprecated": false,
                 "attached": {
@@ -77,7 +77,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-python-v3.11",
-                    "tag": "nightly"
+                    "tag": "1.19.0"
                 },
                 "deprecated": false,
                 "attached": {
@@ -93,7 +93,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-swift-v5.3",
-                    "tag": "nightly"
+                    "tag": "1.18.0"
                 },
                 "deprecated": false,
                 "attached": {
@@ -107,7 +107,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-swift-v5.7",
-                    "tag": "nightly"
+                    "tag": "1.18.0"
                 },
                 "deprecated": false,
                 "attached": {
@@ -123,7 +123,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "java8action",
-                    "tag": "nightly"
+                    "tag": "1.19.0"
                 },
                 "deprecated": false,
                 "attached": {
@@ -141,7 +141,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-php-v8.1",
-                    "tag": "nightly"
+                    "tag": "1.20.0"
                 },
                 "attached": {
                     "attachmentName": "codefile",
@@ -161,7 +161,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-ruby-v2.5",
-                    "tag": "nightly"
+                    "tag": "1.17.0"
                 }
             }
         ],
@@ -177,7 +177,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-golang-v1.20",
-                    "tag": "nightly"
+                    "tag": "1.24.0"
                 }
             }
         ],
@@ -190,7 +190,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-dotnet-v3.1",
-                    "tag": "nightly"
+                    "tag": "1.17.0"
                 },
                 "attached": {
                     "attachmentName": "codefile",
@@ -205,7 +205,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-dotnet-v6.0",
-                    "tag": "nightly"
+                    "tag": "1.17.0"
                 },
                 "attached": {
                     "attachmentName": "codefile",
@@ -220,7 +220,7 @@
                 "image": {
                     "prefix": "openwhisk",
                     "name": "action-rust-v1.34",
-                    "tag": "nightly"
+                    "tag": "1.3.0"
                 },
                 "deprecated": false,
                 "attached": {
@@ -234,7 +234,7 @@
         {
             "prefix": "openwhisk",
             "name": "dockerskeleton",
-            "tag": "nightly"
+            "tag": "1.15.0"
         }
     ]
 }

@@ -34,8 +34,7 @@ node('ubuntu') {
       def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
       def shortCommit = gitCommit.take(7)
       sh "./gradlew clean"
-      sh "HOME=\"$WORKSPACE/local-docker-cfg\" ${PUSH_CMD} -PdockerImageTag=nightly"
-      sh "HOME=\"$WORKSPACE/local-docker-cfg\" ${PUSH_CMD} -PdockerImageTag=${shortCommit}"
+      sh "HOME=\"$WORKSPACE/local-docker-cfg\" ${PUSH_CMD} -PdockerImageTag=2.0.0"
     }
   }
 
