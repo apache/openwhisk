@@ -47,7 +47,7 @@ kubectl config set-context --current --namespace=default
 # This is required because it is timed out to pull the image during the test.
 docker pull openwhisk/action-nodejs-v20:1.20.0
 docker pull openwhisk/dockerskeleton:1.15.0
-docker pull openwhisk/example:nightly
+docker pull openwhisk/example:1.15.0
 docker pull openwhisk/apigateway:0.11.0
 
 cd $ROOTDIR
