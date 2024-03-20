@@ -19,9 +19,9 @@ name: Scheduler Tests
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, 2.0.0 ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, 2.0.0 ]
     types: [ opened, synchronize, reopened ]
   schedule:
     - cron: '30 5 * * 1,3,5'
