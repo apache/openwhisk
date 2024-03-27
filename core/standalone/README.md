@@ -394,7 +394,7 @@ If you have docker and bash installed, you can launch the standalone openwhisk f
 
 The script will start the standalone controller with Docker, and will also try to open the playground. It was tested on Linux, OSX and Windows with Git Bash. If a browser does not automatically open the OpenWhisk playground, you can access it at `http://localhost:3232`.
 
-The default standalone controller image is published as `openwhisk/standalone:nightly` for convenience.
+The default standalone controller image is published as `openwhisk/standalone:2.0.0` for convenience.
 
 If you do not want to execute arbitrary code straight from the net, you can look at [this script](start.sh), check it and run it when you feel safe.
 
@@ -414,7 +414,7 @@ You can specify a different image to this script and/or pass additional paramete
 
 e.g.
 
-`bash <(curl -sL https://s.apache.org/openwhisk.sh) -e SOME_DOCKER_ENV=a openwhisk/standalone:nightly --no-ui`
+`bash <(curl -sL https://s.apache.org/openwhisk.sh) -e SOME_DOCKER_ENV=a openwhisk/standalone:2.0.0 --no-ui`
 
 Extra args are useful to configure the JVM running OpenWhisk and to propagate additional environment variables to containers running images. This feature is useful for example to enable debugging for actions.
 
