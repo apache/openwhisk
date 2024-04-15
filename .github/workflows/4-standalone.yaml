@@ -65,8 +65,6 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Check free space
         run: df -h
-      - name: Disable the scheduler
-        run: "./tools/github/disable-scheduler.sh"
       - id: tests
         name: Run Tests
         run: "./tools/github/run${{ env.TEST_SUITE }}Tests.sh"
