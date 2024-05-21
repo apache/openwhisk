@@ -155,6 +155,7 @@ class WatcherService(etcdClient: EtcdClient)(implicit logging: Logging, actorSys
         sender ! WatcherClosed(request.watchKey, request.isPrefix)
 
     case RestartWatcher =>
+      watcher.close()
       context.become(watchBehavior(startWatch()))
 
     case GracefulShutdown =>
