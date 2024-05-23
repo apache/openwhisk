@@ -30,7 +30,7 @@
 - name: install requests
   pip:
     name: requests
-    version: 2.10.0
+    version: 2.31.0
   become: true
 
 - name: install docker for python
