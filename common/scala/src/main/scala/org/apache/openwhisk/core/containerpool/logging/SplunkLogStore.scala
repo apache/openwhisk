@@ -33,7 +33,6 @@ import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.OverflowStrategy
 import akka.stream.QueueOfferResult
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Keep
@@ -73,7 +72,7 @@ case class SplunkLogStoreConfig(host: String,
                                 disableSNI: Boolean)
 case class SplunkResponse(results: Vector[JsObject])
 object SplunkResponseJsonProtocol extends DefaultJsonProtocol {
-  implicit val orderFormat = jsonFormat1(SplunkResponse)
+  implicit val orderFormat: RootJsonFormat[SplunkResponse] = jsonFormat1(SplunkResponse)
 }
 
 /**
@@ -180,7 +179,7 @@ class SplunkLogStore(
   //based on http://doc.akka.io/docs/akka-http/10.0.6/scala/http/client-side/host-level.html
   val queue =
     Source
-      .queue[(HttpRequest, Promise[HttpResponse])](maxPendingRequests, OverflowStrategy.dropNew)
+      .queue[(HttpRequest, Promise[HttpResponse])](maxPendingRequests)
       .via(httpFlow.getOrElse(defaultHttpFlow))
       .toMat(Sink.foreach({
         case ((Success(resp), p)) => p.success(resp)
@@ -190,7 +189,7 @@ class SplunkLogStore(
 
   def queueRequest(request: HttpRequest): Future[HttpResponse] = {
     val responsePromise = Promise[HttpResponse]()
-    queue.offer(request -> responsePromise).flatMap {
+    queue.offer(request -> responsePromise) match {
       case QueueOfferResult.Enqueued => responsePromise.future
       case QueueOfferResult.Dropped =>
         Future.failed(new RuntimeException("Splunk API Client Queue overflowed. Try again later."))
