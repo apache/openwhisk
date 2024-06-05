@@ -243,6 +243,26 @@ class WatcherServiceTests
     service.underlyingActor.deleteWatchers.size shouldBe 3
   }
 
+  it should "restart underlying etcd watch if error occurs" in {
+    val etcdClient = new MockWatchClient(client)(ece)
+    val key = "testKey"
+    val value = "testValue"
+
+    val probe = TestProbe()
+    val service = TestActorRef(new WatcherService(etcdClient))
+
+    etcdClient.onNext should not be null
+    etcdClient.onError should not be null
+    etcdClient.watchAllKeysCallCount shouldBe 1
+
+    val t = new Throwable("error")
+    etcdClient.onError(t)
+
+    etcdClient.onNext should not be null
+    etcdClient.onError should not be null
+    etcdClient.watchAllKeysCallCount shouldBe 2
+  }
+
 }
 
 class mockWatchUpdate extends WatchUpdate {
@@ -259,9 +279,13 @@ class mockWatchUpdate extends WatchUpdate {
 
 class MockWatchClient(client: Client)(ece: ExecutionContextExecutor) extends EtcdClient(client)(ece) {
   var onNext: WatchUpdate => Unit = null
+  var onError: Throwable => Unit = null
+  var watchAllKeysCallCount = 0
 
   override def watchAllKeys(next: WatchUpdate => Unit, error: Throwable => Unit, completed: () => Unit): Watch = {
     onNext = next
+    onError = error
+    watchAllKeysCallCount += 1
     new Watch {
       override def close(): Unit = {}
 
