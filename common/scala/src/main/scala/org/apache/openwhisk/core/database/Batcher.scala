@@ -20,6 +20,7 @@ package org.apache.openwhisk.core.database
 import akka.Done
 import akka.actor.ActorSystem
 
+import scala.annotation.nowarn
 import scala.collection.immutable.Queue
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
@@ -59,6 +60,7 @@ class Batcher[T, R](batchSize: Int, concurrency: Int, retry: Int)(operation: (Se
       CompletionStrategy.immediately
   }
 
+  @nowarn("msg=deprecated")
   private val stream = Source
     .actorRef[(T, Promise[R])](
       completionMatcher = cm,

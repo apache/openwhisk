@@ -26,7 +26,7 @@ import akka.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.alpakka.s3.headers.CannedAcl
 import akka.stream.alpakka.s3.scaladsl.S3
-import akka.stream.alpakka.s3.{S3Attributes, S3Exception, S3Headers, S3Settings}
+import akka.stream.alpakka.s3.{S3Attributes, S3Headers, S3Settings}
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import com.typesafe.config.Config

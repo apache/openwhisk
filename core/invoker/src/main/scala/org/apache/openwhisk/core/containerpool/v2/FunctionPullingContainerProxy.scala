@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.containerpool.v2
 import java.net.InetSocketAddress
 import java.time.Instant
 import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{actorRef2Scala, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
 import akka.event.Logging.InfoLevel
 import akka.io.{IO, Tcp}
 import akka.pattern.pipe

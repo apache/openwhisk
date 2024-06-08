@@ -130,7 +130,7 @@ object Invoker {
     }
 
     // load values for the required properties from the environment
-    implicit val config = new WhiskConfig(requiredProperties, optionalProperties)
+    implicit val config: WhiskConfig = new WhiskConfig(requiredProperties, optionalProperties)
 
     def abort(message: String) = {
       logger.error(this, message)(TransactionId.invoker)
