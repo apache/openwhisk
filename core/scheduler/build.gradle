@@ -66,6 +66,9 @@ dependencies {
         resolutionStrategy.force "com.typesafe.akka:akka-http-spray-json_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-parsing_${gradle.scala.depVersion}:${gradle.akka_http.version}"
         resolutionStrategy.force "com.typesafe.akka:akka-http_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+        resolutionStrategy.dependencySubstitution {
+            substitute module("com.google.protobuf:protoc") using module("com.google.protobuf:protoc:${gradle.protoc.version}") because "previous versions didn't target M1 architecture"
+        }
     }
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
     implementation project(':common:scala')

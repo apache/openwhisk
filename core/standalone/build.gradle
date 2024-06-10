@@ -22,7 +22,8 @@ plugins {
     id 'org.scoverage'
     id 'org.springframework.boot' version '2.1.6.RELEASE'
     id 'scala'
-    id 'com.gorylenko.gradle-git-properties' version '2.0.0'
+    id 'com.gorylenko.gradle-git-properties' version '2.4.1'
+    id "de.undercouch.download" version "5.3.1"
 }
 
 ext.dockerImageName = 'standalone'
@@ -37,30 +38,40 @@ scoverage {
     scoverageScalaVersion.set("${gradle.scala.scoverageScalaVersion}")
 }
 
+task downloadSwagger(type: Download) {
+    src "https://github.com/swagger-api/swagger-ui/archive/v${gradle.swagger.version}.tar.gz"
+    dest file("$buildDir/tmp/swagger/swagger-ui.tar")
+    overwrite false
+}
+
+
 task copySwagger(type: Copy) {
-    def version = "3.6.0"
+    dependsOn(downloadSwagger)
     mkdir("$buildDir/tmp/swagger")
     def destFile = file("$buildDir/tmp/swagger/swagger-ui.tar")
     def uiDir = file("$buildDir/tmp/swagger/swagger-ui")
-    if (!destFile.exists()) {
-        ant.get(src: "https://github.com/swagger-api/swagger-ui/archive/v${version}.tar.gz", dest: destFile)
-    }
     from(tarTree(resources.gzip(destFile))){
-        include("swagger-ui-${version}/dist/**")
+        include("swagger-ui-${gradle.swagger.version}/dist/**")
     }
     into(uiDir)
     includeEmptyDirs = false
-    project.ext.swaggerUiDir = file("$buildDir/tmp/swagger/swagger-ui/swagger-ui-${version}/dist")
+    project.ext.swaggerUiDir = file("$buildDir/tmp/swagger/swagger-ui/swagger-ui-${gradle.swagger.version}/dist")
 }
 
 def apiGwActions = ['createApi', "deleteApi", "getApi"]
 
-task copyGWActions() {
+task copyGWActions {
+    def routeMgmtDir = new File(project.projectDir, "../routemgmt")
+    def routeBuildDir = mkdir("$buildDir/tmp/routemgmt")
+
+    apiGwActions.each {
+        inputs.dir(new File(routeMgmtDir, it))
+        outputs.dir(new File(routeBuildDir, it + ".zip"))
+    }
+
     doLast {
-        def routeMgmtDir = new File(project.projectDir, "../routemgmt")
-        def commonDir = new File(routeMgmtDir, "common")
-        def routeBuildDir = mkdir("$buildDir/tmp/routemgmt")
         apiGwActions.each { actionName ->
+            def commonDir = new File(routeMgmtDir, "common")
             def zipFileName = actionName + ".zip"
             def actionDir = new File(routeMgmtDir, actionName)
             def zipFile = new File(routeBuildDir, zipFileName)
@@ -88,19 +99,12 @@ task copyGWActions() {
     }
 }
 
-task copyGrafanaConfig() {
-    doLast {
-        def grafanaDir = new File(project(':core:monitoring:user-events').projectDir, "compose/grafana")
-        def grafanaBuildDir = mkdir("$buildDir/tmp/grafana")
-        def zipFileName = "grafana-config.zip"
-        def zipFile = new File(grafanaBuildDir, zipFileName)
-        if (!zipFile.exists()) {
-            ant.zip(destfile:zipFile){
-                fileset(dir:grafanaDir)
-            }
-            logger.info("Created grafana config zip $zipFileName")
-        }
-    }
+task copyGrafanaConfig(type: Zip) {
+    def grafanaBuildDir = mkdir("$buildDir/tmp/grafana")
+    def grafanaDir = new File(project(':core:monitoring:user-events').projectDir, "compose/grafana")
+    from grafanaDir
+    archiveFileName.set("grafana-config.zip")
+    destinationDirectory.set(grafanaBuildDir)
 }
 
 processResources.dependsOn copySwagger
