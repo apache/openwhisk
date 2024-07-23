@@ -464,7 +464,7 @@ zeroDowntimeDeployment:
   enabled: "{{ zerodowntime_deployment_switch | default(false) }}"
 
 etcd:
-  version: "{{ etcd_version | default('v3.4.0') }}"
+  version: "{{ etcd_version | default('v3.4.33') }}"
   client:
     port: 2379
   server:
