@@ -19,13 +19,11 @@ buildscript {
     repositories {
         jcenter()
     }
-    dependencies {
-        classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
-    }
 }
 
 plugins {
     id "org.scoverage" version "7.0.0" apply false
+    id "cz.alenkacz.gradle.scalafmt" version "1.5.0"
 }
 
 subprojects {
