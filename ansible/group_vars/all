@@ -282,6 +282,8 @@ db:
   port: "{{ db_port | default(lookup('ini', 'db_port section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
   host: "{{ db_host | default(lookup('ini', 'db_host section=db_creds file={{ playbook_dir }}/db_local.ini')) }}"
   persist_path: "{{ db_persist_path | default(false) }}"
+  dir:
+      become: "{{ db_dir_become | default(true) }}"
   instances: "{{ groups['db'] | length }}"
   authkeys:
   - guest
