@@ -7,7 +7,7 @@
       "reduce": "_count"
     },
     "packages-public": {
-      "map": "function (doc) {\n  var isPublicPackage = function(doc) { \n    return Object.keys(doc.binding).length == 0 && doc.publish;\n  }\n  if (isPublicPackage(doc)) try {\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations,\n      updated: doc.updated,\n      binding: false\n    };\n    emit([doc.namespace, doc.updated], value);\n  } catch (e) {}\n}",
+      "map": "function (doc) {\n  var isPublicPackage = function(doc) { \n    return doc.binding && doc.publish && Object.keys(doc.binding).length == 0;\n  }\n  if (isPublicPackage(doc)) try {\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations,\n      updated: doc.updated,\n      binding: false\n    };\n    emit([doc.namespace, doc.updated], value);\n  } catch (e) {}\n}",
       "reduce": "_count"
     },
     "packages": {
