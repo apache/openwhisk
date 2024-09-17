@@ -38,24 +38,13 @@
 - name: (re)start etcd
   docker_container:
     name: etcd{{ groups['etcd'].index(inventory_hostname) }}
-    image: quay.io/coreos/etcd:{{ etcd.version }}
+    image: bitnami/etcd:{{ etcd.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     volumes: "{{volume_dir | default([])}}"
-    command: "/usr/local/bin/etcd \
-               --data-dir=/etcd-data --name '{{ name }}' \
-               --initial-advertise-peer-urls http://{{ ansible_host }}:{{ etcd.server.port + groups['etcd'].index(inventory_hostname) }} \
-               --advertise-client-urls http://{{ ansible_host }}:{{ etcd.client.port + groups['etcd'].index(inventory_hostname) }} \
-               --listen-peer-urls http://0.0.0.0:{{ etcd.server.port + groups['etcd'].index(inventory_hostname) }} \
-               --listen-client-urls http://0.0.0.0:{{ etcd.client.port + groups['etcd'].index(inventory_hostname) }} \
-               --initial-cluster {{ cluster }} \
-               --initial-cluster-state new --initial-cluster-token {{ etcd.cluster.token }} \
-               --quota-backend-bytes {{ etcd.quota_backend_bytes }} \
-               --snapshot-count {{ etcd.snapshot_count }} \
-               --auto-compaction-retention {{ etcd.auto_compaction_retention }} \
-               --auto-compaction-mode {{ etcd.auto_compaction_mode }} \
-               --log-level {{ etcd.loglevel }}"
+    env:
+     "ALLOW_NONE_AUTHENTICATION": "yes"
     ports:
       - "{{ etcd.client.port + groups['etcd'].index(inventory_hostname) }}:{{ etcd.client.port + groups['etcd'].index(inventory_hostname) }}"
       - "{{ etcd.server.port + groups['etcd'].index(inventory_hostname) }}:{{ etcd.server.port + groups['etcd'].index(inventory_hostname) }}"
