@@ -16,6 +16,9 @@
  */
 
 ext.dockerImageName = 'ow-utils'
+if(System.getProperty("os.arch").toLowerCase(Locale.ENGLISH).startsWith("aarch64")) {
+    ext.dockerDockerfileSuffix = ".arm"
+}
 apply from: '../../gradle/docker.gradle'
 
 distDocker.dependsOn 'copyWskadmin', 'copyGenssl'
