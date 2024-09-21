@@ -52,6 +52,7 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
       |           }
       |         }
       |         endpoint-url = "http://localhost:$port"
+      |         validate-object-key = true
       |      }
       |      bucket = "$bucket"
       |      $prefixConfig
