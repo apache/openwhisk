@@ -80,7 +80,7 @@
   when: environmentInformation.type == "docker-machine"
 
 - name: "determine docker root dir"
-  shell: echo -e "GET http:/v1.24/info HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"
+  shell: docker info -f json
   args:
     executable: /bin/bash
   register: dockerInfo_output

@@ -24,6 +24,9 @@ plugins {
 }
 
 ext.dockerImageName = 'scala'
+if(System.getProperty("os.arch").toLowerCase(Locale.ENGLISH).startsWith("aarch")) {
+    ext.dockerDockerfileSuffix = ".arm"
+}
 apply from: '../../gradle/docker.gradle'
 
 project.archivesBaseName = "openwhisk-common"
