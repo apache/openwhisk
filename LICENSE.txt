@@ -213,6 +213,10 @@ Spray Caching 1.3.4 (io.spray:spray-caching_2.11:1.3.4 - http://spray.io/documen
   License included at licenses/LICENSE-spray.txt, or https://github.com/spray/spray/blob/master/LICENSE
   Copyright (C) 2011-2015 the spray project <http://spray.io>
 
+common/scala/src/main/scala/org/apache/openwhisk/core/database/s3/S3Exception.scala
+is based on https://github.com/akka/alpakka/blob/v1.0.2/s3/src/main/scala/akka/stream/alpakka/s3/S3Exception.scala
+  Copyright (C) 2016-2019 Lightbend Inc. <http://www.lightbend.com>
+
 This product bundles the files gradlew and gradlew.bat from Gradle v5.5
 which are distributed under the Apache License, Version 2.0.
 For details see ./gradlew and ./gradlew.bat.

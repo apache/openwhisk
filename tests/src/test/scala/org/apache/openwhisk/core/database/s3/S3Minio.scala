@@ -57,7 +57,7 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
       |      $prefixConfig
       |     }
       |}
-      """.stripMargin).withFallback(ConfigFactory.load())
+      """.stripMargin).withFallback(ConfigFactory.load().getConfig("alpakka.s3"))
     S3AttachmentStoreProvider.makeStore[D](config)
   }
 
