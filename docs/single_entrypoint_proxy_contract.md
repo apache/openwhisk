@@ -18,7 +18,7 @@
 -->
 # Action Proxy Single Entrypoint Interface
 
-The typical endpoints used by the OpenWhisk control plane are not used in single entrypoint execution environments such as Knative. Initialization and running are still essential to how OpenWhisk runtimes function, but they are done in a different methodology than `/init` and `/run` endpoints. The proxy that shapes how the calls are preprocessed and postprocessed to emulate some of the functionality provided by the OpenWhisk control plane. In single entrypoint supported runtime proxy implementations, both initailization and running are done via the `/` root endpoint. The sections below explain the interface the runtime proxy must adhere to initialize and run via a single entrypoint execution environment.
+The typical endpoints used by the OpenWhisk control plane are not used in single entrypoint execution environments such as Knative. Initialization and running are still essential to how OpenWhisk runtimes function, but they are done in a different methodology than `/init` and `/run` endpoints. The proxy that shapes how the calls are preprocessed and postprocessed to emulate some of the functionality provided by the OpenWhisk control plane. In single entrypoint supported runtime proxy implementations, both initialization and running are done via the `/` root endpoint. The sections below explain the interface the runtime proxy must adhere to initialize and run via a single entrypoint execution environment.
 
 ## Init
 

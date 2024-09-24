@@ -353,15 +353,15 @@ Datetime            Activation ID                    Kind      Start Duration   
 
 The meaning of the different columns in the list are:
 
-| Column | Description |
-| :--- | :--- |
-| `Datetime` | The date and time when the invocation occurred. |
-| `Activation ID` | An activation ID that can be used to retrive the result using the `wsk activation get`, `wsk activation result` and `wsk activation logs` commands. |
-| `Kind` | The runtime or action type |
-| `Start` | An indication of the latency, i.e. if the runtime container was cold or warm started. |
-| `Duration` | Time taken to execute the invocation. |
-| `Status` | The outcome of the invocation. For an explanation of the various statuses, see the description of the `statusCode` below. |
-| `Entity` | The fully qualified name of entity that was invoked. |
+| Column          | Description                                                                                                                                          |
+|:----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Datetime`      | The date and time when the invocation occurred.                                                                                                      |
+| `Activation ID` | An activation ID that can be used to retrieve the result using the `wsk activation get`, `wsk activation result` and `wsk activation logs` commands. |
+| `Kind`          | The runtime or action type                                                                                                                           |
+| `Start`         | An indication of the latency, i.e. if the runtime container was cold or warm started.                                                                |
+| `Duration`      | Time taken to execute the invocation.                                                                                                                |
+| `Status`        | The outcome of the invocation. For an explanation of the various statuses, see the description of the `statusCode` below.                            |
+| `Entity`        | The fully qualified name of entity that was invoked.                                                                                                 |
 
 #### Understanding the activation record
 

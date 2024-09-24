@@ -110,7 +110,7 @@ is an example starting point to fork and modify for your new runtime.
 
 The standard test action is shown below in JavaScript. It should be adapted for the
 new language and added to the [test artifacts directory](../tests/dat/actions/unicode.tests)
-with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for a
+with the name `<runtime-kind>.txt` for plain text file or `<runtime-kind>.bin` for
 a binary file. The `<runtime-kind>` must match the value used for `kind` in the corresponding
 runtime manifest entry, replacing `:` in the kind with a `-`.
 For example, a plain text function for `nodejs:20` becomes `nodejs-20.txt`.
@@ -289,4 +289,4 @@ There are now several runtimes that support execution environments in addition t
 
 #### Action Proxy Single Entrypoint Interface
 
-Single entrypoint proxies are proxies that have only onde addressable http endpoint. They do not use `/init` and `/run` enpoints utilized by standard OpenWhisk runtime environments; instead both the initialization and activation are handled through one endpoint. The first example of such a proxy was implemented for Knative Serving, but the same interface can be used for any single entrypoint execution environment. In an effort to standardize how the various action proxy implementation containers are able to handle single entrypoint execution environments (such as Knative Serving), there is a description of the contract and example cases outlining how a container should respond with a given input. The descriptions and example cases are documented in [Single Entrypoint Proxy Contract](single_entrypoint_proxy_contract.md).
+Single entrypoint proxies are proxies that have only one addressable HTTP endpoint. They do not use `/init` and `/run` endpoints utilized by standard OpenWhisk runtime environments; instead both the initialization and activation are handled through one endpoint. The first example of such a proxy was implemented for Knative Serving, but the same interface can be used for any single entrypoint execution environment. In an effort to standardize how the various action proxy implementation containers are able to handle single entrypoint execution environments (such as Knative Serving), there is a description of the contract and example cases outlining how a container should respond with a given input. The descriptions and example cases are documented in [Single Entrypoint Proxy Contract](single_entrypoint_proxy_contract.md).
