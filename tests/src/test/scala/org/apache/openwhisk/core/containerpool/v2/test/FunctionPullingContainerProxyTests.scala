@@ -29,7 +29,7 @@ import com.ibm.etcd.client.{EtcdClient => Client}
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction}
 import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
 import org.apache.openwhisk.core.ack.ActiveAck
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage}
+import org.apache.openwhisk.core.connector.{AcknowledgementMessage, ActivationMessage}
 import org.apache.openwhisk.core.containerpool.logging.LogCollectingException
 import org.apache.openwhisk.core.containerpool.v2._
 import org.apache.openwhisk.core.containerpool.{
@@ -228,7 +228,7 @@ class FunctionPullingContainerProxyTests
 
   trait LoggedAcker extends ActiveAck {
     def calls =
-      mutable.Buffer[(TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, AcknowledegmentMessage)]()
+      mutable.Buffer[(TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, AcknowledgementMessage)]()
 
     def verifyAnnotations(activation: WhiskActivation, a: ExecutableWhiskAction) = {
       activation.annotations.get("limits") shouldBe Some(a.limits.toJson)
@@ -240,7 +240,7 @@ class FunctionPullingContainerProxyTests
   /** Creates an inspectable version of the ack method, which records all calls in a buffer */
   def createAcker(a: ExecutableWhiskAction = action) = new LoggedAcker {
     val acker = LoggedFunction {
-      (_: TransactionId, _: WhiskActivation, _: Boolean, _: ControllerInstanceId, _: UUID, _: AcknowledegmentMessage) =>
+      (_: TransactionId, _: WhiskActivation, _: Boolean, _: ControllerInstanceId, _: UUID, _: AcknowledgementMessage) =>
         Future.successful(())
     }
 
@@ -251,9 +251,9 @@ class FunctionPullingContainerProxyTests
                        blockingInvoke: Boolean,
                        controllerInstance: ControllerInstanceId,
                        userId: UUID,
-                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                       acknowledgement: AcknowledgementMessage): Future[Any] = {
       verifyAnnotations(activation, a)
-      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledegment)
+      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledgement)
     }
   }
 
@@ -261,7 +261,7 @@ class FunctionPullingContainerProxyTests
   def createAckerForNamespaceBlacklist(a: ExecutableWhiskAction = action,
                                        mockNamespaceBlacklist: MockNamespaceBlacklist) = new LoggedAcker {
     val acker = SynchronizedLoggedFunction {
-      (_: TransactionId, _: WhiskActivation, _: Boolean, _: ControllerInstanceId, _: UUID, _: AcknowledegmentMessage) =>
+      (_: TransactionId, _: WhiskActivation, _: Boolean, _: ControllerInstanceId, _: UUID, _: AcknowledgementMessage) =>
         Future.successful(())
     }
 
@@ -276,9 +276,9 @@ class FunctionPullingContainerProxyTests
                        blockingInvoke: Boolean,
                        controllerInstance: ControllerInstanceId,
                        userId: UUID,
-                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                       acknowledgement: AcknowledgementMessage): Future[Any] = {
       verifyAnnotations(activation, a)
-      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledegment)
+      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledgement)
     }
   }
 
@@ -673,7 +673,7 @@ class FunctionPullingContainerProxyTests
     }
   }
 
-  it should "not run activations and destory the prewarm container when get client failed" in within(timeout) {
+  it should "not run activations and destroy the prewarm container when get client failed" in within(timeout) {
     val authStore = mock[ArtifactWhiskAuthStore]
     val namespaceBlacklist: NamespaceBlacklist = new NamespaceBlacklist(authStore)
     val get = getWhiskAction(Future(action.toWhiskAction))

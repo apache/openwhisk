@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.ack
 import org.apache.openwhisk.common.{TransactionId, UserEvents}
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, EventMessage, MessageProducer}
+import org.apache.openwhisk.core.connector.{AcknowledgementMessage, EventMessage, MessageProducer}
 import org.apache.openwhisk.core.entity.{ControllerInstanceId, UUID, WhiskActivation}
 
 import scala.concurrent.Future
@@ -27,7 +27,7 @@ import scala.concurrent.Future
  * are either completion messages for an activation to indicate a resource slot is free, or result-forwarding
  * messages for continuations (e.g., sequences and conductor actions).
  *
- * The activation result is always provided because some acknowledegment messages may not carry the result of
+ * The activation result is always provided because some acknowledgement messages may not carry the result of
  * the activation and this is needed for sending user events.
  *
  * @param tid the transaction id for the activation
@@ -35,7 +35,7 @@ import scala.concurrent.Future
  * @param blockingInvoke is true iff the activation was a blocking request
  * @param controllerInstance the originating controller/loadbalancer id
  * @param userId is the UUID for the namespace owning the activation
- * @param acknowledegment the acknowledgement message to send
+ * @param acknowledgement the acknowledgement message to send
  */
 trait ActiveAck {
   def apply(tid: TransactionId,
@@ -43,7 +43,7 @@ trait ActiveAck {
             blockingInvoke: Boolean,
             controllerInstance: ControllerInstanceId,
             userId: UUID,
-            acknowledegment: AcknowledegmentMessage): Future[Any]
+            acknowledgement: AcknowledgementMessage): Future[Any]
 }
 
 trait EventSender {

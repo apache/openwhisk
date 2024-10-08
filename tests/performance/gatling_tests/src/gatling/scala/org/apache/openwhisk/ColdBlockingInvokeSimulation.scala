@@ -71,7 +71,7 @@ class ColdBlockingInvokeSimulation extends Simulation {
         // Execute all actions for the given amount of time.
         .during(seconds) {
           // Cycle through the actions of this user, to not invoke the same action directly one after each other.
-          // Otherwise there is the possiblity, that it is warm.
+          // Otherwise there is the possibility, that it is warm.
           repeat(actionsPerUser, "i") {
             exec(openWhisk("Invoke action").authenticate(uuid, key).action(actionName).invoke())
           }

@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.ack
 
 import org.apache.openwhisk.common.{Logging, TransactionId}
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, MessageProducer}
+import org.apache.openwhisk.core.connector.{AcknowledgementMessage, MessageProducer}
 import org.apache.openwhisk.core.entity.{ControllerInstanceId, UUID, WhiskActivation}
 import spray.json.DefaultJsonProtocol._
 
@@ -30,7 +30,7 @@ class HealthActionAck(producer: MessageProducer)(implicit logging: Logging, ec: 
                      blockingInvoke: Boolean,
                      controllerInstance: ControllerInstanceId,
                      userId: UUID,
-                     acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                     acknowledgement: AcknowledgementMessage): Future[Any] = {
     implicit val transid: TransactionId = tid
 
     logging.debug(this, s"health action was successfully invoked")

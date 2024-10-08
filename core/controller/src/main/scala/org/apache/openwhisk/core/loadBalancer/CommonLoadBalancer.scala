@@ -219,19 +219,19 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
   /** 4. Get the ack message and parse it */
   protected[loadBalancer] def processAcknowledgement(bytes: Array[Byte]): Future[Unit] = Future {
     val raw = new String(bytes, StandardCharsets.UTF_8)
-    AcknowledegmentMessage.parse(raw) match {
-      case Success(acknowledegment) =>
-        acknowledegment.isSlotFree.foreach { instance =>
+    AcknowledgementMessage.parse(raw) match {
+      case Success(acknowledgement) =>
+        acknowledgement.isSlotFree.foreach { instance =>
           processCompletion(
-            acknowledegment.activationId,
-            acknowledegment.transid,
+            acknowledgement.activationId,
+            acknowledgement.transid,
             forced = false,
-            isSystemError = acknowledegment.isSystemError.getOrElse(false),
+            isSystemError = acknowledgement.isSystemError.getOrElse(false),
             instance)
         }
 
-        acknowledegment.result.foreach { response =>
-          processResult(acknowledegment.activationId, acknowledegment.transid, response)
+        acknowledgement.result.foreach { response =>
+          processResult(acknowledgement.activationId, acknowledgement.transid, response)
         }
 
         activationFeed ! MessageFeed.Processed
@@ -242,7 +242,7 @@ abstract class CommonLoadBalancer(config: WhiskConfig,
 
       case _ =>
         activationFeed ! MessageFeed.Processed
-        logging.error(this, s"Unexpected Acknowledgment message received by loadbalancer: $raw")
+        logging.error(this, s"Unexpected Acknowledgement message received by loadbalancer: $raw")
     }
   }
 

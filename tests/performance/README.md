@@ -93,7 +93,7 @@ Next, the action will be invoked 100 times blocking and one after each other. Be
 `PAUSE_BETWEEN_INVOKES` milliseconds. The last step is to delete the action.
 
 Once one language is finished, the next kind will be taken. They are not running in parallel. There are never more than
-1 activations in the system, as we only want to meassure latency of warm activations.
+1 activations in the system, as we only want to measure latency of warm activations.
 As all actions are invoked blocking and only one action is in the system, it doesn't matter how many controllers
 and invokers are deployed. If several controllers or invokers are deployed, all controllers send the activation
 always to the same invoker.

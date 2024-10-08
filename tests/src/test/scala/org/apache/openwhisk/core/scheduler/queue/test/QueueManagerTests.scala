@@ -29,7 +29,7 @@ import org.apache.openwhisk.common.{GracefulShutdown, TransactionId}
 import org.apache.openwhisk.core.WarmUp.warmUpAction
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.test.TestConnector
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, ActivationMessage, GetState, StatusData}
+import org.apache.openwhisk.core.connector.{AcknowledgementMessage, ActivationMessage, GetState, StatusData}
 import org.apache.openwhisk.core.database.{ArtifactStore, DocumentRevisionMismatchException, UserContext}
 import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import org.apache.openwhisk.core.entity._
@@ -116,7 +116,7 @@ class QueueManagerTests
                        blockingInvoke: Boolean,
                        controllerInstance: ControllerInstanceId,
                        userId: UUID,
-                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                       acknowledgement: AcknowledgementMessage): Future[Any] = {
       Future.successful({})
 
     }
@@ -816,8 +816,8 @@ class QueueManagerTests
                          blockingInvoke: Boolean,
                          controllerInstance: ControllerInstanceId,
                          userId: UUID,
-                         acknowledegment: AcknowledegmentMessage): Future[Any] = {
-        Future.successful(probe.ref ! acknowledegment.isSystemError)
+                         acknowledgement: AcknowledgementMessage): Future[Any] = {
+        Future.successful(probe.ref ! acknowledgement.isSystemError)
       }
     }
 
@@ -870,7 +870,7 @@ class QueueManagerTests
                          blockingInvoke: Boolean,
                          controllerInstance: ControllerInstanceId,
                          userId: UUID,
-                         acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                         acknowledgement: AcknowledgementMessage): Future[Any] = {
         Future.successful(probe.ref ! activationResult.activationId)
       }
     }
@@ -914,7 +914,7 @@ class QueueManagerTests
                          blockingInvoke: Boolean,
                          controllerInstance: ControllerInstanceId,
                          userId: UUID,
-                         acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                         acknowledgement: AcknowledgementMessage): Future[Any] = {
         Future.successful(probe.ref ! activationResult.activationId)
       }
     }

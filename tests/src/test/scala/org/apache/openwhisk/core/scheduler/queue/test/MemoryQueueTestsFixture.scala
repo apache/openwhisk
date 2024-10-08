@@ -32,7 +32,7 @@ import org.apache.openwhisk.common.WhiskInstants.InstantImplicits
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.{
-  AcknowledegmentMessage,
+  AcknowledgementMessage,
   ActivationMessage,
   Message,
   MessageProducer,
@@ -185,7 +185,7 @@ class MemoryQueueTestsFixture
                        blockingInvoke: Boolean,
                        controllerInstance: ControllerInstanceId,
                        userId: UUID,
-                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                       acknowledgement: AcknowledgementMessage): Future[Any] = {
       ackedMessageCount += 1
       lastAckedActivationResult = activationResult
       Future.successful({})

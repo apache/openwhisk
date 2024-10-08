@@ -84,7 +84,7 @@ abstract class WhiskEntity protected[entity] (en: EntityName, val entityType: St
 
   /**
    * A JSON view of the entity, that should match the result returned in a list operation.
-   * This should be synchronized with the views computed in the databse.
+   * This should be synchronized with the views computed in the database.
    * Strictly used in view testing to enforce alignment.
    */
   def summaryAsJson: JsObject = {

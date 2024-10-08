@@ -1048,7 +1048,7 @@ class MemoryQueueTests
                          blockingInvoke: Boolean,
                          controllerInstance: ControllerInstanceId,
                          userId: UUID,
-                         acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                         acknowledgement: AcknowledgementMessage): Future[Any] = {
         probe.ref ! activationResult.response
         Future.successful({})
       }
@@ -1328,7 +1328,7 @@ class MemoryQueueTests
                          blockingInvoke: Boolean,
                          controllerInstance: ControllerInstanceId,
                          userId: UUID,
-                         acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                         acknowledgement: AcknowledgementMessage): Future[Any] = {
         probe.ref ! activationResult.response
         Future.successful({})
       }
