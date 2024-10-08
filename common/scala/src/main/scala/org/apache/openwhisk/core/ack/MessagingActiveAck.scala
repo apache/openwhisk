@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.ack
 import org.apache.kafka.common.errors.RecordTooLargeException
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
-import org.apache.openwhisk.core.connector.{AcknowledegmentMessage, EventMessage, MessageProducer}
+import org.apache.openwhisk.core.connector.{AcknowledgementMessage, EventMessage, MessageProducer}
 import org.apache.openwhisk.core.entity._
 import pureconfig._
 import scala.concurrent.{ExecutionContext, Future}
@@ -38,19 +38,19 @@ class MessagingActiveAck(producer: MessageProducer, instance: InstanceId, eventS
                      blockingInvoke: Boolean,
                      controllerInstance: ControllerInstanceId,
                      userId: UUID,
-                     acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                     acknowledgement: AcknowledgementMessage): Future[Any] = {
     implicit val transid: TransactionId = tid
 
-    def send(msg: AcknowledegmentMessage, recovery: Boolean = false) = {
+    def send(msg: AcknowledgementMessage, recovery: Boolean = false) = {
       producer.send(topic = topicPrefix + "completed" + controllerInstance.asString, msg).andThen {
         case Success(_) =>
           val info = if (recovery) s"recovery ${msg.messageType}" else msg.messageType
-          logging.info(this, s"posted $info of activation ${acknowledegment.activationId}")
+          logging.info(this, s"posted $info of activation ${acknowledgement.activationId}")
       }
     }
 
     // UserMetrics are sent, when the slot is free again. This ensures, that all metrics are sent.
-    if (acknowledegment.isSlotFree.nonEmpty) {
+    if (acknowledgement.isSlotFree.nonEmpty) {
       eventSender.foreach { s =>
         EventMessage.from(activationResult, instance.source, userId) match {
           case Success(msg) => s.send(msg)
@@ -62,10 +62,10 @@ class MessagingActiveAck(producer: MessageProducer, instance: InstanceId, eventS
     // An acknowledgement containing the result is only needed for blocking invokes in order to further the
     // continuation. A result message for a non-blocking activation is not actually registered in the load balancer
     // and the container proxy should not send such an acknowlegement unless it's a blocking request. Here the code
-    // is defensive and will shrink all non-blocking acknowledegments.
-    send(if (blockingInvoke) acknowledegment else acknowledegment.shrink).recoverWith {
+    // is defensive and will shrink all non-blocking acknowledgements.
+    send(if (blockingInvoke) acknowledgement else acknowledgement.shrink).recoverWith {
       case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
-        send(acknowledegment.shrink, recovery = true)
+        send(acknowledgement.shrink, recovery = true)
     }
   }
 }
