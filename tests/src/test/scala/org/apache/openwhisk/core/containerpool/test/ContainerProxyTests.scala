@@ -38,7 +38,7 @@ import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.{
-  AcknowledegmentMessage,
+  AcknowledgementMessage,
   ActivationMessage,
   CombinedCompletionAndResultMessage,
   CompletionMessage,
@@ -177,7 +177,7 @@ class ContainerProxyTests
 
   trait LoggedAcker extends ActiveAck {
     def calls =
-      mutable.Buffer[(TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, AcknowledegmentMessage)]()
+      mutable.Buffer[(TransactionId, WhiskActivation, Boolean, ControllerInstanceId, UUID, AcknowledgementMessage)]()
 
     def verifyAnnotations(activation: WhiskActivation, a: ExecutableWhiskAction) = {
       activation.annotations.get("limits") shouldBe Some(a.limits.toJson)
@@ -194,7 +194,7 @@ class ContainerProxyTests
        _: Boolean,
        _: ControllerInstanceId,
        _: UUID,
-       _: AcknowledegmentMessage) =>
+       _: AcknowledgementMessage) =>
         Future.successful(())
     }
 
@@ -205,9 +205,9 @@ class ContainerProxyTests
                        blockingInvoke: Boolean,
                        controllerInstance: ControllerInstanceId,
                        userId: UUID,
-                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                       acknowledgement: AcknowledgementMessage): Future[Any] = {
       verifyAnnotations(activation, a)
-      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledegment)
+      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledgement)
     }
   }
 
@@ -219,7 +219,7 @@ class ContainerProxyTests
        _: Boolean,
        _: ControllerInstanceId,
        _: UUID,
-       _: AcknowledegmentMessage) =>
+       _: AcknowledgementMessage) =>
         Future.successful(())
     }
 
@@ -230,9 +230,9 @@ class ContainerProxyTests
                        blockingInvoke: Boolean,
                        controllerInstance: ControllerInstanceId,
                        userId: UUID,
-                       acknowledegment: AcknowledegmentMessage): Future[Any] = {
+                       acknowledgement: AcknowledgementMessage): Future[Any] = {
       verifyAnnotations(activation, a)
-      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledegment)
+      acker(tid, activation, blockingInvoke, controllerInstance, userId, acknowledgement)
     }
   }
 
