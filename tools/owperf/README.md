@@ -26,7 +26,7 @@ This test tool benchmarks an OpenWhisk deployment for (warm) latency and through
    1. Parameter size - controls the size of the parameter passed to the action or event
    1. Actions per iteration (a.k.a. _ratio_) - controls how many rules are associated with a trigger [for rules] or how many actions are asynchronously invoked (burst size) at each iteration of a test worker [for actions].
 1. "Master apart" mode - Allow the master client to perform latency measurements while the worker clients stress OpenWhisk using a specific invocation pattern in the background. Useful for measuring latency under load, and for comparing latencies of rules and actions under load.
-The tool is written in node.js, using mainly the modules of OpenWhisk client, cluster for concurrency, and commander for CLI procssing.
+The tool is written in node.js, using mainly the modules of OpenWhisk client, cluster for concurrency, and commander for CLI processing.
 
 ### Operation
 The general operation of a test is simple:
@@ -39,11 +39,11 @@ The general operation of a test is simple:
 
 Final results are written to the standard output stream (so can be redirected to a file) as a single highly-detailed CSV record containing all the input settings and the output measurements (see below). There is additional control information that is written to the standard error stream and can be silenced in CLI. The control information also contains the CSV header, so it can be copied into a spreadsheet if needed.
 
-It is possible to invoke the tool in "Master apart" mode, where the master client is invoking a different activity than the workers, and at possibly a different (very likely, much slower) rate. In this mode, latency statsitics are computed based solely on the master's data, since the worker's activity is used only as background to stress the OpenWhisk deployment. So one experiment can have the master client invoke rules and another one can have the master client invoke actions, while in both experiments the worker clients perform the same background activity.
+It is possible to invoke the tool in "Master apart" mode, where the master client is invoking a different activity than the workers, and at possibly a different (very likely, much slower) rate. In this mode, latency statistics are computed based solely on the master's data, since the worker's activity is used only as background to stress the OpenWhisk deployment. So one experiment can have the master client invoke rules and another one can have the master client invoke actions, while in both experiments the worker clients perform the same background activity.
 
 The tool is highly customizable via CLI options. All the independent test variables are controlled via CLI. This includes number of workers, invocation pattern, OW client configuration, test action sleep time, etc.
 
-Test setup and teardown can be independently skipped via CLI, and/or directly invoked from the external setup script (```setup.sh```), so that setup can be shared between multiple tests. More advanced users can replace the test action with a custom action in the setup script to benchmark action invocation or event-respose throughput and latency of specific applications.
+Test setup and teardown can be independently skipped via CLI, and/or directly invoked from the external setup script (```setup.sh```), so that setup can be shared between multiple tests. More advanced users can replace the test action with a custom action in the setup script to benchmark action invocation or event-response throughput and latency of specific applications.
 
 **Clock skew**: OpenWhisk is a distributed system, which means that clock skew is expected between the client machine computing invocation timestamps and the controllers or invokers that generate the timestamps in the activation records. However, this tool assumes that clock skew is bound at few msec range, due to having all machines clocks synchronized, typically using NTP. At such a scale, clock skew is quite small compared to the measured time periods. Some of the time periods are measured using the same clock (see below) and are therefore oblivious to clock skew issues.
 
@@ -67,7 +67,7 @@ The following time-stamps are collected for each invocation, of either action, o
 * **TS** (Trigger Start) - taken from the activation record of the trigger linked to the rules, so applies only to rule tests. All actions invoked by the rules of the same trigger have the same TS value.
 * **AS** (Action Start) - taken from the activation record of the action.
 * **AE** (Action End) - taken from the activation record of the action.
-* **AI** (After Invocation) - taken by the client immmediately after the invocation, for blocking action invocation tests only.
+* **AI** (After Invocation) - taken by the client immediately after the invocation, for blocking action invocation tests only.
 
 Based on these timestamps, the following measurements are taken:
 * **OEA** (Overhead of Entering Action) - OpenWhisk processing overhead from sending the action invocation or trigger fire to the beginning of the action execution. OEA = AS-BI
@@ -77,7 +77,7 @@ Based on these timestamps, the following measurements are taken:
 * **TA** (Trigger to Answer) - the processing time from the start of the trigger process to the start of the action (rule tests only). TA = AS-TS
 * **ORA** (Overhead of Returning from Action) - time from action end till being received by the client (blocking action tests only). ORA = AI - AE
 * **RTT** (Round Trip Time) - time at the client from action invocation till reply received (blocking action tests only). RTT = AI - BI
-* **ORTT** (Overhead of RTT) - RTT at the client exclugin the net action computation time. ORTT = RTT - D
+* **ORTT** (Overhead of RTT) - RTT at the client excluding the net action computation time. ORTT = RTT - D
 
 For each measurement, the tool computes average (_avg_), standard deviation (_std_), and extremes (_min_ and _max_).
 
@@ -92,7 +92,7 @@ Throughput is measured w.r.t. several different counters. During post-processing
 * **Activations** - number of completed activations inside the time frame, counting both trigger activations (based on TS), and action activations (based on AS and AE).
 * **Invocations** - number of successful invocations of complete rules or actions (depending on the activity). This is the "service rate" of invocations (assuming errors happen only because OW is overloaded).
 
-For each counter, the tool reports the total counter value (_abs_), total throughput per second (_tp_), througput of the worker clients without the master (_tpw_) and the master's percentage of throughput relative to workers (_tpd_). The last two values are important mostly for master apart mode.
+For each counter, the tool reports the total counter value (_abs_), total throughput per second (_tp_), throughput of the worker clients without the master (_tpw_) and the master's percentage of throughput relative to workers (_tpd_). The last two values are important mostly for master apart mode.
 
 Aside from that, the tool also counts **errors**. Failed invocations - of actions, of triggers, or of actions from triggers (via rules) are counted each as an error. The tool reports both absolute error count (_abs_) and percent out of requests (_percent_).
 
