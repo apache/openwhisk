@@ -273,7 +273,7 @@ nginx:
 
 # These are the variables to define all database relevant settings.
 # The authKeys are the users, that are initially created to use OpenWhisk.
-# The keys are stored in ansible/files and will be inserted into the authentication databse.
+# The keys are stored in ansible/files and will be inserted into the authentication database.
 # The key db.whisk.actions is the name of the database where all artifacts of the user are stored. These artifacts are actions, triggers, rules and packages.
 # The key db.whisk.activation is the name of the database where all activations are stored.
 # The key db.whisk.auth is the name of the authentication database where all keys of all users are stored.

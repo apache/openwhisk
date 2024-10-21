@@ -115,7 +115,7 @@ abstract class AcknowledgementMessage(private val tid: TransactionId) extends Me
  * combines the `CompletionMessage` and `ResultMessage`. The `response` may be an `ActivationId` to allow for failures
  * to send the activation result because of event-bus size limitations.
  *
- * The constructor is private so that callers must use the more restrictive constructors which ensure the respose is always
+ * The constructor is private so that callers must use the more restrictive constructors which ensure the response is always
  * Right when this message is created.
  */
 case class CombinedCompletionAndResultMessage private (override val transid: TransactionId,
@@ -167,7 +167,7 @@ case class CompletionMessage private (override val transid: TransactionId,
  * This is part of a split phase notification, and does not indicate that the slot is available, which is indicated with
  * a `CompletionMessage`. Note that activation record will not contain any logs from the action execution, only the result.
  *
- * The constructor is private so that callers must use the more restrictive constructors which ensure the respose is always
+ * The constructor is private so that callers must use the more restrictive constructors which ensure the response is always
  * Right when this message is created.
  */
 case class ResultMessage private (override val transid: TransactionId, response: Either[ActivationId, WhiskActivation])

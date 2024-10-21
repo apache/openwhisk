@@ -61,7 +61,7 @@ class MessagingActiveAck(producer: MessageProducer, instance: InstanceId, eventS
 
     // An acknowledgement containing the result is only needed for blocking invokes in order to further the
     // continuation. A result message for a non-blocking activation is not actually registered in the load balancer
-    // and the container proxy should not send such an acknowlegement unless it's a blocking request. Here the code
+    // and the container proxy should not send such an acknowledgement unless it's a blocking request. Here the code
     // is defensive and will shrink all non-blocking acknowledgements.
     send(if (blockingInvoke) acknowledgement else acknowledgement.shrink).recoverWith {
       case t if t.getCause.isInstanceOf[RecordTooLargeException] =>

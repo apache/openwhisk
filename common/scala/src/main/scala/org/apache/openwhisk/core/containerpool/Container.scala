@@ -139,7 +139,7 @@ trait Container {
             endTime = r.interval.end,
             logLevel = InfoLevel)
         case Failure(t) =>
-          transid.failed(this, start, s"initializiation failed with $t")
+          transid.failed(this, start, s"initialization failed with $t")
       }
       .flatMap { result =>
         // if runtime container is shutting down, reschedule the activation message
