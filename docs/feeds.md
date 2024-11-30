@@ -67,7 +67,7 @@ When the user creates a trigger from the CLI with the **--feed** parameter, the 
 
 For example,assume the user has created a `mycloudant` binding for the `cloudant` package with their username and password as bound parameters. When the user issues the following command from the CLI:
 
-`wsk trigger create T --feed mycloudant/changes -p dbName myTable`
+`wsk trigger create T --feed mycloudant/changes --feed-param dbName myTable`
 
 then under the covers the system will do something equivalent to:
 
