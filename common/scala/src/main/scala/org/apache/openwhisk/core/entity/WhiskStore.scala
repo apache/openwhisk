@@ -166,7 +166,7 @@ trait WhiskEntityQueries[T] {
    */
   def listCollectionInNamespace[A <: WhiskEntity](
     db: ArtifactStore[A],
-    path: EntityPath, // could be a namesapce or namespace + package name
+    path: EntityPath, // could be a namespace or namespace + package name
     skip: Int,
     limit: Int,
     includeDocs: Boolean = false,
