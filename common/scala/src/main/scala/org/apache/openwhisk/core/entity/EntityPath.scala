@@ -53,7 +53,7 @@ protected[core] class EntityPath private (private val path: Seq[String]) extends
   def addPath(e: EntityName) = EntityPath(path :+ e.name)
 
   /**
-   * Concatenates given path to existin path.
+   * Concatenates given path to existing path.
    */
   def addPath(p: EntityPath) = EntityPath(path ++ p.path)
 
