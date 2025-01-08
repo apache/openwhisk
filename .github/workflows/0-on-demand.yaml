@@ -57,7 +57,7 @@ env:
   GH_BRANCH: ${{ github.head_ref || github.ref_name }}
 
   # https://develocity.apache.org
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
   # (optional) you need to add as secrets an ngrok token and a password to debug a build on demand
   NGROK_DEBUG: ${{ inputs.enable_ngrok_debug }}
