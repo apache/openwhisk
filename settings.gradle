@@ -25,7 +25,7 @@ def isJenkins = System.getenv('JENKINS_URL') != null
 def isCI = isGithubActions || isJenkins
 
 gradleEnterprise {
-    server = "https://ge.apache.org"
+    server = "https://develocity.apache.org"
     buildScan {
         capture { taskInputFiles = true }
         uploadInBackground = !isCI
