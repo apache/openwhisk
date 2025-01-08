@@ -47,7 +47,7 @@ env:
   GH_BRANCH: ${{ github.head_ref || github.ref_name }}
 
   # https://develocity.apache.org
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   openwhisk:
