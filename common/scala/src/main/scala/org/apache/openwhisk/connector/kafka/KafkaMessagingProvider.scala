@@ -41,6 +41,8 @@ case class KafkaConfig(replicationFactor: Short, consumerLagCheckInterval: Finit
 object KafkaMessagingProvider extends MessagingProvider {
   import KafkaConfiguration._
 
+  private val topicPartitionsConfigKey = "partitions"
+
   def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
     implicit logging: Logging,
     actorSystem: ActorSystem): MessageConsumer =
@@ -64,12 +66,13 @@ object KafkaMessagingProvider extends MessagingProvider {
 
     Try(AdminClient.create(commonConfig + (AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG -> config.kafkaHosts)))
       .flatMap(client => {
-        val partitions = topicConfig.getOrElse("partitions", "1").toInt
-        val nt = new NewTopic(topic, partitions, kafkaConfig.replicationFactor).configs(topicConfig.asJava)
+        val partitions = topicConfig.getOrElse(topicPartitionsConfigKey, "1").toInt
+        val safeTopicConfig = topicConfig - topicPartitionsConfigKey
+        val nt = new NewTopic(topic, partitions, kafkaConfig.replicationFactor).configs(safeTopicConfig.asJava)
 
         def createTopic(retries: Int = 5): Try[Unit] = {
           Try(client.listTopics().names().get())
-            .map(topics =>
+            .flatMap(topics =>
               if (topics.contains(topic)) {
                 Success(logging.info(this, s"$topic already exists and the user can see it, skipping creation."))
               } else {
