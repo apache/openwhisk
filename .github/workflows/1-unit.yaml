@@ -51,8 +51,8 @@ env:
   GH_BUILD: ${{ github.event_name }}-${{ github.sha }}
   GH_BRANCH: ${{ github.head_ref || github.ref_name }}
 
-  # https://ge.apache.org
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  # https://develocity.apache.org
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   openwhisk:
