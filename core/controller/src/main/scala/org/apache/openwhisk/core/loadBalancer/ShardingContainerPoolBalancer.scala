@@ -598,10 +598,27 @@ case class ClusterConfig(useClusterBootstrap: Boolean)
  * @param timeoutFactor factor to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + timeoutAddon)
  * @param timeoutAddon extra time to influence the timeout period for forced active acks (time-limit.std * timeoutFactor + timeoutAddon)
  */
-case class ShardingContainerPoolBalancerConfig(managedFraction: Double,
+case class ShardingContainerPoolBalancerConfig(strategy: ActivationStrategy,
+                                               managedFraction: Double,
                                                blackboxFraction: Double,
                                                timeoutFactor: Int,
                                                timeoutAddon: FiniteDuration)
+
+/**
+  * Configuration for the annotation-based load balancer multiplexer
+  *
+  * @param default the default strategy to be used if nothing is configured for the given annotation
+  * @param custom the Map of the strategy name to strategy configuration
+  */
+case class ActivationStrategy(default: String,
+                              custom: Map[String, StrategyConfig])
+
+/**
+  * Configuration for the strategy
+  *
+  * @param className indicates the class which will handle this strategy name
+  */
+case class StrategyConfig(className: String)
 
 /**
  * State kept for each activation slot until completion.
