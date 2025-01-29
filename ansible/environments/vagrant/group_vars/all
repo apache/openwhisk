@@ -24,6 +24,7 @@ runtimes_bypass_pull_for_local_images: true
 invoker_use_runc: "{{ ansible_distribution != 'MacOSX' }}"
 
 db_prefix: whisk_local_
+db_confdir: "{{ config_root_dir }}/couchdb"
 
 # API GW connection configuration
 apigw_auth_user: ""

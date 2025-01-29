@@ -19,7 +19,7 @@
 
 - name: set the coordinator to the first node
   set_fact:
-    coordinator: "{{ groups['db'][0] }}"
+    coordinator: "{{ couchdb_coordinator | default(groups['db'][0]) }}"
 
 - name: "Set the volumes"
   set_fact:
@@ -49,13 +49,28 @@
     volumes: "{{ volumes }} + [ '{{ db.persist_path }}:/opt/couchdb/data' ]"
   when: db.persist_path
 
-- include_tasks: gen_erl_cookie.yml
-  when: (db.instances|int >= 2)
-
-- name: "set the erlang cookie volume"
+- name: "mount conf directory for db configuration"
   set_fact:
-    volumes: "{{ volumes }} + [ '{{ config_root_dir }}/erlang.cookie:/opt/couchdb/.erlang.cookie' ]"
-  when: (db.instances|int >= 2)
+    volumes: "{{ volumes }} + [ '{{ db_confdir }}:/opt/couchdb/etc' ]"
+  when: db_confdir is defined
+
+- name: ensure CouchDB config directory exists
+  file:
+    path: "{{ db_confdir }}"
+    state: directory
+  become: "{{ db.dir.become }}"
+  become_user: couchdb
+  when: db_confdir is defined
+
+- name: synchronize default configuration files from local to remote in CouchDB config directory
+  synchronize:
+    src: "files/"
+    dest: "{{ db_confdir }}"
+    delete: yes
+    recursive: yes
+  become: "{{ db.dir.become }}"
+  become_user: couchdb
+  when: db_confdir is defined
 
 - name: "(re)start CouchDB from '{{ couchdb_image }} ' "
   vars:
@@ -115,18 +130,18 @@
     password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   register: cluster_state
-  run_once: true
+  delegate_to: "{{ coordinator }}"
 
 - name: check clustered nodes
   uri:
-    url: "{{ db.protocol }}://{{ ansible_host }}:{{ db.port }}/_membership"
+    url: "{{ db.protocol }}://{{ coordinator }}:{{ db.port }}/_membership"
     method: GET
     status_code: 200
     user: "{{ db.credentials.admin.user }}"
     password: "{{ db.credentials.admin.pass }}"
     force_basic_auth: yes
   register: nodes_state
-  run_once: true
+  delegate_to: "{{ coordinator }}"
 
 - name: generates couchdb node name
   set_fact:
@@ -184,3 +199,13 @@
     force_basic_auth: yes
   when: (inventory_hostname == coordinator) and (db.instances|int >= 2) and (cluster_state.json.state != "cluster_finished")
 
+- name: check whether the cluster is setup or not
+  uri:
+    url: "{{ db.protocol }}://{{ ansible_host }}:{{ db.port }}/_cluster_setup"
+    method: GET
+    status_code: 200
+    user: "{{ db.credentials.admin.user }}"
+    password: "{{ db.credentials.admin.pass }}"
+    force_basic_auth: yes
+  register: cluster_state
+  run_once: true
