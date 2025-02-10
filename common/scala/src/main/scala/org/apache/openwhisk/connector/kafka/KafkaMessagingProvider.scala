@@ -59,7 +59,7 @@ object KafkaMessagingProvider extends MessagingProvider {
     val topicConfig = KafkaConfiguration.configMapToKafkaConfig(
       loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + "." + topicConfigKey)) ++
       (maxMessageBytes.map { max =>
-        Map(s"max.message.bytes" -> max.size.toString)
+        Map(s"max.message.bytes" -> max.toBytes.toString)
       } getOrElse Map.empty)
 
     val commonConfig = configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))
