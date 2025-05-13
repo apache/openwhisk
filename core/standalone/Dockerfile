@@ -17,7 +17,7 @@
 FROM scala
 ARG OPENWHISK_JAR
 ENV DOCKER_VERSION=18.06.3-ce
-ENV WSK_VERSION=1.0.0
+ENV WSK_VERSION=1.2.0
 ADD bin/init /
 ADD bin/stop bin/waitready /bin/
 RUN chmod +x /bin/stop /bin/waitready ;\
