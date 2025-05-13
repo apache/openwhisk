@@ -192,3 +192,8 @@ gradle.projectsEvaluated {
         }
     }
 }
+
+task copyRuntimeLibs(type:Copy) {
+    from configurations.runtimeClasspath
+    into "$buildDir/dependency-libs"
+}
