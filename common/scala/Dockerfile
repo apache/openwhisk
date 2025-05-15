@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 # if you change version of openjsk, also update tools/github/setup.sh to download the corresponding jdk
-FROM bellsoft/liberica-openjre-alpine:11
+FROM amazoncorretto:11-alpine3.21-jdk
 
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
 # Switch to the HTTPS endpoint for the apk repositories as per https://github.com/gliderlabs/docker-alpine/issues/184
 RUN sed -i 's/http\:\/\/dl-cdn.alpinelinux.org/https\:\/\/alpine.global.ssl.fastly.net/g' /etc/apk/repositories
