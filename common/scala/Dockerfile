@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 # if you change version of openjsk, also update tools/github/setup.sh to download the corresponding jdk
-FROM amazoncorretto:11-alpine3.21-jdk
+FROM eclipse-temurin:21-jre-alpine-3.21
 
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
