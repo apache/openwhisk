@@ -47,10 +47,10 @@ subprojects {
                         'akka-parsing', 'akka-http2-support']
 
         akka.forEach {
-            cons.add('compile', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka.version}")
+            cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka.version}")
         }
         akkaHttp.forEach {
-            cons.add('compile', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka_http.version}")
+            cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka_http.version}")
         }
     }
 
@@ -101,7 +101,7 @@ subprojects {
         if (project.plugins.hasPlugin('application')) {
             //Ensure that dist archive name does not contain version
             distTar {
-                archiveName = "${project.name}.tar"
+                archiveFileName = "${project.name}.tar"
             }
 
             //Avoid generating the zip files from maven installations
