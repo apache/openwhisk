@@ -74,7 +74,7 @@ subprojects {
             }
         }
 
-        if (project.plugins.hasPlugin('maven')) {
+        if (project.plugins.hasPlugin('maven-publish')) {
             task sourcesJar(type: Jar, dependsOn: classes) {
                 classifier = 'sources'
                 from sourceSets.main.allSource
@@ -89,12 +89,6 @@ subprojects {
             task testClassesJar(type: Jar, dependsOn: testClasses) {
                 classifier = 'tests'
                 from sourceSets.test.output
-            }
-
-            artifacts {
-                archives sourcesJar
-                archives testSourcesJar
-                archives testClassesJar
             }
         }
 

@@ -17,7 +17,7 @@
 
 plugins {
     id 'eclipse'
-    id 'maven'
+    id 'maven-publish'
     id 'org.scoverage'
     id 'scala'
     id 'java-library'
@@ -144,7 +144,7 @@ dependencies {
 }
 
 configurations {
-    compile {
+    api {
         exclude group: 'commons-logging'
         exclude group: 'log4j'
     }

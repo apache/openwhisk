@@ -18,7 +18,7 @@
 apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'eclipse'
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 apply plugin: 'org.scoverage'
 apply plugin: 'com.lightbend.akka.grpc.gradle'
 
