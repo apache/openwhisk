@@ -39,7 +39,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
       | tar xzvf - -C /usr/bin wsk; \
     else \
         echo "Unsupported platform: $TARGETPLATFORM"; \
-        exit 1; \      
+        exit 1; \
     fi
 
 
