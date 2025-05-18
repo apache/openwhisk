@@ -73,6 +73,14 @@ subprojects {
                     }
                 }
             }
+
+            configurations {
+                implementationResolvable {
+                    canBeResolved = true
+                    canBeConsumed = false
+                    extendsFrom configurations.implementation
+                }
+            }
         }
 
         if (project.plugins.hasPlugin('maven-publish')) {
