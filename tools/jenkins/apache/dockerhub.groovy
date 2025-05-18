@@ -30,7 +30,10 @@ node('ubuntu') {
       withCredentials([usernamePassword(credentialsId: 'openwhisk_dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USER')]) {
           sh 'HOME="$WORKSPACE/local-docker-cfg" docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}'
       }
-      def PUSH_CMD = "./gradlew :core:controller:distDocker :core:scheduler:distDocker :core:invoker:distDocker :core:standalone:distDocker :core:monitoring:user-events:distDocker :tools:ow-utils:distDocker :core:cosmos:cache-invalidator:distDocker -PdockerRegistry=docker.io -PdockerImagePrefix=openwhisk"
+      sh "docker run -it --rm --userns=host --privileged tonistiigi/binfmt --install all"
+      sh "docker buildx create --name owbuilder"
+      sh "docker buildx use owbuilder"
+      def PUSH_CMD = "./gradlew :core:controller:distDocker :core:scheduler:distDocker :core:invoker:distDocker :core:standalone:distDocker :core:monitoring:user-events:distDocker :tools:ow-utils:distDocker :core:cosmos:cache-invalidator:distDocker -PdockerRegistry=docker.io -PdockerImagePrefix=openwhisk -PdockerMultiArchBuild=true"
       def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
       def shortCommit = gitCommit.take(7)
       sh "./gradlew clean"
@@ -40,6 +43,7 @@ node('ubuntu') {
   }
 
   stage("Clean") {
+    sh "docker buildx rm owbuilder"
     sh "docker images"
     sh 'docker rmi -f $(docker images -f "reference=openwhisk/*" -q) || true'
     sh "docker images"
