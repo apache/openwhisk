@@ -47,8 +47,10 @@ ext {
     dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
     dockerBuildArg = ['build']
     dockerDockerfileSuffix = project.hasProperty('dockerDockerfileSuffix') ? dockerDockerfileSuffix : ""
+    dockerMultiArchBuild = project.hasProperty('dockerMultiArchBuild') ? dockerMultiArchBuild.toBoolean() : false
 }
 ext.dockerTaggedImageName = dockerRegistry + dockerImagePrefix + '/' + dockerImageName + ':' + dockerImageTag
+ext.scalaBaseImageName = dockerRegistry + dockerImagePrefix + '/scala:' + dockerImageTag
 
 if(project.hasProperty('dockerHost')) {
     dockerBinary += ['--host', project.dockerHost]
@@ -58,6 +60,29 @@ if(project.hasProperty('dockerBuildArgs')) {
     dockerBuildArgs.each { arg  ->
         dockerBuildArg += ['--build-arg', arg]
     }
+    if( dockerMultiArchBuild ){
+        dockerBuildArg += ['--build-arg','BASE='+scalaBaseImageName]
+    }
+}
+
+if( !project.hasProperty('dockerBuildArgs') && dockerMultiArchBuild ) {
+    dockerBuildArg += ['--build-arg','BASE='+scalaBaseImageName]
+}
+
+def builDockerCommand(dockerFile) {
+    def cmd = dockerBinary
+
+    if(dockerMultiArchBuild) {
+        cmd += ['buildx']
+    }
+
+    cmd +=  dockerBuildArg + ['-f', dockerFile] + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+
+    if(dockerMultiArchBuild) {
+        cmd += ['--load']
+    }
+
+    return cmd
 }
 
 task distDocker {
@@ -70,8 +95,9 @@ task distDocker {
             dockerFile = dockerFileDir + "/Dockerfile"
         }
 
-        def cmd = dockerBinary + dockerBuildArg + ['-f', dockerFile] + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+        def cmd = builDockerCommand(dockerFile)
         retry(cmd, dockerRetries, dockerTimeout)
+
         println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
     }
 }
@@ -163,5 +189,26 @@ def retry(cmd, retries, timeout) {
             println("${message}, no more retries left, aborting...")
             throw new GradleException(message)
         }
+    }
+}
+
+task distDockerMultiArch {
+    doLast {
+        def start = new Date()
+        String dockerFileDir = project.buildscript.sourceFile.getParentFile().getAbsolutePath()
+        String dockerFile = dockerFileDir + "/Dockerfile" + dockerDockerfileSuffix
+
+        // We need to explicitly reference the base image to make things works when using docker buildx
+        String scalaBaseImageArg = "BASE="+dockerRegistry + dockerImagePrefix + '/scala:' + dockerImageTag
+
+        if(project.hasProperty('dockerBuildArgs')) {            
+            dockerBuildArg += [scalaBaseImageArg]
+        } else {
+            dockerBuildArg += ['--build-arg',scalaBaseImageArg]
+        }
+
+        def cmd = dockerBinary + ['buildx']+dockerBuildArg + ['-f', dockerFile] + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath(),'--load']
+        retry(cmd, dockerRetries, dockerTimeout)
+        println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
     }
 }
