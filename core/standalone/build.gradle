@@ -20,7 +20,7 @@ import org.apache.tools.ant.taskdefs.condition.Os
 plugins {
     id 'maven-publish'
     id 'org.scoverage'
-    id 'org.springframework.boot' version '2.1.6.RELEASE'
+    id 'org.springframework.boot' version '2.7.18'
     id 'scala'
     id 'com.gorylenko.gradle-git-properties' version '2.4.2'
 }
@@ -147,7 +147,7 @@ task copyBootJarToBin(type:Copy){
 }
 
 bootJar {
-    mainClassName = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
+    mainClass = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
     finalizedBy copyBootJarToBin
 }
 
@@ -196,4 +196,8 @@ gradle.projectsEvaluated {
 task copyRuntimeLibs(type:Copy) {
     from configurations.runtimeClasspath
     into "$buildDir/dependency-libs"
+}
+
+tasks.named("copyBootJarToBin") {
+    dependsOn tasks.named("jar")
 }

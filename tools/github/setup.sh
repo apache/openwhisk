@@ -45,8 +45,8 @@ sudo sed -i -e 's!/usr/bin/dockerd -H fd://!/usr/bin/dockerd -H tcp://0.0.0.0:42
 sudo systemctl daemon-reload
 sudo systemctl start docker
 
-# installing right version of jdk
-JDK=https://github.com/ibmruntimes/semeru11-binaries/releases/download/jdk-11.0.12%2B7_openj9-0.27.0/ibm-semeru-open-jdk_x64_linux_11.0.12_7_openj9-0.27.0.tar.gz
+# compiles with eclipse temurin jdk 17
+JDK=https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jdk_x64_linux_hotspot_17.0.9_9.tar.gz
 curl -sL $JDK | sudo tar xzvf - -C /usr/local
 JAVA="$(which java)"
 sudo mv "$JAVA" "$JAVA"."$(date +%s)"

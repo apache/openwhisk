@@ -21,15 +21,12 @@ import static groovy.json.JsonOutput.*
 plugins {
     id 'eclipse'
     id 'maven-publish'
-    id 'org.hidetake.swagger.generator' version '2.18.1'
+    id 'org.hidetake.swagger.generator' version '2.19.2'
     id 'org.scoverage'
     id 'scala'
 }
 
 compileTestScala.options.encoding = 'UTF-8'
-
-//install.dependsOn ':tools:admin:install'
-
 project.archivesBaseName = "openwhisk-tests"
 
 scoverage {
@@ -337,6 +334,7 @@ gradle.projectsEvaluated {
         dependentTasks << copyMeasurementFiles
         projectsWithCoverage.forEach {
             dependentTasks << it + ':reportScoverage'
+            dependentTasks << it + ':processScoverageResources'
         }
         dependentTasks << 'compileScoverageScala'
         dependsOn(dependentTasks)
@@ -438,5 +436,5 @@ task testSwaggerCodegen(type: GradleBuild) {
 }
 
 def getStandaloneJarFilePath(){
-    project(":core:standalone").jar.archivePath
+    project(":core:standalone").tasks.named("bootJar").get().archiveFile.get().asFile
 }

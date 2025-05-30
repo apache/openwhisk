@@ -99,9 +99,10 @@ gradle.ext.scalafmt = [
 ]
 
 gradle.ext.akka = [version : '2.6.12']
-gradle.ext.akka_kafka = [version : '2.0.5']
-gradle.ext.akka_http = [version : '10.2.4']
-gradle.ext.akka_management = [version : '1.0.5']
+gradle.ext.akka_kafka = [version : '2.0.7']
+gradle.ext.akka_http = [version : '10.2.3']
+gradle.ext.akka_management = [version : '1.0.10']
+gradle.ext.akka_gprc = [version : '1.0.2']
 
 gradle.ext.curator = [version : '4.3.0']
 gradle.ext.kube_client = [version: '4.10.3']

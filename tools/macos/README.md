@@ -105,6 +105,7 @@ ansible-playbook setup.yml -e mode=HA
 ansible-playbook couchdb.yml
 ansible-playbook initdb.yml
 ansible-playbook wipe.yml
+ansible-playbook downloadcli-github.yml
 
 ansible-playbook properties.yml
 ```

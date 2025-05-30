@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# if you change version of openjsk, also update tools/github/setup.sh to download the corresponding jdk
+# if you change version of openjdk, also update tools/github/setup.sh to download the corresponding jdk
+# NOTE: WSK images will use a 21-jre multi arch image, compilation will be done with a jdk 17 temurin based image.
 FROM eclipse-temurin:21-jre-alpine-3.21
 
 ENV LANG=en_US.UTF-8

@@ -27,6 +27,7 @@ buildscript {
 
 plugins {
     id "org.scoverage" version "7.0.0" apply false
+    id "cz.alenkacz.gradle.scalafmt" version "1.16.2" apply false
 }
 
 subprojects {
@@ -42,16 +43,21 @@ subprojects {
         // ./gradlew :test:dependencies | grep -o 'akka-.*_' | cut -c 6- | rev | cut -c 2- | rev | sort -u
         def cons = project.getDependencies().getConstraints()
         def akka = ['akka-actor', 'akka-cluster', 'akka-cluster-metrics', 'akka-cluster-tools', 'akka-coordination',
-                    'akka-discovery', 'akka-distributed-data', 'akka-protobuf', 'akka-remote', 'akka-slf4j',
-                    'akka-stream', 'akka-stream-testkit', 'akka-testkit', 'akka-persistence', 'akka-cluster-sharding']
+                    'akka-discovery', 'discovery-kubernetes-api', 'discovery-marathon-api', 'akka-distributed-data','grpc-runtime','akka-protobuf', 'akka-remote', 'akka-slf4j',
+                    'akka-stream', 'akka-stream-testkit', 'akka-testkit', 'akka-persistence', 'akka-cluster-sharding','akka-protobuf-v3','akka-pki','akka-parsing','akka-management-cluster-bootstrap','akka-management',
+                    'akka-kryo-serialization']
         def akkaHttp = ['akka-http', 'akka-http-core', 'akka-http-spray-json', 'akka-http-testkit', 'akka-http-xml',
                         'akka-parsing', 'akka-http2-support']
+        def akkaKafka = ['akka-stream-kafka-testkit','akka-stream-kafka','akka-stream-alpakka-s3','akka-stream-alpakka-file']
 
         akka.forEach {
             cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka.version}")
         }
         akkaHttp.forEach {
             cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka_http.version}")
+        }
+        akkaKafka.forEach{
+            cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka_kafka.version}")
         }
     }
 

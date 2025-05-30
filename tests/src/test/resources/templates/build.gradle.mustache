@@ -76,16 +76,35 @@ if(hasProperty('target') && target == 'android') {
 } else {
 
     apply plugin: 'java'
-    apply plugin: 'maven'
+    apply plugin: 'maven-publish'
 
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
+    /*
     install {
         repositories.mavenInstaller {
             pom.artifactId = 'swagger-java-client'
         }
     }
+    */
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                groupId = 'com.example'
+                artifactId = 'swagger-java-client'
+                version = '1.0.0'
+            }
+        }
+        repositories {
+            maven {
+                name = "localRepo"
+                url = uri("${buildDir}/repo") // or mavenLocal() or remote repo
+            }
+        }
+    }
+
 
     task execute(type:JavaExec) {
        main = System.getProperty('mainClass')

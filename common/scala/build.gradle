@@ -59,7 +59,7 @@ dependencies {
     api "com.typesafe.akka:akka-http-core_${gradle.scala.depVersion}:${gradle.akka_http.version}"
     api "com.typesafe.akka:akka-http-spray-json_${gradle.scala.depVersion}:${gradle.akka_http.version}"
 
-    api "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:1.1.2"
+    api "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:2.0.2"
 
     api "ch.qos.logback:logback-classic:1.2.11"
     api "org.slf4j:jcl-over-slf4j:1.7.25"
@@ -144,6 +144,8 @@ dependencies {
     api "io.netty:netty-codec-http2:${gradle.netty.version}"
     api "io.netty:netty-transport-native-epoll:${gradle.netty.version}"
     api "io.netty:netty-transport-native-unix-common:${gradle.netty.version}"
+    api "com.lightbend.akka.grpc:akka-grpc-runtime_${gradle.scala.depVersion}:${gradle.akka_gprc.version}"
+    api "com.typesafe.akka:akka-stream_${gradle.scala.depVersion}:${gradle.akka.version}"
 }
 
 configurations {
