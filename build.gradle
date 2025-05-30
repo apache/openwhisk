@@ -17,8 +17,7 @@
 
 buildscript {
     repositories {
-        gradlePluginPortal()
-        mavenCentral()
+        jcenter()
     }
     dependencies {
         classpath "gradle.plugin.cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
@@ -48,10 +47,10 @@ subprojects {
                         'akka-parsing', 'akka-http2-support']
 
         akka.forEach {
-            cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka.version}")
+            cons.add('compile', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka.version}")
         }
         akkaHttp.forEach {
-            cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka_http.version}")
+            cons.add('compile', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka_http.version}")
         }
     }
 
@@ -73,17 +72,9 @@ subprojects {
                     }
                 }
             }
-
-            configurations {
-                implementationResolvable {
-                    canBeResolved = true
-                    canBeConsumed = false
-                    extendsFrom configurations.implementation
-                }
-            }
         }
 
-        if (project.plugins.hasPlugin('maven-publish')) {
+        if (project.plugins.hasPlugin('maven')) {
             task sourcesJar(type: Jar, dependsOn: classes) {
                 classifier = 'sources'
                 from sourceSets.main.allSource
@@ -99,12 +90,18 @@ subprojects {
                 classifier = 'tests'
                 from sourceSets.test.output
             }
+
+            artifacts {
+                archives sourcesJar
+                archives testSourcesJar
+                archives testClassesJar
+            }
         }
 
         if (project.plugins.hasPlugin('application')) {
             //Ensure that dist archive name does not contain version
             distTar {
-                archiveFileName = "${project.name}.tar"
+                archiveName = "${project.name}.tar"
             }
 
             //Avoid generating the zip files from maven installations

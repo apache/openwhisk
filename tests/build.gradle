@@ -20,7 +20,7 @@ import static groovy.json.JsonOutput.*
 
 plugins {
     id 'eclipse'
-    id 'maven-publish'
+    id 'maven'
     id 'org.hidetake.swagger.generator' version '2.18.1'
     id 'org.scoverage'
     id 'scala'
@@ -28,7 +28,7 @@ plugins {
 
 compileTestScala.options.encoding = 'UTF-8'
 
-//install.dependsOn ':tools:admin:install'
+install.dependsOn ':tools:admin:install'
 
 project.archivesBaseName = "openwhisk-tests"
 

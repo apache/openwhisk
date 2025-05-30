@@ -58,4 +58,3 @@ task renderModuleDetails(type: JavaExec) {
     args owHome.absolutePath
     classpath = sourceSets.main.runtimeClasspath
 }
-

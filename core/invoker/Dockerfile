@@ -15,8 +15,7 @@
 # limitations under the License.
 #
 
-ARG BASE=scala
-FROM ${BASE}
+FROM scala
 
 ENV UID=1001 \
     NOT_ROOT_USER=owuser \

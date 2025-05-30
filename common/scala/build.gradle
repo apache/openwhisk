@@ -17,19 +17,16 @@
 
 plugins {
     id 'eclipse'
-    id 'maven-publish'
+    id 'maven'
     id 'org.scoverage'
     id 'scala'
     id 'java-library'
 }
 
 ext.dockerImageName = 'scala'
-
-// Using a multiarch base image should make this supefluous
-//if(System.getProperty("os.arch").toLowerCase(Locale.ENGLISH).startsWith("aarch")) {
-//    ext.dockerDockerfileSuffix = ".arm"
-//}
-
+if(System.getProperty("os.arch").toLowerCase(Locale.ENGLISH).startsWith("aarch")) {
+    ext.dockerDockerfileSuffix = ".arm"
+}
 apply from: '../../gradle/docker.gradle'
 
 project.archivesBaseName = "openwhisk-common"
@@ -147,7 +144,7 @@ dependencies {
 }
 
 configurations {
-    api {
+    compile {
         exclude group: 'commons-logging'
         exclude group: 'log4j'
     }

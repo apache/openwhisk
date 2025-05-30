@@ -18,7 +18,7 @@
 plugins {
     id 'application'
     id 'eclipse'
-    id 'maven-publish'
+    id 'maven'
     id 'org.scoverage'
     id 'scala'
 }
