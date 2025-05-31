@@ -27,7 +27,7 @@ ADD build/distributions/user-events.tar /
 COPY init.sh /
 RUN chmod +x init.sh
 
-RUN adduser -D -u ${UID} -h /home/${NOT_ROOT_USER} -s /bin/bash ${NOT_ROOT_USER}
+RUN useradd -m -u 1001 -d /home/${NOT_ROOT_USER} -s /bin/bash ${NOT_ROOT_USER}
 USER ${NOT_ROOT_USER}
 
 # Prometheus port

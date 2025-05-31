@@ -42,7 +42,6 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         exit 1; \
     fi
 
-
 ADD ${OPENWHISK_JAR} /openwhisk-standalone.jar
 WORKDIR /
 EXPOSE 8080
