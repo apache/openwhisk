@@ -47,8 +47,10 @@ ext {
     dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
     dockerBuildArg = ['build']
     dockerDockerfileSuffix = project.hasProperty('dockerDockerfileSuffix') ? dockerDockerfileSuffix : ""
+    dockerMultiArchBuild = project.hasProperty('dockerMultiArchBuild') ? dockerMultiArchBuild.toBoolean() : false
 }
 ext.dockerTaggedImageName = dockerRegistry + dockerImagePrefix + '/' + dockerImageName + ':' + dockerImageTag
+ext.scalaBaseImageName = dockerRegistry + dockerImagePrefix + '/scala:' + dockerImageTag
 
 if(project.hasProperty('dockerHost')) {
     dockerBinary += ['--host', project.dockerHost]
@@ -58,6 +60,29 @@ if(project.hasProperty('dockerBuildArgs')) {
     dockerBuildArgs.each { arg  ->
         dockerBuildArg += ['--build-arg', arg]
     }
+    if( dockerMultiArchBuild ){
+        dockerBuildArg += ['--build-arg','BASE='+scalaBaseImageName]
+    }
+}
+
+if( !project.hasProperty('dockerBuildArgs') && dockerMultiArchBuild ) {
+    dockerBuildArg += ['--build-arg','BASE='+scalaBaseImageName]
+}
+
+def builDockerCommand(dockerFile) {
+    def cmd = dockerBinary
+
+    if(dockerMultiArchBuild) {
+        cmd += ['buildx']
+    }
+
+    cmd +=  dockerBuildArg + ['-f', dockerFile] + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+
+    if(dockerMultiArchBuild) {
+        cmd += ['--load']
+    }
+
+    return cmd
 }
 
 task distDocker {
@@ -70,8 +95,9 @@ task distDocker {
             dockerFile = dockerFileDir + "/Dockerfile"
         }
 
-        def cmd = dockerBinary + dockerBuildArg + ['-f', dockerFile] + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+        def cmd = builDockerCommand(dockerFile)
         retry(cmd, dockerRetries, dockerTimeout)
+
         println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
     }
 }
@@ -80,7 +106,7 @@ task distDockerCoverage() {
     doLast {
         def start = new Date()
         //Copy the scoverage runtime jars
-        copy {from configurations.scoverage - configurations.compile; into "build/tmp/docker-coverage/ext-lib"}
+        copy {from configurations.scoverage - configurations.implementationResolvable; into "build/tmp/docker-coverage/ext-lib"}
         //Copy the scoverage prepared jars
         coverageDirs.each {dir ->
             copy {from file(dir); into "build/tmp/docker-coverage/classes"}
@@ -140,6 +166,7 @@ task pushImage {
         retry(cmd, dockerRetries, dockerTimeout)
     }
 }
+
 pushImage.dependsOn tagImage
 pushImage.onlyIf { dockerRegistry != '' }
 distDocker.finalizedBy pushImage
@@ -165,3 +192,4 @@ def retry(cmd, retries, timeout) {
         }
     }
 }
+

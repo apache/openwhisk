@@ -18,6 +18,7 @@
 # This playbook deploys a ElasticSearch cluster
 
 - hosts: elasticsearch
+  gather_facts: yes
   vars:
     #
     # host_group - usually "{{ groups['...'] }}" where '...' is what was used

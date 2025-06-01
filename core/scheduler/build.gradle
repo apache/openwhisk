@@ -18,7 +18,7 @@
 apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'eclipse'
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 apply plugin: 'org.scoverage'
 apply plugin: 'com.lightbend.akka.grpc.gradle'
 
@@ -48,16 +48,16 @@ buildscript {
     dependencies {
         // see https://plugins.gradle.org/plugin/com.lightbend.akka.grpc.gradle
         // for the currently latest version.
-        classpath 'com.lightbend.akka.grpc:akka-grpc-gradle-plugin:1.0.0'
+        classpath 'com.lightbend.akka.grpc:akka-grpc-gradle-plugin:1.0.2'
     }
 }
 
 protobuf {
     protoc {
         if (osdetector.os == "osx") {
-            artifact = 'com.google.protobuf:protoc:3.4.0:osx-x86_64'
+            artifact = 'com.google.protobuf:protoc:3.11.4:osx-x86_64'
         } else {
-            artifact = 'com.google.protobuf:protoc:3.4.0'
+            artifact = 'com.google.protobuf:protoc:3.11.4'
         }
     }
 }
@@ -101,3 +101,13 @@ printProtocLogs.configure {
 
 mainClassName = "org.apache.openwhisk.core.scheduler.Scheduler"
 applicationDefaultJvmArgs = ["-Djava.security.egd=file:/dev/./urandom"]
+
+// Explictly declare task dependencies
+tasks.named("processResources") {
+    dependsOn tasks.named("extractProto")
+}
+
+tasks.named("processScoverageResources") {
+    dependsOn tasks.named("extractScoverageProto")
+}
+

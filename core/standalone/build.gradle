@@ -18,9 +18,9 @@
 import org.apache.tools.ant.taskdefs.condition.Os
 
 plugins {
-    id 'maven'
+    id 'maven-publish'
     id 'org.scoverage'
-    id 'org.springframework.boot' version '2.1.6.RELEASE'
+    id 'org.springframework.boot' version '2.7.18'
     id 'scala'
     id 'com.gorylenko.gradle-git-properties' version '2.4.2'
 }
@@ -147,7 +147,7 @@ task copyBootJarToBin(type:Copy){
 }
 
 bootJar {
-    mainClassName = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
+    mainClass = 'org.apache.openwhisk.standalone.StandaloneOpenWhisk'
     finalizedBy copyBootJarToBin
 }
 
@@ -159,7 +159,7 @@ gitProperties {
 // Gradle boot disables the default jar task. So need to now make
 // install task depend on bootJar such that it finds the required jar file
 // https://github.com/spring-projects/spring-boot/issues/13187
-install.dependsOn(bootJar)
+// install.dependsOn(bootJar)
 
 dependencies {
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
@@ -191,4 +191,13 @@ gradle.projectsEvaluated {
             exceptionFormat = 'full'
         }
     }
+}
+
+task copyRuntimeLibs(type:Copy) {
+    from configurations.runtimeClasspath
+    into "$buildDir/dependency-libs"
+}
+
+tasks.named("copyBootJarToBin") {
+    dependsOn tasks.named("jar")
 }

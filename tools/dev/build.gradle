@@ -33,28 +33,28 @@ dependencies {
 
 task couchdbViews(type: JavaExec) {
     description 'Dumps CouchDB views as js files'
-    main = 'couchdbViews'
+    mainClass = 'couchdbViews'
     args owHome.absolutePath
     classpath = sourceSets.main.runtimeClasspath
 }
 
 task intellij(type: JavaExec) {
     description 'Generates Intellij run config for Controller and Invoker'
-    main = 'intellijRunConfig'
+    mainClass = 'intellijRunConfig'
     args owHome.absolutePath
     classpath = sourceSets.main.runtimeClasspath
 }
 
 task listRepos(type: JavaExec) {
     description 'Generates a list of all OpenWhisk related Git repos'
-    main = 'listRepos'
+    mainClass = 'listRepos'
     args owHome.absolutePath
     classpath = sourceSets.main.runtimeClasspath
 }
 
 task renderModuleDetails(type: JavaExec) {
     description 'Renders modules details'
-    main = 'renderModuleDetails'
+    mainClass = 'renderModuleDetails'
     args owHome.absolutePath
     classpath = sourceSets.main.runtimeClasspath
 }

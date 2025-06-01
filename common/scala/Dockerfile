@@ -14,16 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# if you change version of openjsk, also update tools/github/setup.sh to download the corresponding jdk
-FROM adoptopenjdk/openjdk11-openj9:x86_64-alpine-jdk-11.0.12_7_openj9-0.27.0
+# if you change version of openjdk, also update tools/github/setup.sh to download the corresponding jdk
+# NOTE:
+# OpenWhisk will use a 21-jre multi arch image, compilation will be done with a jdk 17 temurin based image.
+# as wsk CLI is compiled against glibc we need touse a GLIBC based JRE Image (alpine it is not GLIBC based)
+FROM eclipse-temurin:21-jre
 
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
-# Switch to the HTTPS endpoint for the apk repositories as per https://github.com/gliderlabs/docker-alpine/issues/184
-RUN sed -i 's/http\:\/\/dl-cdn.alpinelinux.org/https\:\/\/alpine.global.ssl.fastly.net/g' /etc/apk/repositories
-RUN apk add --update sed curl bash && apk update && apk upgrade
+# Install curl, bash, sed
+RUN apt-get update && \
+    apt-get install -y curl bash sed openssl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /logs
 

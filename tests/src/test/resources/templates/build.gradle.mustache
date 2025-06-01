@@ -76,16 +76,35 @@ if(hasProperty('target') && target == 'android') {
 } else {
 
     apply plugin: 'java'
-    apply plugin: 'maven'
+    apply plugin: 'maven-publish'
 
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
+    /*
     install {
         repositories.mavenInstaller {
             pom.artifactId = 'swagger-java-client'
         }
     }
+    */
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                groupId = 'com.example'
+                artifactId = 'swagger-java-client'
+                version = '1.0.0'
+            }
+        }
+        repositories {
+            maven {
+                name = "localRepo"
+                url = uri("${buildDir}/repo") // or mavenLocal() or remote repo
+            }
+        }
+    }
+
 
     task execute(type:JavaExec) {
        main = System.getProperty('mainClass')
@@ -94,10 +113,10 @@ if(hasProperty('target') && target == 'android') {
 }
 
 dependencies {
-    compile 'io.swagger:swagger-annotations:1.5.17'
-    compile 'com.squareup.okhttp:okhttp:2.7.5'
-    compile 'com.squareup.okhttp:logging-interceptor:2.7.5'
-    compile 'com.google.code.gson:gson:2.8.1'
-    compile 'io.gsonfire:gson-fire:1.8.0'
-    testCompile 'junit:junit:4.12'
+    implementation 'io.swagger:swagger-annotations:1.5.17'
+    implementation 'com.squareup.okhttp:okhttp:2.7.5'
+    implementation 'com.squareup.okhttp:logging-interceptor:2.7.5'
+    implementation 'com.google.code.gson:gson:2.8.1'
+    implementation 'io.gsonfire:gson-fire:1.8.0'
+    testImplementation 'junit:junit:4.12'
 }
