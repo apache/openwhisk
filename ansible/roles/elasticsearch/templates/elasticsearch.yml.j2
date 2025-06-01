@@ -1,7 +1,7 @@
 cluster.name: "{{ db.elasticsearch.cluster_name }}"
 node.name: "{{ elasticsearch_name }}"
 network.host: 0.0.0.0
-network.publish_host: {{ ansible_default_ipv4.address }}
+network.publish_host: {{ ansible_default_ipv4.address | default(ansible_host | default('127.0.0.1')) }}
 
 http.port: 9200
 transport.tcp.port: {{ transport_port }}
