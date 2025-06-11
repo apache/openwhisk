@@ -114,9 +114,32 @@ You can also join the OpenWhisk Team on Slack [https://openwhisk-team.slack.com]
 
 ### Project Repository Structure
 
-The OpenWhisk system is built from a [number of components](docs/dev/modules.md).  The picture below groups the components by their GitHub repos. Please open issues for a component against the appropriate repo (if in doubt just open against the main openwhisk repo).
+The OpenWhisk system is built from a [number of components](docs/dev/modules.md).  The charts below group the components by their GitHub repos. Please open issues for a component against the appropriate repo (if in doubt just open against the main openwhisk repo).
 
-![component/repo mapping](docs/images/components_to_repos.png)
+#### Main
+
+| openwhisk | Runtimes | API Management | Catalog | Packages | Clients
+|---    |---    |---    |---    |---    |---
+|ansible  |openwhisk-runtime-ballerina  |openwhisk-api-gateway  |github  |openwhisk-package-alarms  |openwhisk-client-go
+|controller  |openwhisk-runtime-docker  |  |slack  |openwhisk-package-cloudant  |openwhisk-client-js
+|couchdb  |openwhisk-runtime-dotnet  |  |utils  |openwhisk-package-kafka  |
+|docs  |openwhisk-runtime-go  |  |weather  |openwhisk-package-pushnotifications  |
+|invoker  |openwhisk-runtime-java  |  |websocket  |  |
+|kafka  |openwhisk-runtime-nodejs  |  |samples  |  |
+|   |openwhisk-runtime-php   |  |  |  |
+|  |openwhisk-runtime-python  |  |  |  |
+|   |openwhisk-runtime-ruby  |  |  |  |
+|   |openwhisk-runtime-rust  |  |  |  |
+|*openwhisk-deploy-kube*  |openwhisk-runtime-swift  |  |  |  |
+
+#### Other Components
+
+| Tools | Composers | Utilities | Other
+|---    |---    |---    |---
+|openwhisk-cli  |openwhisk-composer-javascript  |openwhisk-utilities-scancode  |openwhisk-pluggable-provider
+|openwhisk-release  |openwhisk-composer-python  |  |openwhisk-slackinvite
+|openwhisk-wskdebug  |  |  |openwhisk-test
+|openwhisk-wskdeploy  |  |  |openwhisk-website
 
 ### What happens on an invocation?
 
