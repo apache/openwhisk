@@ -49,8 +49,8 @@ Learn more at [http://openwhisk.apache.org](http://openwhisk.apache.org).
 
 The easiest way to start using OpenWhisk is to install the "Standalone" OpenWhisk stack.
 This is a full-featured OpenWhisk stack running as a Java process for convenience.
-Serverless functions run within Docker containers. You will need [Docker](https://docs.docker.com/install),
-[Java](https://java.com/en/download/help/download_options.xml) and [Node.js](https://nodejs.org) available on your machine.
+Serverless functions run within Docker containers. You will need [Docker](https://docs.docker.com/install), the
+[Java Development Kit](https://www.oracle.com/java/technologies/downloads/) and [Node.js](https://nodejs.org) available on your machine.
 
 To get started:
 ```
