@@ -17,16 +17,11 @@
 
 package org.apache.openwhisk.common
 
+import akka.actor.{Actor, ActorSystem, Cancellable, Props}
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import akka.actor.Actor
-import akka.actor.ActorSystem
-import akka.actor.Cancellable
-import akka.actor.Props
+import scala.util.{Failure, Success, Try}
 
 /**
  * Scheduler utility functions to execute tasks in a repetitive way with controllable behavior
@@ -121,5 +116,26 @@ object Scheduler {
                                                                               TransactionId.unknown) = {
     require(interval > Duration.Zero)
     system.actorOf(Props(new Worker(initialDelay, interval, true, name, f)))
+  }
+
+  /**
+   * Schedules a closure to run continuously scheduled, with at least the given interval in between runs using the dispatcher.
+   * This waits until the Future of the closure has finished, ignores its result and then waits for the
+   * given interval.
+   *
+   * @param interval the time to wait between two runs of the closure
+   * @param initialDelay optionally delay the first scheduled iteration by given duration
+   * @param dispatcher the dispatcher to handle this scheduled work
+   * @param f the function to run
+   */
+  def scheduleWaitAtLeastWith(interval: FiniteDuration,
+                              initialDelay: FiniteDuration = Duration.Zero,
+                              name: String = "Scheduler",
+                              dispatcher: String)(f: () => Future[Any])(
+    implicit system: ActorSystem,
+    logging: Logging,
+    transid: TransactionId = TransactionId.unknown) = {
+    require(interval > Duration.Zero)
+    system.actorOf(Props(new Worker(initialDelay, interval, true, name, f)).withDispatcher(dispatcher))
   }
 }
