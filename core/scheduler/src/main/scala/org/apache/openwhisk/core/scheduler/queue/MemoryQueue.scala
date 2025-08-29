@@ -148,7 +148,8 @@ class MemoryQueue(private val etcdClient: EtcdClient,
     extends FSM[MemoryQueueState, MemoryQueueData]
     with Stash {
 
-  private implicit val ec: ExecutionContextExecutor = context.dispatcher
+  private implicit val ec: ExecutionContextExecutor =
+    context.system.dispatchers.lookup("dispatchers.memory-queue-dispatcher")
   private implicit val actorSystem: ActorSystem = context.system
   private implicit val timeout = Timeout(5.seconds)
   private implicit val order: Ordering[BufferedRequest] = Ordering.by(_.containerId)
@@ -181,7 +182,7 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   private[queue] var limit: Option[Int] = None
   private[queue] var initialized = false
 
-  private val logScheduler: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0.seconds, 1.seconds) { () =>
+  private val logScheduler: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0.seconds, 10.seconds) { () =>
     MetricEmitter.emitGaugeMetric(
       LoggingMarkers
         .SCHEDULER_QUEUE_WAITING_ACTIVATION(invocationNamespace, action.asString, action.toStringWithoutVersion),
@@ -926,7 +927,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
   // since there is no initial delay, it will try to create a container at initialization time
   // these schedulers will run forever and stop when the memory queue stops
   private def startMonitoring(): (ActorRef, ActorRef) = {
-    val droppingScheduler = Scheduler.scheduleWaitAtLeast(schedulingConfig.dropInterval) { () =>
+    val droppingScheduler = Scheduler.scheduleWaitAtLeastWith(
+      schedulingConfig.dropInterval,
+      dispatcher = "dispatchers.monitoring-dispatcher") { () =>
       checkToDropStaleActivation(
         clock,
         queue,
@@ -939,7 +942,9 @@ class MemoryQueue(private val etcdClient: EtcdClient,
       Future.successful(())
     }
 
-    val monitoringScheduler = Scheduler.scheduleWaitAtLeast(schedulingConfig.checkInterval) { () =>
+    val monitoringScheduler = Scheduler.scheduleWaitAtLeastWith(
+      schedulingConfig.checkInterval,
+      dispatcher = "dispatchers.monitoring-dispatcher") { () =>
       // the average duration is updated every checkInterval
       if (averageDurationBuffer.nonEmpty) {
         averageDuration = Some(averageDurationBuffer.average)

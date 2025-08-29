@@ -47,7 +47,6 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.grpc.ActivationServiceHandler
 import org.apache.openwhisk.http.BasicHttpService
 import org.apache.openwhisk.spi.SpiLoader
-import org.apache.openwhisk.utils.ExecutionContextFactory
 import pureconfig.generic.auto._
 import pureconfig.loadConfigOrThrow
 import spray.json.{DefaultJsonProtocol, _}
@@ -287,9 +286,8 @@ object Scheduler {
   }
 
   def main(args: Array[String]): Unit = {
-    implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
-    implicit val actorSystem: ActorSystem =
-      ActorSystem(name = "scheduler-actor-system", defaultExecutionContext = Some(ec))
+    implicit val actorSystem: ActorSystem = ActorSystem("scheduler-actor-system")
+    implicit val ec = actorSystem.dispatcher
 
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 

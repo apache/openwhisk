@@ -91,7 +91,7 @@ class QueueManager(
   private val leaderElectionCallbacks = TrieMap[String, (Either[EtcdFollower, EtcdLeader], Boolean) => Unit]()
 
   private implicit val askTimeout = Timeout(5.seconds)
-  private implicit val ec = context.dispatcher
+  private implicit val ec = context.system.dispatchers.lookup("dispatchers.queue-manager-dispatcher")
   private implicit val system = context.system
 
   private val watcherName = "queue-manager"
