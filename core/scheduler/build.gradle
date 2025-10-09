@@ -55,9 +55,9 @@ buildscript {
 protobuf {
     protoc {
         if (osdetector.os == "osx") {
-            artifact = 'com.google.protobuf:protoc:3.11.4:osx-x86_64'
+            artifact = 'com.google.protobuf:protoc:3.25.5:osx-x86_64'
         } else {
-            artifact = 'com.google.protobuf:protoc:3.11.4'
+            artifact = 'com.google.protobuf:protoc:3.25.5'
         }
     }
 }

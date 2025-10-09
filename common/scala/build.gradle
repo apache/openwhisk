@@ -61,11 +61,11 @@ dependencies {
 
     api "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:2.0.2"
 
-    api "ch.qos.logback:logback-classic:1.2.11"
+    api "ch.qos.logback:logback-classic:1.2.13"
     api "org.slf4j:jcl-over-slf4j:1.7.25"
     api "org.slf4j:log4j-over-slf4j:1.7.25"
     api "commons-codec:commons-codec:1.9"
-    api "commons-io:commons-io:2.11.0"
+    api "commons-io:commons-io:2.14.0"
     api "commons-collections:commons-collections:3.2.2"
     api "org.apache.kafka:kafka-clients:2.8.2"
     api "org.apache.httpcomponents:httpclient:4.5.5"
@@ -146,6 +146,19 @@ dependencies {
     api "io.netty:netty-transport-native-unix-common:${gradle.netty.version}"
     api "com.lightbend.akka.grpc:akka-grpc-runtime_${gradle.scala.depVersion}:${gradle.akka_gprc.version}"
     api "com.typesafe.akka:akka-stream_${gradle.scala.depVersion}:${gradle.akka.version}"
+
+    // Constraints for transitive dependencies to address security vulnerabilities
+    constraints {
+        api("org.apache.commons:commons-text:1.10.0")
+        api("com.google.code.gson:gson:2.8.9")
+        api("io.grpc:grpc-stub:1.62.2")
+        api("io.grpc:grpc-netty-shaded:1.62.2")
+        api("com.google.protobuf:protobuf-java:3.25.5")
+        api("org.xerial.snappy:snappy-java:1.1.10.4")
+        api("ch.qos.logback:logback-core:1.2.13")
+        api("io.netty:netty-codec:${gradle.netty.version}")
+        api("io.netty:netty-common:${gradle.netty.version}")
+    }
 }
 
 configurations {
