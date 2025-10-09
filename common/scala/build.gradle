@@ -106,7 +106,7 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
-    api "com.amazonaws:aws-java-sdk-cloudfront:1.12.395"
+    api "com.amazonaws:aws-java-sdk-cloudfront:1.12.792" // Upgraded to remove ion-java dependency (CVE-2024-21634)
 
     api ("com.azure:azure-storage-blob:12.7.0") {
         exclude group: "com.azure", module: "azure-core-test"
@@ -155,7 +155,6 @@ dependencies {
         api("io.grpc:grpc-netty-shaded:1.75.0")
         api("com.google.protobuf:protobuf-java:3.25.5")
         api("org.xerial.snappy:snappy-java:1.1.10.4")
-        api("software.amazon.ion:ion-java:1.11.10")
         api("ch.qos.logback:logback-core:1.2.13")
         api("io.netty:netty-codec:${gradle.netty.version}")
         api("io.netty:netty-common:${gradle.netty.version}")
