@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.monitoring.metrics
 
 import java.net.ServerSocket
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.Config
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import pureconfig._

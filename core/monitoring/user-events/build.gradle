@@ -38,7 +38,7 @@ dependencies {
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
     implementation project(':common:scala')
 
-    implementation "com.typesafe.akka:akka-stream-kafka_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
+    implementation "org.apache.pekko:pekko-connectors-kafka_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}"
 
     implementation "io.prometheus:simpleclient:0.6.0"
     implementation "io.prometheus:simpleclient_common:0.6.0"
@@ -52,10 +52,10 @@ dependencies {
             because 'embeddedkafka dependency cannot be upgraded currently and avro in embedded kafka 2.4.0 has vulns'
         }
     }
-    testImplementation "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
-    testImplementation "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
-    testImplementation "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
-    testImplementation "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+    testImplementation "org.apache.pekko:pekko-connectors-kafka-testkit_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}"
+    testImplementation "org.apache.pekko:pekko-testkit_${gradle.scala.depVersion}:${gradle.pekko.version}"
+    testImplementation "org.apache.pekko:pekko-stream-testkit_${gradle.scala.depVersion}:${gradle.pekko.version}"
+    testImplementation "org.apache.pekko:pekko-http-testkit_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
 }
 
 mainClassName = "org.apache.openwhisk.core.monitoring.metrics.Main"

@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.database
 
 import java.time.Instant
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpRequest
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.HttpRequest
 import spray.json.JsObject
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys

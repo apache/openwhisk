@@ -33,7 +33,7 @@ import spray.json.DefaultJsonProtocol._
 import TestUtils.RunResult
 import TestUtils.SUCCESS_EXIT
 import TestUtils.CONFLICT
-import akka.http.scaladsl.model.StatusCodes
+import org.apache.pekko.http.scaladsl.model.StatusCodes
 
 object FullyQualifiedNames {
 

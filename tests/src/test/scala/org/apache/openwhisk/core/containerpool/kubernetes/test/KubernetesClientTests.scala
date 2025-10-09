@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.containerpool.kubernetes.test
 
 import java.time.Instant
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Concat, Sink, Source}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.{Concat, Sink, Source}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext

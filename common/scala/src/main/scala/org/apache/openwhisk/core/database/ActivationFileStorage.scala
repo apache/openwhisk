@@ -22,11 +22,11 @@ import java.nio.file.{Files, Path}
 import java.time.Instant
 import java.util.EnumSet
 
-import akka.actor.ActorSystem
-import akka.stream.RestartSettings
-import akka.stream.alpakka.file.scaladsl.LogRotatorSink
-import akka.stream.scaladsl.{Flow, MergeHub, RestartSink, Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.RestartSettings
+import org.apache.pekko.stream.connectors.file.scaladsl.LogRotatorSink
+import org.apache.pekko.stream.scaladsl.{Flow, MergeHub, RestartSink, Sink, Source}
+import org.apache.pekko.util.ByteString
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 import org.apache.openwhisk.core.entity._

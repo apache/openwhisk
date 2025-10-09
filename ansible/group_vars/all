@@ -99,7 +99,7 @@ controller:
   timeoutFactor: "{{ controller_timeout_factor | default(2) }}"
   timeoutAddon: "{{ controller_timeout_addon | default('1 m') }}"
   instances: "{{ groups['controllers'] | length }}"
-  akka:
+  pekko:
     provider: cluster
     cluster:
       basePort: 8000
@@ -517,7 +517,7 @@ scheduler:
   instances: "{{ groups['schedulers'] | length }}"
   username: "{{ scheduler_username | default('scheduler.user') }}"
   password: "{{ scheduler_password | default('scheduler.pass') }}"
-  akka:
+  pekko:
     provider: cluster
     cluster:
       basePort: 25520

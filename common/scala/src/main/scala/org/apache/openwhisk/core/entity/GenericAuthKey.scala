@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.entity
 
-import akka.http.scaladsl.model.headers.HttpCredentials
+import org.apache.pekko.http.scaladsl.model.headers.HttpCredentials
 import spray.json._
 
 /**

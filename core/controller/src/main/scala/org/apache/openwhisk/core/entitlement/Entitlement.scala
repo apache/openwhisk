@@ -22,9 +22,9 @@ import scala.collection.immutable.Set
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Failure
 import scala.util.Success
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.StatusCodes.Forbidden
-import akka.http.scaladsl.model.StatusCodes.TooManyRequests
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.StatusCodes.Forbidden
+import org.apache.pekko.http.scaladsl.model.StatusCodes.TooManyRequests
 import org.apache.openwhisk.core.entitlement.Privilege.ACTIVATE
 import org.apache.openwhisk.core.entitlement.Privilege.REJECT
 import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}

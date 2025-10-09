@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.database.test
 import java.io.ByteArrayInputStream
 import java.util.Base64
 
-import akka.http.scaladsl.model.{ContentType, StatusCodes}
-import akka.stream.scaladsl.{Source, StreamConverters}
-import akka.util.ByteString
+import org.apache.pekko.http.scaladsl.model.{ContentType, StatusCodes}
+import org.apache.pekko.stream.scaladsl.{Source, StreamConverters}
+import org.apache.pekko.util.ByteString
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures

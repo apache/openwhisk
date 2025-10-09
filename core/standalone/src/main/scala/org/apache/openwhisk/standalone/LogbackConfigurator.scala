@@ -20,13 +20,13 @@ package org.apache.openwhisk.standalone
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
 
-import akka.event.LoggingAdapter
+import org.apache.pekko.event.LoggingAdapter
 import ch.qos.logback.classic.joran.JoranConfigurator
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.joran.spi.JoranException
 import ch.qos.logback.core.util.StatusPrinter
 import org.apache.commons.io.IOUtils
-import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
+import org.apache.openwhisk.common.{PekkoLogging, TransactionId}
 import org.slf4j.LoggerFactory
 
 import scala.io.AnsiColor
@@ -78,9 +78,9 @@ object LogbackConfigurator {
 }
 
 /**
- * Similar to AkkaLogging but with color support
+ * Similar to PekkoLogging but with color support
  */
-class ColoredAkkaLogging(loggingAdapter: LoggingAdapter) extends AkkaLogging(loggingAdapter) with AnsiColor {
+class ColoredPekkoLogging(loggingAdapter: LoggingAdapter) extends PekkoLogging(loggingAdapter) with AnsiColor {
   import ColorOutput.clr
 
   override protected def format(id: TransactionId, name: String, logmsg: String) =

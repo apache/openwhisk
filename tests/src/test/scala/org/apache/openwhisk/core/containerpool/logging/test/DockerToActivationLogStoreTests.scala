@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.logging.test
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Matchers}
@@ -31,8 +31,8 @@ import org.apache.openwhisk.core.entity.ExecManifest.{ImageName, RuntimeManifest
 import org.apache.openwhisk.core.entity._
 import java.time.Instant
 
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.ByteString
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerAddress, ContainerId}

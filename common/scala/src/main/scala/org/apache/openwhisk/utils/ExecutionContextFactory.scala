@@ -25,9 +25,9 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
-import akka.actor.ActorSystem
-import akka.actor.Cancellable
-import akka.actor.Scheduler
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.Cancellable
+import org.apache.pekko.actor.Scheduler
 
 object ExecutionContextFactory {
 

@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.limits
 
-import akka.http.scaladsl.model.StatusCodes.PayloadTooLarge
-import akka.http.scaladsl.model.StatusCodes.BadGateway
+import org.apache.pekko.http.scaladsl.model.StatusCodes.PayloadTooLarge
+import org.apache.pekko.http.scaladsl.model.StatusCodes.BadGateway
 import java.io.File
 import java.io.PrintWriter
 import java.time.Instant

@@ -19,9 +19,9 @@ package org.apache.openwhisk.core.database.mongodb
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, InputStream}
 
-import akka.stream.scaladsl.{Keep, Sink, StreamConverters}
-import akka.stream.testkit.TestSubscriber
-import akka.util.ByteString
+import org.apache.pekko.stream.scaladsl.{Keep, Sink, StreamConverters}
+import org.apache.pekko.stream.testkit.TestSubscriber
+import org.apache.pekko.util.ByteString
 import common.WskActorSystem
 import org.apache.commons.io.IOUtils
 import org.junit.runner.RunWith

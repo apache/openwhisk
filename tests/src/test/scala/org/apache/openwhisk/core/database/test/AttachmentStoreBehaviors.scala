@@ -19,9 +19,9 @@ package org.apache.openwhisk.core.database.test
 
 import java.io.ByteArrayInputStream
 
-import akka.http.scaladsl.model.ContentTypes
-import akka.stream.scaladsl.{Sink, Source, StreamConverters}
-import akka.util.{ByteString, ByteStringBuilder}
+import org.apache.pekko.http.scaladsl.model.ContentTypes
+import org.apache.pekko.stream.scaladsl.{Sink, Source, StreamConverters}
+import org.apache.pekko.util.{ByteString, ByteStringBuilder}
 import common.{StreamLogging, WskActorSystem}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}

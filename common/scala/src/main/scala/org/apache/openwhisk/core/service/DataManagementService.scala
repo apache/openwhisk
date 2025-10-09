@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.service
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
-import akka.util.Timeout
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
+import org.apache.pekko.util.Timeout
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.etcd.{EtcdFollower, EtcdLeader}

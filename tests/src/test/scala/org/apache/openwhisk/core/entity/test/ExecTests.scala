@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.entity.test
 
-import akka.http.scaladsl.model.ContentTypes
+import org.apache.pekko.http.scaladsl.model.ContentTypes
 import common.StreamLogging
 import spray.json._
 import org.junit.runner.RunWith

@@ -24,7 +24,7 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import akka.http.scaladsl.model.StatusCodes.NotFound
+import org.apache.pekko.http.scaladsl.model.StatusCodes.NotFound
 import common.TestUtils._
 import common._
 import common.rest.WskRestOperations

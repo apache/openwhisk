@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.containerpool.logging
 
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.TestKit
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import org.scalatest.junit.JUnitRunner

@@ -17,12 +17,12 @@
 
 package org.apache.openwhisk.core.controller
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.server.directives.AuthenticationDirective
-import akka.http.scaladsl.server.{Directives, Route}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.server.directives.AuthenticationDirective
+import org.apache.pekko.http.scaladsl.server.{Directives, Route}
 import pureconfig._
 import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
@@ -85,9 +85,9 @@ protected[controller] object RestApiCommons {
       EntitlementProvider.requiredProperties ++
       WhiskActionsApi.requiredProperties
 
-  import akka.http.scaladsl.model.HttpCharsets
-  import akka.http.scaladsl.model.MediaTypes.`application/json`
-  import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
+  import org.apache.pekko.http.scaladsl.model.HttpCharsets
+  import org.apache.pekko.http.scaladsl.model.MediaTypes.`application/json`
+  import org.apache.pekko.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
 
   /**
    * Extract an empty entity into a JSON object. This is useful for the

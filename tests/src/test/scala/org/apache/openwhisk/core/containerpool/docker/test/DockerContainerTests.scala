@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.containerpool.docker.test
 
 import java.io.IOException
 import java.time.Instant
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.ByteString
 import common.TimingHelpers
 
 import scala.collection.mutable

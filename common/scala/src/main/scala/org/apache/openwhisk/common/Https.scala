@@ -20,8 +20,8 @@ package org.apache.openwhisk.common
 import java.io.{FileInputStream, InputStream}
 import java.security.{KeyStore, SecureRandom}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
-import akka.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
-import akka.stream.TLSClientAuth
+import org.apache.pekko.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
+import org.apache.pekko.stream.TLSClientAuth
 
 object Https {
   case class HttpsConfig(keystorePassword: String, keystoreFlavor: String, keystorePath: String, clientAuth: String)

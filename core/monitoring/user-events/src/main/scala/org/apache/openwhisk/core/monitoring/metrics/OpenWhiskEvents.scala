@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.event.slf4j.SLF4JLogging
-import akka.http.scaladsl.Http
-import akka.kafka.ConsumerSettings
+import org.apache.pekko.actor.{ActorSystem, CoordinatedShutdown}
+import org.apache.pekko.event.slf4j.SLF4JLogging
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.kafka.ConsumerSettings
 import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter

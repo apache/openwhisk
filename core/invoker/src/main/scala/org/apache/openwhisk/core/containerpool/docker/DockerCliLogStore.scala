@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.containerpool.docker
 
 import java.time.Instant
 
-import akka.actor.ActorSystem
-import org.apache.openwhisk.common.{AkkaLogging, Logging, TransactionId}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.openwhisk.common.{PekkoLogging, Logging, TransactionId}
 import org.apache.openwhisk.core.containerpool.Container.ACTIVATION_LOG_SENTINEL
 import org.apache.openwhisk.core.containerpool.logging.{DockerToActivationLogStore, LogStore, LogStoreProvider}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerId}
@@ -36,7 +36,7 @@ import scala.concurrent.{ExecutionContext, Future}
 object DockerCliLogStoreProvider extends LogStoreProvider {
   override def instance(actorSystem: ActorSystem): LogStore = {
     //Logger is currently not passed implicitly to LogStoreProvider. So create one explicitly
-    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    implicit val logger = new PekkoLogging(org.apache.pekko.event.Logging.getLogger(actorSystem, this))
     new DockerCliLogStore(actorSystem)
   }
 }

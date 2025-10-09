@@ -17,13 +17,13 @@
 
 package org.apache.openwhisk.core.containerpool.v2.test
 
-import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
-import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
-import akka.http.scaladsl.model
-import akka.io.Tcp.Connect
-import akka.stream.scaladsl.{Sink, Source}
-import akka.testkit.{ImplicitSender, TestFSMRef, TestKit, TestProbe}
-import akka.util.ByteString
+import org.apache.pekko.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
+import org.apache.pekko.http.scaladsl.model
+import org.apache.pekko.io.Tcp.Connect
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.testkit.{ImplicitSender, TestFSMRef, TestKit, TestProbe}
+import org.apache.pekko.util.ByteString
 import com.ibm.etcd.api.{DeleteRangeResponse, KeyValue, PutResponse}
 import com.ibm.etcd.client.{EtcdClient => Client}
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction}

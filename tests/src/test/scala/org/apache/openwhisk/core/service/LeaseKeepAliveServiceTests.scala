@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.service
 
-import akka.actor.ActorSystem
-import akka.pattern.ask
-import akka.testkit.{ImplicitSender, TestFSMRef, TestKit, TestProbe}
-import akka.util.Timeout
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.testkit.{ImplicitSender, TestFSMRef, TestKit, TestProbe}
+import org.apache.pekko.util.Timeout
 import com.ibm.etcd.api.{LeaseGrantResponse, LeaseKeepAliveResponse, LeaseRevokeResponse, PutResponse}
 import common.StreamLogging
 import org.apache.openwhisk.core.WhiskConfig

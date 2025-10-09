@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.http.scaladsl.model.headers.HttpEncodings._
-import akka.http.scaladsl.model.headers.{`Accept-Encoding`, `Content-Encoding`, HttpEncoding, HttpEncodings}
-import akka.http.scaladsl.model.{HttpCharsets, HttpEntity, HttpResponse}
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import org.apache.pekko.http.scaladsl.model.headers.HttpEncodings._
+import org.apache.pekko.http.scaladsl.model.headers.{`Accept-Encoding`, `Content-Encoding`, HttpEncoding, HttpEncodings}
+import org.apache.pekko.http.scaladsl.model.{HttpCharsets, HttpEntity, HttpResponse}
+import org.apache.pekko.http.scaladsl.testkit.ScalatestRouteTest
 import kamon.prometheus.PrometheusReporter
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import org.junit.runner.RunWith

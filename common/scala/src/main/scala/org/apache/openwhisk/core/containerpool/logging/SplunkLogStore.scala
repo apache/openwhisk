@@ -20,25 +20,25 @@ package org.apache.openwhisk.core.containerpool.logging
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.ConnectionContext
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.client.RequestBuilding.Post
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.FormData
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.model.Uri.Path
-import akka.http.scaladsl.model.headers.Authorization
-import akka.http.scaladsl.model.headers.BasicHttpCredentials
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.OverflowStrategy
-import akka.stream.QueueOfferResult
-import akka.stream.scaladsl.Flow
-import akka.stream.scaladsl.Keep
-import akka.stream.scaladsl.Sink
-import akka.stream.scaladsl.Source
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.ConnectionContext
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.client.RequestBuilding.Post
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.model.FormData
+import org.apache.pekko.http.scaladsl.model.HttpRequest
+import org.apache.pekko.http.scaladsl.model.HttpResponse
+import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.model.Uri.Path
+import org.apache.pekko.http.scaladsl.model.headers.Authorization
+import org.apache.pekko.http.scaladsl.model.headers.BasicHttpCredentials
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.stream.OverflowStrategy
+import org.apache.pekko.stream.QueueOfferResult
+import org.apache.pekko.stream.scaladsl.Flow
+import org.apache.pekko.stream.scaladsl.Keep
+import org.apache.pekko.stream.scaladsl.Sink
+import org.apache.pekko.stream.scaladsl.Source
 import javax.net.ssl.{SSLContext, SSLEngine}
 import pureconfig._
 import pureconfig.generic.auto._
@@ -49,7 +49,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import spray.json._
-import org.apache.openwhisk.common.AkkaLogging
+import org.apache.openwhisk.common.PekkoLogging
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs}
 import org.apache.openwhisk.core.database.UserContext
@@ -89,7 +89,7 @@ class SplunkLogStore(
     extends LogDriverLogStore(actorSystem) {
   implicit val as = actorSystem
   implicit val ec = as.dispatcher
-  private val logging = new AkkaLogging(actorSystem.log)
+  private val logging = new PekkoLogging(actorSystem.log)
 
   private val splunkApi = Path / "services" / "search" / "jobs" //see http://docs.splunk.com/Documentation/Splunk/6.6.3/RESTREF/RESTsearch#search.2Fjobs
 

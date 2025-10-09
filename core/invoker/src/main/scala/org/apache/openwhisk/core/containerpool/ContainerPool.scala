@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import org.apache.openwhisk.core.connector.MessageFeed
 import org.apache.openwhisk.core.entity.ExecManifest.ReactivePrewarmingConfig
@@ -110,7 +110,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       this,
       LoggingMarkers.INVOKER_CONTAINER_START(containerState, namespaceName, actionNamespace, actionName),
       s"containerStart containerState: $containerState container: $container activations: $activeActivations of max $maxConcurrent action: $actionName namespace: $namespaceName activationId: $activationId",
-      akka.event.Logging.InfoLevel)
+      org.apache.pekko.event.Logging.InfoLevel)
   }
 
   def receive: Receive = {

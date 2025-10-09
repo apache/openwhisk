@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.yarn
 
-import akka.actor.{Actor, ActorSystem}
-import akka.http.scaladsl.model.{HttpMethods, StatusCodes}
+import org.apache.pekko.actor.{Actor, ActorSystem}
+import org.apache.pekko.http.scaladsl.model.{HttpMethods, StatusCodes}
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.yarn.YARNComponentActor.{CreateContainerAsync, RemoveContainer}

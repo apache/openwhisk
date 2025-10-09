@@ -20,16 +20,16 @@ package org.apache.openwhisk.core.containerpool.test
 import java.net.InetSocketAddress
 import java.time.Instant
 
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
-import akka.actor.{ActorRef, ActorSystem, FSM}
-import akka.stream.scaladsl.Source
-import akka.testkit.{CallingThreadDispatcher, ImplicitSender, TestKit, TestProbe}
-import akka.util.ByteString
+import org.apache.pekko.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import org.apache.pekko.actor.{ActorRef, ActorSystem, FSM}
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.testkit.{CallingThreadDispatcher, ImplicitSender, TestKit, TestProbe}
+import org.apache.pekko.util.ByteString
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.io.Tcp.{Close, CommandFailed, Connect, Connected}
+import org.apache.pekko.io.Tcp.{Close, CommandFailed, Connect, Connected}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}

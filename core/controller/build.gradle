@@ -46,9 +46,9 @@ dependencies {
     implementation project(':core:invoker')
     implementation project(':core:scheduler')
 
-    implementation "com.lightbend.akka.management:akka-management-cluster-bootstrap_${gradle.scala.depVersion}:${gradle.akka_management.version}"
-    implementation "com.lightbend.akka.discovery:akka-discovery-kubernetes-api_${gradle.scala.depVersion}:${gradle.akka_management.version}"
-    implementation "com.lightbend.akka.discovery:akka-discovery-marathon-api_${gradle.scala.depVersion}:${gradle.akka_management.version}"
+    implementation "org.apache.pekko:pekko-management-cluster-bootstrap_${gradle.scala.depVersion}:${gradle.pekko_management.version}"
+    implementation "org.apache.pekko:pekko-discovery-kubernetes-api_${gradle.scala.depVersion}:${gradle.pekko_management.version}"
+    implementation "org.apache.pekko:pekko-discovery-marathon-api_${gradle.scala.depVersion}:${gradle.pekko_management.version}"
 }
 
 mainClassName = "org.apache.openwhisk.core.controller.Controller"

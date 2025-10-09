@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.invoker.test
 
 import java.nio.charset.StandardCharsets
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.TestKit
 import common.WskTestHelpers
 import org.apache.openwhisk.common.InvokerState.Healthy
 import org.apache.openwhisk.core.ConfigKeys

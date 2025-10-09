@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.docker.test
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 
 import scala.concurrent.Future
 import org.junit.runner.RunWith

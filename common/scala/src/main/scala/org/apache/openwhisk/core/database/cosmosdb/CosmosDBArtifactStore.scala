@@ -18,11 +18,11 @@
 package org.apache.openwhisk.core.database.cosmosdb
 
 import _root_.rx.RxReactiveStreams
-import akka.actor.ActorSystem
-import akka.event.Logging.InfoLevel
-import akka.http.scaladsl.model.{ContentType, StatusCodes, Uri}
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging.InfoLevel
+import org.apache.pekko.http.scaladsl.model.{ContentType, StatusCodes, Uri}
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.ByteString
 import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient

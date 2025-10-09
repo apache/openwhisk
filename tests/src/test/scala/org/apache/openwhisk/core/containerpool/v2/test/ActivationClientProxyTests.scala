@@ -17,12 +17,12 @@
 
 package org.apache.openwhisk.core.containerpool.v2.test
 
-import akka.Done
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
-import akka.actor.Status.Failure
-import akka.actor.{ActorRef, ActorSystem}
-import akka.grpc.internal.ClientClosedException
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import org.apache.pekko.Done
+import org.apache.pekko.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import org.apache.pekko.actor.Status.Failure
+import org.apache.pekko.actor.{ActorRef, ActorSystem}
+import org.apache.pekko.grpc.internal.ClientClosedException
+import org.apache.pekko.testkit.{ImplicitSender, TestKit, TestProbe}
 import common.StreamLogging
 import io.grpc.StatusRuntimeException
 import org.apache.openwhisk.common.{GracefulShutdown, TransactionId}

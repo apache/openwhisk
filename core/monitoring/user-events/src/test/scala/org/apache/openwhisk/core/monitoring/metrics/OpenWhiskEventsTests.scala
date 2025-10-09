@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.{HttpRequest, StatusCodes}
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.config.ConfigFactory
 import io.prometheus.client.CollectorRegistry
 import kamon.Kamon

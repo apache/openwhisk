@@ -21,10 +21,10 @@ import java.io.StringWriter
 import java.util
 import java.util.concurrent.TimeUnit
 
-import akka.event.slf4j.SLF4JLogging
-import akka.http.scaladsl.model.{HttpEntity, MessageEntity}
-import akka.stream.scaladsl.{Concat, Source}
-import akka.util.ByteString
+import org.apache.pekko.event.slf4j.SLF4JLogging
+import org.apache.pekko.http.scaladsl.model.{HttpEntity, MessageEntity}
+import org.apache.pekko.stream.scaladsl.{Concat, Source}
+import org.apache.pekko.util.ByteString
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.{CollectorRegistry, Counter, Gauge, Histogram}
 import kamon.prometheus.PrometheusReporter

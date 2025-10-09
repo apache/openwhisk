@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.containerpool.v2.test
 
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
+import org.apache.pekko.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem}
+import org.apache.pekko.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common.{Enable, GracefulShutdown, RingBuffer}

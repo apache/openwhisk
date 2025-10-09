@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import java.util.concurrent.CountDownLatch
 
-import akka.stream.scaladsl.Source
+import org.apache.pekko.stream.scaladsl.Source
 import com.typesafe.config.ConfigFactory
 import io.netty.util.ResourceLeakDetector
 import io.netty.util.ResourceLeakDetector.Level

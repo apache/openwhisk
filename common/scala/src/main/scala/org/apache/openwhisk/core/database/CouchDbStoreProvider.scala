@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.database
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import spray.json.RootJsonFormat
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys

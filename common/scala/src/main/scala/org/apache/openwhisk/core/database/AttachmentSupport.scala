@@ -19,11 +19,11 @@ package org.apache.openwhisk.core.database
 
 import java.util.Base64
 
-import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.{ContentType, Uri}
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.{ContentType, Uri}
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.ByteString
 import spray.json.DefaultJsonProtocol
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.AttachmentSupport.MemScheme

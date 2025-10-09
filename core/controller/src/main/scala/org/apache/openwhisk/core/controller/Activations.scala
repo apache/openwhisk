@@ -22,10 +22,10 @@ import java.time.Instant
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
-import akka.http.scaladsl.model.StatusCodes.BadRequest
-import akka.http.scaladsl.server.Directives
-import akka.http.scaladsl.unmarshalling._
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
+import org.apache.pekko.http.scaladsl.model.StatusCodes.BadRequest
+import org.apache.pekko.http.scaladsl.server.Directives
+import org.apache.pekko.http.scaladsl.unmarshalling._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.ConfigKeys

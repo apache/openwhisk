@@ -19,7 +19,7 @@ package org.apache.openwhisk.common
 
 import java.nio.charset.StandardCharsets
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import common._
 import common.rest.WskRestOperations
 import org.junit.runner.RunWith

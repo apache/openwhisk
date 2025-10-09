@@ -20,8 +20,8 @@ package org.apache.openwhisk.core.scheduler
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{TestKit, TestProbe}
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.client.kv.WatchUpdate
 import common.rest.WskRestOperations

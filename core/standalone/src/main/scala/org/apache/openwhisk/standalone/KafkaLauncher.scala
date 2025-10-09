@@ -18,7 +18,7 @@
 package org.apache.openwhisk.standalone
 
 import java.io.File
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import kafka.server.KafkaConfig
 import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.commons.io.FileUtils

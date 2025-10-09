@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.connector.test
 
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.TestKit
 import org.apache.openwhisk.common.InvokerState.{Healthy, Unhealthy}
 import org.apache.openwhisk.core.connector.InvokerResourceMessage
 import org.apache.openwhisk.core.entity.SchedulerInstanceId

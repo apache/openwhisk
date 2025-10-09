@@ -30,7 +30,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import akka.actor.PoisonPill
+import org.apache.pekko.actor.PoisonPill
 import common.StreamLogging
 import common.WskActorSystem
 
@@ -71,7 +71,7 @@ class SchedulerTests extends FlatSpec with Matchers with WskActorSystem with Str
     waitForCalls()
     // This is equal to a scheduled ! PoisonPill
     val shutdownTimeout = 10.seconds
-    Await.result(akka.pattern.gracefulStop(scheduled, shutdownTimeout, PoisonPill), shutdownTimeout)
+    Await.result(org.apache.pekko.pattern.gracefulStop(scheduled, shutdownTimeout, PoisonPill), shutdownTimeout)
 
     val countAfterKill = callCount
     callCount should be >= callsToProduce
@@ -152,7 +152,7 @@ class SchedulerTests extends FlatSpec with Matchers with WskActorSystem with Str
 
     val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls) { () =>
       calls += Instant.now
-      akka.pattern.after(computationTime, actorSystem.scheduler)(Future.successful(true))
+      org.apache.pekko.pattern.after(computationTime, actorSystem.scheduler)(Future.successful(true))
     }
 
     waitForCalls(interval = timeBetweenCalls)
@@ -215,7 +215,7 @@ class SchedulerTests extends FlatSpec with Matchers with WskActorSystem with Str
 
     val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls) { () =>
       calls += Instant.now
-      akka.pattern.after(computationTime, actorSystem.scheduler)(Future.successful(true))
+      org.apache.pekko.pattern.after(computationTime, actorSystem.scheduler)(Future.successful(true))
     }
 
     waitForCalls(interval = timeBetweenCalls)

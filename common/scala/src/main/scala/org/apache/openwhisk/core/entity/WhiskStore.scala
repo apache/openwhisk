@@ -22,7 +22,7 @@ import java.time.Instant
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString

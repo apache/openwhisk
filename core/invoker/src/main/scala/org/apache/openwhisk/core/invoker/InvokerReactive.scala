@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.invoker
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 
-import akka.Done
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
-import akka.event.Logging.InfoLevel
+import org.apache.pekko.Done
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
+import org.apache.pekko.event.Logging.InfoLevel
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.core.ack.{MessagingActiveAck, UserEventSender}

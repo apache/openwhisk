@@ -19,7 +19,7 @@ package org.apache.openwhisk.standalone
 
 import java.io.File
 
-import akka.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.model.Uri
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.openwhisk.common.TransactionId.systemPrefix
 import org.apache.openwhisk.common.{Logging, TransactionId}

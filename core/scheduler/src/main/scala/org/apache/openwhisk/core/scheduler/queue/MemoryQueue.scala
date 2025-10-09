@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.scheduler.queue
 
-import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorRef, ActorSystem, Cancellable, FSM, Props, Stash}
-import akka.util.Timeout
+import org.apache.pekko.actor.Status.{Failure => FailureMessage}
+import org.apache.pekko.actor.{ActorRef, ActorSystem, Cancellable, FSM, Props, Stash}
+import org.apache.pekko.util.Timeout
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.common.time.{Clock, SystemClock}
 import org.apache.openwhisk.core.ConfigKeys

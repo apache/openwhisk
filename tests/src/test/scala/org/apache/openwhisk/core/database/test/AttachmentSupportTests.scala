@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.database.test
 
-import akka.http.scaladsl.model.Uri
-import akka.stream.scaladsl.Source
-import akka.util.CompactByteString
+import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.CompactByteString
 import common.WskActorSystem
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures

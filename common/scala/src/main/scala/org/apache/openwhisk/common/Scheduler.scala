@@ -23,10 +23,10 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import akka.actor.Actor
-import akka.actor.ActorSystem
-import akka.actor.Cancellable
-import akka.actor.Props
+import org.apache.pekko.actor.Actor
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.Cancellable
+import org.apache.pekko.actor.Props
 
 /**
  * Scheduler utility functions to execute tasks in a repetitive way with controllable behavior

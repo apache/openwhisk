@@ -17,17 +17,17 @@
 
 package org.apache.openwhisk.core.scheduler
 
-import akka.Done
-import akka.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown, Props}
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
-import akka.management.scaladsl.AkkaManagement
-import akka.management.cluster.bootstrap.ClusterBootstrap
-import akka.pattern.ask
-import akka.util.Timeout
+import org.apache.pekko.Done
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown, Props}
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.{HttpRequest, HttpResponse}
+import org.apache.pekko.management.scaladsl.PekkoManagement
+import org.apache.pekko.management.cluster.bootstrap.ClusterBootstrap
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.Timeout
 import com.typesafe.config.ConfigValueFactory
-import io.altoo.akka.serialization.kryo.DefaultKryoInitializer
-import io.altoo.akka.serialization.kryo.serializer.scala.ScalaKryo
+import io.altoo.pekko.serialization.kryo.compat.AkkaCompatKryoInitializer
+import io.altoo.serialization.kryo.scala.serializer.ScalaKryo
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
@@ -291,10 +291,10 @@ object Scheduler {
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "scheduler-actor-system", defaultExecutionContext = Some(ec))
 
-    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    implicit val logger = new PekkoLogging(org.apache.pekko.event.Logging.getLogger(actorSystem, this))
 
     if (useClusterBootstrap) {
-      AkkaManagement(actorSystem).start()
+      PekkoManagement(actorSystem).start()
       ClusterBootstrap(actorSystem).start()
     }
 
@@ -373,7 +373,7 @@ case class SchedulerEndpoints(host: String, rpcPort: Int, akkaPort: Int) {
   def getRemoteRef(name: String)(implicit context: ActorRefFactory): ActorSelection = {
     implicit val ec = context.dispatcher
 
-    val path = s"akka://scheduler-actor-system@${asAkkaEndpoint}/user/${name}"
+    val path = s"pekko://scheduler-actor-system@${asAkkaEndpoint}/user/${name}"
     context.actorSelection(path)
   }
 
@@ -391,7 +391,7 @@ case class SchedulerStates(sid: SchedulerInstanceId, queueSize: Int, endpoints: 
   def getRemoteRef(name: String)(implicit context: ActorRefFactory): ActorSelection = {
     implicit val ec = context.dispatcher
 
-    val path = s"akka://scheduler-actor-system@${endpoints.asAkkaEndpoint}/user/${name}"
+    val path = s"pekko://scheduler-actor-system@${endpoints.asAkkaEndpoint}/user/${name}"
     context.actorSelection(path)
   }
 
@@ -428,8 +428,25 @@ case class SchedulingConfig(staleThreshold: FiniteDuration,
                             allowOverProvisionBeforeThrottle: Boolean,
                             namespaceOverProvisionBeforeThrottleRatio: Double)
 
-class CompatibleKryoInitializer extends DefaultKryoInitializer {
+/**
+ * Custom Kryo initializer that combines:
+ * 1. Akka/Pekko wire compatibility (via AkkaCompatKryoInitializer base class)
+ * 2. Schema evolution support (via CompatibleFieldSerializer)
+ * 
+ * The AkkaCompatKryoInitializer handles ActorRef and ByteString compatibility between Akka and Pekko nodes,
+ * allowing rolling upgrades from Akka to Pekko clusters.
+ * 
+ * CompatibleFieldSerializer provides forward and backward compatibility when case class schemas change:
+ * - New fields can be added without breaking deserialization of old messages
+ * - Old fields can be removed without breaking deserialization of new messages
+ * 
+ * This combination ensures safe rolling upgrades both for the Akka→Pekko migration AND
+ * for future OpenWhisk schema changes.
+ */
+class CompatibleKryoInitializer extends AkkaCompatKryoInitializer {
   override def preInit(kryo: ScalaKryo): Unit = {
-    kryo.setDefaultSerializer(classOf[com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer[_]])
+    super.preInit(kryo)
+    // Use CompatibleFieldSerializer for schema evolution support
+    kryo.setDefaultSerializer(classOf[com.esotericsoftware.kryo.kryo5.serializers.CompatibleFieldSerializer[_]])
   }
 }

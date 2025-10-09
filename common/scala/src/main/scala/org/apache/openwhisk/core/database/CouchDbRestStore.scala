@@ -17,11 +17,11 @@
 
 package org.apache.openwhisk.core.database
 
-import akka.actor.ActorSystem
-import akka.event.Logging.ErrorLevel
-import akka.http.scaladsl.model._
-import akka.stream.scaladsl._
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging.ErrorLevel
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.ByteString
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

@@ -21,9 +21,9 @@ import java.io.File
 import java.nio.file.Paths
 import java.time.Instant
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpRequest
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.HttpRequest
+import org.apache.pekko.testkit.TestKit
 import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures

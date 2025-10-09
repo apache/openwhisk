@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.containerpool.logging
 import java.nio.file.{Path, Paths}
 import java.time.Instant
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Flow
-import akka.http.scaladsl.model._
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.Flow
+import org.apache.pekko.http.scaladsl.model._
 import org.apache.openwhisk.core.entity.{ActivationId, ActivationLogs, Identity}
 import org.apache.openwhisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 import org.apache.openwhisk.core.ConfigKeys

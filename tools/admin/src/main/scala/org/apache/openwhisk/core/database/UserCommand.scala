@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.database
 
 import java.util.UUID
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.cli.{CommandError, CommandMessages, IllegalState, WhiskCommand}
 import org.apache.openwhisk.core.database.UserCommand.ExtendedAuth

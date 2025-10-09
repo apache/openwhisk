@@ -20,11 +20,11 @@ package org.apache.openwhisk.core.scheduler.queue.test
 import java.time.Instant
 import java.util.concurrent.Executor
 import java.{lang, util}
-import akka.actor.ActorRef
-import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
-import akka.pattern.ask
-import akka.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
-import akka.util.Timeout
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
+import org.apache.pekko.util.Timeout
 import com.google.protobuf.ByteString
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.api._

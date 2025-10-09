@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.connector.kafka
 
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.testkit.ScalatestRouteTest
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import org.apache.kafka.common.MetricName
 import org.apache.kafka.common.metrics.{KafkaMetric, Measurable, MetricConfig}
 import org.apache.kafka.common.utils.Time

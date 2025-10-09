@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.service
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
-import akka.util.Timeout
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
+import org.apache.pekko.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
+import org.apache.pekko.util.Timeout
 import common.StreamLogging
 import org.apache.openwhisk.core.entity.SchedulerInstanceId
 import org.junit.runner.RunWith

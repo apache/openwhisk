@@ -17,15 +17,15 @@
 
 package org.apache.openwhisk.core.containerpool
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.Accept
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.StreamTcpException
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.marshalling.Marshal
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.Accept
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.stream.StreamTcpException
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.ByteString
 import org.apache.openwhisk.common.LoggingMarkers.CONTAINER_CLIENT_RETRIES
 import org.apache.openwhisk.common.{Logging, MetricEmitter, TransactionId}
 import org.apache.openwhisk.core.entity.ActivationResponse.{ContainerHttpError, _}
@@ -148,7 +148,7 @@ protected class AkkaContainerClient(
           Future.failed(ContainerHealthError(tid, endpoint))
         case t: StreamTcpException if retry =>
           if (timeout > Duration.Zero) {
-            akka.pattern.after(retryInterval, as.scheduler)({
+            org.apache.pekko.pattern.after(retryInterval, as.scheduler)({
               val newTimeout = timeout - (Instant.now.toEpochMilli - start.toEpochMilli).milliseconds
               retryingRequest(req, newTimeout, retry, reschedule, endpoint, retryCount + 1)
             })

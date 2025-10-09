@@ -30,15 +30,15 @@ import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.actor.FSM
-import akka.actor.FSM.CurrentState
-import akka.actor.FSM.SubscribeTransitionCallBack
-import akka.actor.FSM.Transition
-import akka.actor.PoisonPill
-import akka.actor.Props
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.FSM
+import org.apache.pekko.actor.FSM.CurrentState
+import org.apache.pekko.actor.FSM.SubscribeTransitionCallBack
+import org.apache.pekko.actor.FSM.Transition
+import org.apache.pekko.actor.PoisonPill
+import org.apache.pekko.actor.Props
+import org.apache.pekko.testkit.TestKit
 import common.StreamLogging
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.connector.MessageFeed._

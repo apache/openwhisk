@@ -16,9 +16,9 @@
  */
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
-import akka.Done
-import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.kafka.ProducerSettings
+import org.apache.pekko.Done
+import org.apache.pekko.actor.{ActorSystem, CoordinatedShutdown}
+import org.apache.pekko.kafka.ProducerSettings
 import com.typesafe.config.Config
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.openwhisk.common.Logging

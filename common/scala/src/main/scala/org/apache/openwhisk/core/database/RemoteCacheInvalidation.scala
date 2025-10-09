@@ -24,8 +24,8 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import akka.actor.ActorSystem
-import akka.actor.Props
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.Props
 import spray.json._
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}

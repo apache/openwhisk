@@ -20,8 +20,8 @@ package org.apache.openwhisk.core.scheduler.queue.test
 import java.{lang, util}
 import java.util.concurrent.Executor
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{TestKit, TestProbe}
 import com.google.protobuf.ByteString
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.api.{Event, KeyValue, LeaseKeepAliveResponse, ResponseHeader, TxnResponse}

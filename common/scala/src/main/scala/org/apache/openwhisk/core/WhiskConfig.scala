@@ -19,7 +19,7 @@ package org.apache.openwhisk.core
 
 import java.io.File
 
-import akka.http.scaladsl.model.Uri.normalize
+import org.apache.pekko.http.scaladsl.model.Uri.normalize
 import org.apache.openwhisk.common.{Config, Logging}
 
 import scala.io.Source

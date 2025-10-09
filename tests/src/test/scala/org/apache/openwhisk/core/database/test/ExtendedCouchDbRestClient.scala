@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.database.test
 
 import scala.concurrent.Future
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model._
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model._
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._

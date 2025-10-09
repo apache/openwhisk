@@ -17,16 +17,16 @@
 
 package org.apache.openwhisk.http
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.settings.ConnectionPoolSettings
-import akka.http.scaladsl.unmarshalling._
-import akka.stream.scaladsl.{Flow, _}
-import akka.stream.{KillSwitches, QueueOfferResult}
-import org.apache.openwhisk.common.AkkaLogging
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.marshalling._
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.settings.ConnectionPoolSettings
+import org.apache.pekko.http.scaladsl.unmarshalling._
+import org.apache.pekko.stream.scaladsl.{Flow, _}
+import org.apache.pekko.stream.{KillSwitches, QueueOfferResult}
+import org.apache.openwhisk.common.PekkoLogging
 import spray.json._
 
 import scala.concurrent.duration._
@@ -50,7 +50,7 @@ class PoolingRestClient(
   timeout: Option[FiniteDuration] = None)(implicit system: ActorSystem, ec: ExecutionContext) {
   require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
-  private val logging = new AkkaLogging(system.log)
+  private val logging = new PekkoLogging(system.log)
 
   //if specified, override the ClientConnection idle-timeout and keepalive socket option value
   private val timeoutSettings = {

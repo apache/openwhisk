@@ -22,16 +22,16 @@ import java.net.SocketTimeoutException
 import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 import java.time.{Instant, ZoneId}
-import akka.actor.ActorSystem
-import akka.event.Logging.ErrorLevel
-import akka.event.Logging.InfoLevel
-import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.model.Uri.{Path, Query}
-import akka.pattern.after
-import akka.stream.scaladsl.Source
-import akka.stream.stage._
-import akka.stream.{Attributes, Outlet, SourceShape}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging.ErrorLevel
+import org.apache.pekko.event.Logging.InfoLevel
+import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.model.Uri.{Path, Query}
+import org.apache.pekko.pattern.after
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.stream.stage._
+import org.apache.pekko.stream.{Attributes, Outlet, SourceShape}
+import org.apache.pekko.util.ByteString
 
 import collection.JavaConverters._
 import io.fabric8.kubernetes.api.model._
@@ -161,7 +161,7 @@ class KubernetesClient(
       this,
       LoggingMarkers.INVOKER_KUBEAPI_CMD("create"),
       s"launching pod $name (image:$image, mem: ${memory.toMB}) (timeout: ${config.timeouts.run.toSeconds}s)",
-      logLevel = akka.event.Logging.InfoLevel)
+      logLevel = org.apache.pekko.event.Logging.InfoLevel)
 
     //create the pod; catch any failure to end the transaction timer
     Try {
@@ -231,7 +231,7 @@ class KubernetesClient(
       this,
       LoggingMarkers.INVOKER_KUBEAPI_CMD("delete"),
       s"Deleting pods with label $labels",
-      logLevel = akka.event.Logging.InfoLevel)
+      logLevel = org.apache.pekko.event.Logging.InfoLevel)
     Future {
       blocking {
         kubeRestClient
@@ -262,7 +262,7 @@ class KubernetesClient(
       this,
       LoggingMarkers.INVOKER_KUBEAPI_CMD("delete"),
       s"Deleting pod ${podName}",
-      logLevel = akka.event.Logging.InfoLevel)
+      logLevel = org.apache.pekko.event.Logging.InfoLevel)
     Future {
       blocking {
         kubeRestClient

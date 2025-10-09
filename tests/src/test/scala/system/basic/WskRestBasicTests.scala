@@ -17,11 +17,11 @@
 
 package system.basic
 
-import akka.http.scaladsl.model.StatusCodes.Accepted
-import akka.http.scaladsl.model.StatusCodes.BadGateway
-import akka.http.scaladsl.model.StatusCodes.Conflict
-import akka.http.scaladsl.model.StatusCodes.Unauthorized
-import akka.http.scaladsl.model.StatusCodes.NotFound
+import org.apache.pekko.http.scaladsl.model.StatusCodes.Accepted
+import org.apache.pekko.http.scaladsl.model.StatusCodes.BadGateway
+import org.apache.pekko.http.scaladsl.model.StatusCodes.Conflict
+import org.apache.pekko.http.scaladsl.model.StatusCodes.Unauthorized
+import org.apache.pekko.http.scaladsl.model.StatusCodes.NotFound
 import java.time.Instant
 
 import scala.concurrent.duration.DurationInt

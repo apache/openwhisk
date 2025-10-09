@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import java.util
 
-import akka.Done
+import org.apache.pekko.Done
 import com.azure.data.cosmos.internal.changefeed.implementation.ChangeFeedProcessorBuilderImpl
 import com.azure.data.cosmos.internal.changefeed.{ChangeFeedObserverCloseReason, ChangeFeedObserverContext}
 import com.azure.data.cosmos.{

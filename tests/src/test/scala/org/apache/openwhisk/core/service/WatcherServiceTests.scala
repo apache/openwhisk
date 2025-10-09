@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.service
 import java.{lang, util}
 import java.util.concurrent.Executor
 
-import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
-import akka.util.Timeout
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import org.apache.pekko.util.Timeout
 import com.google.protobuf.ByteString
 import com.ibm.etcd.api.{Event, KeyValue, ResponseHeader}
 import com.ibm.etcd.api.Event.EventType

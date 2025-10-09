@@ -48,18 +48,18 @@ dependencies {
     }
     api "io.spray:spray-json_${gradle.scala.depVersion}:1.3.5"
     api "com.lihaoyi:fastparse_${gradle.scala.depVersion}:2.3.0"
-    api "com.typesafe.akka:akka-actor_${gradle.scala.depVersion}:${gradle.akka.version}"
-    api "com.typesafe.akka:akka-stream_${gradle.scala.depVersion}:${gradle.akka.version}"
-    api "com.typesafe.akka:akka-slf4j_${gradle.scala.depVersion}:${gradle.akka.version}"
-    api "com.typesafe.akka:akka-cluster_${gradle.scala.depVersion}:${gradle.akka.version}"
-    api "com.typesafe.akka:akka-cluster-metrics_${gradle.scala.depVersion}:${gradle.akka.version}"
-    api "com.typesafe.akka:akka-cluster-tools_${gradle.scala.depVersion}:${gradle.akka.version}"
-    api "com.typesafe.akka:akka-distributed-data_${gradle.scala.depVersion}:${gradle.akka.version}"
+    api "org.apache.pekko:pekko-actor_${gradle.scala.depVersion}:${gradle.pekko.version}"
+    api "org.apache.pekko:pekko-stream_${gradle.scala.depVersion}:${gradle.pekko.version}"
+    api "org.apache.pekko:pekko-slf4j_${gradle.scala.depVersion}:${gradle.pekko.version}"
+    api "org.apache.pekko:pekko-cluster_${gradle.scala.depVersion}:${gradle.pekko.version}"
+    api "org.apache.pekko:pekko-cluster-metrics_${gradle.scala.depVersion}:${gradle.pekko.version}"
+    api "org.apache.pekko:pekko-cluster-tools_${gradle.scala.depVersion}:${gradle.pekko.version}"
+    api "org.apache.pekko:pekko-distributed-data_${gradle.scala.depVersion}:${gradle.pekko.version}"
 
-    api "com.typesafe.akka:akka-http-core_${gradle.scala.depVersion}:${gradle.akka_http.version}"
-    api "com.typesafe.akka:akka-http-spray-json_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+    api "org.apache.pekko:pekko-http-core_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
+    api "org.apache.pekko:pekko-http-spray-json_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
 
-    api "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.depVersion}:2.0.2"
+    api "org.apache.pekko:pekko-connectors-file_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}"
 
     api "ch.qos.logback:logback-classic:1.2.11"
     api "org.slf4j:jcl-over-slf4j:1.7.25"
@@ -101,8 +101,8 @@ dependencies {
     api "io.reactivex:rxjava-reactive-streams:1.2.1"
 
 
-    api ("com.lightbend.akka:akka-stream-alpakka-s3_${gradle.scala.depVersion}:1.1.2") {
-        exclude group: 'org.apache.httpcomponents' //Not used as alpakka uses akka-http
+    api ("org.apache.pekko:pekko-connectors-s3_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}") {
+        exclude group: 'org.apache.httpcomponents' //Not used as pekko-connectors uses pekko-http
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
@@ -144,8 +144,8 @@ dependencies {
     api "io.netty:netty-codec-http2:${gradle.netty.version}"
     api "io.netty:netty-transport-native-epoll:${gradle.netty.version}"
     api "io.netty:netty-transport-native-unix-common:${gradle.netty.version}"
-    api "com.lightbend.akka.grpc:akka-grpc-runtime_${gradle.scala.depVersion}:${gradle.akka_gprc.version}"
-    api "com.typesafe.akka:akka-stream_${gradle.scala.depVersion}:${gradle.akka.version}"
+    api "org.apache.pekko:pekko-grpc-runtime_${gradle.scala.depVersion}:${gradle.pekko_grpc.version}"
+    api "org.apache.pekko:pekko-stream_${gradle.scala.depVersion}:${gradle.pekko.version}"
 }
 
 configurations {

@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.common.etcd
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
-import akka.util.Timeout
+import org.apache.pekko.actor.{ActorRef, ActorSystem}
+import org.apache.pekko.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
+import org.apache.pekko.util.Timeout
 import com.ibm.etcd.api.{DeleteRangeResponse, PutResponse, TxnResponse}
 import common.StreamLogging
 import io.grpc.{Status, StatusRuntimeException}

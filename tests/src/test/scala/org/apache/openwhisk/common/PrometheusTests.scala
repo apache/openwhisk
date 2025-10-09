@@ -16,12 +16,12 @@
  */
 
 package org.apache.openwhisk.common
-import akka.http.scaladsl.coding.{Coders}
-import akka.http.scaladsl.model.{HttpCharsets, HttpResponse}
-import akka.http.scaladsl.model.headers.HttpEncodings.gzip
-import akka.http.scaladsl.model.headers.{`Accept-Encoding`, `Content-Encoding`, HttpEncoding, HttpEncodings}
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.http.scaladsl.coding.{Coders}
+import org.apache.pekko.http.scaladsl.model.{HttpCharsets, HttpResponse}
+import org.apache.pekko.http.scaladsl.model.headers.HttpEncodings.gzip
+import org.apache.pekko.http.scaladsl.model.headers.{`Accept-Encoding`, `Content-Encoding`, HttpEncoding, HttpEncodings}
+import org.apache.pekko.http.scaladsl.testkit.ScalatestRouteTest
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.config.ConfigFactory
 import kamon.Kamon
 import org.junit.runner.RunWith

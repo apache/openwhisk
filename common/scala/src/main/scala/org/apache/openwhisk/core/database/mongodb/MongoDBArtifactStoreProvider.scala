@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.database.mongodb
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database._

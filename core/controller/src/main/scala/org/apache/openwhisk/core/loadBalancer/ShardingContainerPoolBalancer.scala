@@ -17,15 +17,15 @@
 
 package org.apache.openwhisk.core.loadBalancer
 
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.ActorRefFactory
 import java.util.concurrent.ThreadLocalRandom
 
-import akka.actor.{Actor, ActorSystem, Cancellable, Props}
-import akka.cluster.ClusterEvent._
-import akka.cluster.{Cluster, Member, MemberStatus}
-import akka.management.scaladsl.AkkaManagement
-import akka.management.cluster.bootstrap.ClusterBootstrap
+import org.apache.pekko.actor.{Actor, ActorSystem, Cancellable, Props}
+import org.apache.pekko.cluster.ClusterEvent._
+import org.apache.pekko.cluster.{Cluster, Member, MemberStatus}
+import org.apache.pekko.management.scaladsl.PekkoManagement
+import org.apache.pekko.management.cluster.bootstrap.ClusterBootstrap
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import pureconfig._
 import pureconfig.generic.auto._
@@ -155,7 +155,7 @@ class ShardingContainerPoolBalancer(
 
   /** Build a cluster of all loadbalancers */
   private val cluster: Option[Cluster] = if (loadConfigOrThrow[ClusterConfig](ConfigKeys.cluster).useClusterBootstrap) {
-    AkkaManagement(actorSystem).start()
+    PekkoManagement(actorSystem).start()
     ClusterBootstrap(actorSystem).start()
     Some(Cluster(actorSystem))
   } else if (loadConfigOrThrow[Seq[String]]("akka.cluster.seed-nodes").nonEmpty) {

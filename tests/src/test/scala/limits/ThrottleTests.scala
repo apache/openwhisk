@@ -19,7 +19,7 @@ package limits
 
 import java.time.Instant
 
-import akka.http.scaladsl.model.StatusCodes.TooManyRequests
+import org.apache.pekko.http.scaladsl.model.StatusCodes.TooManyRequests
 
 import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration._

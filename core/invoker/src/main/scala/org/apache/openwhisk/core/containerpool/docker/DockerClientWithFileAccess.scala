@@ -20,10 +20,10 @@ package org.apache.openwhisk.core.containerpool.docker
 import java.io.File
 import java.nio.file.Paths
 
-import akka.actor.ActorSystem
-import akka.stream.alpakka.file.scaladsl.FileTailSource
-import akka.stream.scaladsl.{FileIO, Source => AkkaSource}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.connectors.file.scaladsl.FileTailSource
+import org.apache.pekko.stream.scaladsl.{FileIO, Source => AkkaSource}
+import org.apache.pekko.util.ByteString
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future

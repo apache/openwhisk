@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.loadBalancer.test
 
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
-import akka.actor.ActorSystem
-import akka.testkit.TestProbe
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.ActorRefFactory
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.TestProbe
 import common.{StreamLogging, WhiskProperties}
 
 import java.nio.charset.StandardCharsets

@@ -41,7 +41,7 @@ class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
 
   val promiseDelay = 100.milliseconds
   def resolveDelayed(p: Promise[Unit], delay: FiniteDuration = promiseDelay) =
-    akka.pattern.after(delay, actorSystem.scheduler) {
+    org.apache.pekko.pattern.after(delay, actorSystem.scheduler) {
       p.success(())
       Future.successful(())
     }

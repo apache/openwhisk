@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.kafka.testkit.scaladsl.ScalatestKafkaSpec
+import org.apache.pekko.kafka.testkit.scaladsl.ScalatestKafkaSpec
 import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}

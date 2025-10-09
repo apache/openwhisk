@@ -21,12 +21,12 @@ import java.io.{ByteArrayInputStream, File}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Properties
 
-import akka.actor.ActorSystem
-import akka.event.slf4j.SLF4JLogging
-import akka.http.scaladsl.model.Uri
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.slf4j.SLF4JLogging
+import org.apache.pekko.http.scaladsl.model.Uri
 import org.apache.commons.io.{FileUtils, FilenameUtils, IOUtils}
 import org.apache.openwhisk.common.TransactionId.systemPrefix
-import org.apache.openwhisk.common.{AkkaLogging, Config, Logging, TransactionId}
+import org.apache.openwhisk.common.{PekkoLogging, Config, Logging, TransactionId}
 import org.apache.openwhisk.core.cli.WhiskAdmin
 import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
@@ -400,11 +400,11 @@ object StandaloneOpenWhisk extends SLF4JLogging {
   }
 
   private def createLogging(actorSystem: ActorSystem, conf: Conf): Logging = {
-    val adapter = akka.event.Logging.getLogger(actorSystem, this)
+    val adapter = org.apache.pekko.event.Logging.getLogger(actorSystem, this)
     if (conf.disableColorLogging())
-      new AkkaLogging(adapter)
+      new PekkoLogging(adapter)
     else
-      new ColoredAkkaLogging(adapter)
+      new ColoredPekkoLogging(adapter)
   }
 
   private def prepareDocker(conf: Conf)(implicit logging: Logging,

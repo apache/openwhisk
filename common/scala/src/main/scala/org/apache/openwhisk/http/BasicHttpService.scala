@@ -17,13 +17,13 @@
 
 package org.apache.openwhisk.http
 
-import akka.actor.ActorSystem
-import akka.event.Logging
-import akka.http.scaladsl.{Http, ServerBuilder}
-import akka.http.scaladsl.model.{HttpRequest, _}
-import akka.http.scaladsl.server.RouteResult.Rejected
-import akka.http.scaladsl.server._
-import akka.http.scaladsl.server.directives._
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging
+import org.apache.pekko.http.scaladsl.{Http, ServerBuilder}
+import org.apache.pekko.http.scaladsl.model.{HttpRequest, _}
+import org.apache.pekko.http.scaladsl.server.RouteResult.Rejected
+import org.apache.pekko.http.scaladsl.server._
+import org.apache.pekko.http.scaladsl.server.directives._
 
 import kamon.metric.MeasurementUnit
 import spray.json._

@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.scheduler.grpc.test
 
-import akka.actor.{Actor, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.pekko.actor.{Actor, ActorSystem, Props}
+import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WarmUp.warmUpAction

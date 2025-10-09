@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.limits
 
-import akka.http.scaladsl.model.StatusCodes
+import org.apache.pekko.http.scaladsl.model.StatusCodes
 import common._
 import common.rest.WskRestOperations
 import org.apache.openwhisk.core.ConfigKeys

@@ -20,7 +20,7 @@ apply plugin: 'application'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 apply plugin: 'org.scoverage'
-apply plugin: 'com.lightbend.akka.grpc.gradle'
+apply plugin: 'org.apache.pekko.grpc.gradle'
 
 ext.dockerImageName = 'scheduler'
 apply from: '../../gradle/docker.gradle'
@@ -41,14 +41,15 @@ ext.coverageDirs = [
 buildscript {
     repositories {
         mavenLocal()
+        mavenCentral()
         maven {
             url "https://plugins.gradle.org/m2/"
         }
     }
     dependencies {
-        // see https://plugins.gradle.org/plugin/com.lightbend.akka.grpc.gradle
-        // for the currently latest version.
-        classpath 'com.lightbend.akka.grpc:akka-grpc-gradle-plugin:1.0.2'
+        // Pekko gRPC plugin is deployed in Maven Central
+        // See: https://pekko.apache.org/docs/pekko-grpc/current/release-notes/releases-1.0.html
+        classpath 'org.apache.pekko:pekko-grpc-gradle-plugin:1.0.2'
     }
 }
 
@@ -70,33 +71,35 @@ configurations {
 dependencies {
     configurations.all {
         resolutionStrategy.force "com.lihaoyi:fastparse_${gradle.scala.depVersion}:2.3.0"
-        resolutionStrategy.force "com.typesafe.akka:akka-http-core_${gradle.scala.depVersion}:${gradle.akka_http.version}"
-        resolutionStrategy.force "com.typesafe.akka:akka-http_${gradle.scala.depVersion}:${gradle.akka_http.version}"
-        resolutionStrategy.force "com.typesafe.akka:akka-http2-support_${gradle.scala.depVersion}:${gradle.akka_http.version}"
-        resolutionStrategy.force "com.typesafe.akka:akka-http-spray-json_${gradle.scala.depVersion}:${gradle.akka_http.version}"
-        resolutionStrategy.force "com.typesafe.akka:akka-parsing_${gradle.scala.depVersion}:${gradle.akka_http.version}"
-        resolutionStrategy.force "com.typesafe.akka:akka-http_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+        resolutionStrategy.force "org.apache.pekko:pekko-http-core_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
+        resolutionStrategy.force "org.apache.pekko:pekko-http_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
+        resolutionStrategy.force "org.apache.pekko:pekko-http2-support_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
+        resolutionStrategy.force "org.apache.pekko:pekko-http-spray-json_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
+        resolutionStrategy.force "org.apache.pekko:pekko-parsing_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
+        resolutionStrategy.force "org.apache.pekko:pekko-http_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
     }
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
     implementation project(':common:scala')
-    implementation "io.altoo:akka-kryo-serialization_${gradle.scala.depVersion}:1.0.0"
-    implementation "com.lightbend.akka.management:akka-management-cluster-bootstrap_${gradle.scala.depVersion}:${gradle.akka_management.version}"
-    implementation "com.lightbend.akka.discovery:akka-discovery-kubernetes-api_${gradle.scala.depVersion}:${gradle.akka_management.version}"
+    // Pekko Kryo serialization with Akka compatibility for rolling upgrades
+    implementation "io.altoo:pekko-kryo-serialization_${gradle.scala.depVersion}:1.3.0"
+    implementation "io.altoo:pekko-kryo-serialization-akka-compat_${gradle.scala.depVersion}:1.3.0"
+    implementation "org.apache.pekko:pekko-management-cluster-bootstrap_${gradle.scala.depVersion}:${gradle.pekko_management.version}"
+    implementation "org.apache.pekko:pekko-discovery-kubernetes-api_${gradle.scala.depVersion}:${gradle.pekko_management.version}"
 }
 
-// workaround for akka-grpc
+// workaround for pekko-grpc
 // https://github.com/akka/akka-grpc/issues/786
 printProtocLogs.doFirst {
     mkdir "$buildDir"
-    file("$buildDir/akka-grpc-gradle-plugin.log").text = "x"
+    file("$buildDir/pekko-grpc-gradle-plugin.log").text = "x"
     mkdir "$project.rootDir/build"
-    file("$project.rootDir/build/akka-grpc-gradle-plugin.log").text = "x"
+    file("$project.rootDir/build/pekko-grpc-gradle-plugin.log").text = "x"
 }
 printProtocLogs.configure {
     mkdir "$buildDir"
-    file("$buildDir/akka-grpc-gradle-plugin.log").text = "x"
+    file("$buildDir/pekko-grpc-gradle-plugin.log").text = "x"
     mkdir "$project.rootDir/build"
-    file("$project.rootDir/build/akka-grpc-gradle-plugin.log").text = "x"
+    file("$project.rootDir/build/pekko-grpc-gradle-plugin.log").text = "x"
 }
 
 mainClassName = "org.apache.openwhisk.core.scheduler.Scheduler"

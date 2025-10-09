@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.database.s3
 import java.net.ServerSocket
 
 import actionContainers.ActionContainer
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.services.s3.AmazonS3ClientBuilder

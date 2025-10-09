@@ -20,10 +20,10 @@ package org.apache.openwhisk.core.loadBalancer
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.LongAdder
-import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Cancellable, Props}
-import akka.event.Logging.InfoLevel
-import akka.pattern.ask
-import akka.util.Timeout
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Cancellable, Props}
+import org.apache.pekko.event.Logging.InfoLevel
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.Timeout
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common.LoggingMarkers._
 import org.apache.openwhisk.common._

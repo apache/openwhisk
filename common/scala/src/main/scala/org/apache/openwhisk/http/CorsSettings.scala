@@ -17,13 +17,13 @@
 
 package org.apache.openwhisk.http
 
-import akka.http.scaladsl.model.HttpMethods._
-import akka.http.scaladsl.model.headers.{
+import org.apache.pekko.http.scaladsl.model.HttpMethods._
+import org.apache.pekko.http.scaladsl.model.headers.{
   `Access-Control-Allow-Headers`,
   `Access-Control-Allow-Methods`,
   `Access-Control-Allow-Origin`
 }
-import akka.http.scaladsl.server.Directives
+import org.apache.pekko.http.scaladsl.server.Directives
 
 /**
  * Defines the CORS settings for the REST APIs and Web Actions.

@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.loadBalancer.test
 
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
-import akka.http.scaladsl.Http
-import akka.testkit.TestProbe
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.testkit.TestProbe
 import common.{StreamLogging, WskActorSystem}
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common.{InvokerHealth, Logging, TransactionId}

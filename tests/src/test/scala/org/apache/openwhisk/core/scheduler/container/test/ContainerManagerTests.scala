@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.scheduler.container.test
 
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack}
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import org.apache.pekko.actor.FSM.{CurrentState, SubscribeTransitionCallBack}
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem}
+import org.apache.pekko.testkit.{ImplicitSender, TestKit, TestProbe}
 import com.ibm.etcd.api.{KeyValue, RangeResponse}
 import common.{StreamLogging, WskActorSystem}
 import org.apache.openwhisk.common.InvokerState.{Healthy, Unhealthy}

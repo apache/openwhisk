@@ -16,7 +16,7 @@
  */
 
 package org.apache.openwhisk.core.database.s3
-import akka.http.scaladsl.model.Uri.Path
+import org.apache.pekko.http.scaladsl.model.Uri.Path
 import com.typesafe.config.ConfigFactory
 import java.time.Instant
 import org.apache.openwhisk.core.ConfigKeys

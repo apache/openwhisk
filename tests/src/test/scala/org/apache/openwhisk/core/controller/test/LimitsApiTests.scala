@@ -19,9 +19,9 @@ package org.apache.openwhisk.core.controller.test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import akka.http.scaladsl.model.StatusCodes.{BadRequest, MethodNotAllowed, OK}
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
-import akka.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.model.StatusCodes.{BadRequest, MethodNotAllowed, OK}
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
+import org.apache.pekko.http.scaladsl.server.Route
 import org.apache.openwhisk.core.controller.WhiskLimitsApi
 import org.apache.openwhisk.core.entity.{
   EntityPath,

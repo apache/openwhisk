@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.database.elasticsearch
 
-import akka.actor.ActorSystem
-import akka.event.Logging.ErrorLevel
-import akka.http.scaladsl.model._
-import akka.stream.scaladsl.Flow
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging.ErrorLevel
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.stream.scaladsl.Flow
 import com.google.common.base.Throwables
 import com.sksamuel.elastic4s.http.search.SearchHit
 import com.sksamuel.elastic4s.http.{ElasticClient, ElasticProperties, NoOpRequestConfigCallback}

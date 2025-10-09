@@ -17,14 +17,14 @@
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
 import java.net.UnknownHostException
-import akka.Done
-import akka.actor.CoordinatedShutdown
-import akka.kafka.testkit.scaladsl.ScalatestKafkaSpec
+import org.apache.pekko.Done
+import org.apache.pekko.actor.CoordinatedShutdown
+import org.apache.pekko.kafka.testkit.scaladsl.ScalatestKafkaSpec
 import com.typesafe.config.ConfigFactory
 import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
+import org.apache.openwhisk.common.{PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.database.{CacheInvalidationMessage, RemoteCacheInvalidation}
 import org.apache.openwhisk.core.database.cosmosdb.{CosmosDBArtifactStoreProvider, CosmosDBTestSupport}
 import org.apache.openwhisk.core.entity.{
@@ -53,7 +53,7 @@ class CacheInvalidatorTests
     with ScalaFutures
     with TryValues {
 
-  private implicit val logging = new AkkaLogging(system.log)
+  private implicit val logging = new PekkoLogging(system.log)
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
 
   def createKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)

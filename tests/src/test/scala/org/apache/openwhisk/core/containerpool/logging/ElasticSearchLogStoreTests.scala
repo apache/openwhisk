@@ -19,13 +19,13 @@ package org.apache.openwhisk.core.containerpool.logging
 
 import java.time.ZonedDateTime
 
-import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpMethods.{GET, POST}
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{Accept, RawHeader}
-import akka.stream.scaladsl.Flow
-import akka.testkit.TestKit
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.HttpMethods.{GET, POST}
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.{Accept, RawHeader}
+import org.apache.pekko.stream.scaladsl.Flow
+import org.apache.pekko.testkit.TestKit
 import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures

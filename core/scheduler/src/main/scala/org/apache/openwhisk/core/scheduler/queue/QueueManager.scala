@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.scheduler.queue
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSelection, PoisonPill, Props}
-import akka.pattern.ask
-import akka.util.Timeout
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, ActorSelection, PoisonPill, Props}
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.Timeout
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.WarmUp.isWarmUpAction
@@ -258,7 +258,7 @@ class QueueManager(
       // this is for graceful shutdown of the feed as well.
       // When the scheduler endpoint is removed, there can be some unprocessed data in Kafka
       // So we would wait for some time to consume all messages in Kafka
-      akka.pattern.after(5.seconds, system.scheduler) {
+      org.apache.pekko.pattern.after(5.seconds, system.scheduler) {
         feed ! GracefulShutdown
         Future.successful({})
       }
@@ -522,7 +522,7 @@ class QueueManager(
         val wait =
           if (curWait == 0) initWait
           else Math.ceil(curWait * factor).toInt
-        akka.pattern.after(wait.milliseconds, system.scheduler) {
+        org.apache.pekko.pattern.after(wait.milliseconds, system.scheduler) {
           val message = s"${e.getMessage} retrying after ${wait}ms ($retries/$maxRetries)"
           if (retries == maxRetries) {
             // if number of retries reaches maxRetries, print warning level log

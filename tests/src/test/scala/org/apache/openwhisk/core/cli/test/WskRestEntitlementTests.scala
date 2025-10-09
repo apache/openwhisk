@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.cli.test
 
-import akka.http.scaladsl.model.StatusCodes.BadGateway
-import akka.http.scaladsl.model.StatusCodes.Forbidden
-import akka.http.scaladsl.model.StatusCodes.NotFound
+import org.apache.pekko.http.scaladsl.model.StatusCodes.BadGateway
+import org.apache.pekko.http.scaladsl.model.StatusCodes.Forbidden
+import org.apache.pekko.http.scaladsl.model.StatusCodes.NotFound
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common.rest.WskRestOperations

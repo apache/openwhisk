@@ -27,19 +27,19 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
-import akka.actor.ActorSystem
-import akka.actor.FSM
-import akka.actor.FSM.CurrentState
-import akka.actor.FSM.SubscribeTransitionCallBack
-import akka.actor.FSM.Transition
-import akka.pattern.ask
-import akka.testkit.ImplicitSender
-import akka.testkit.TestFSMRef
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
-import akka.util.Timeout
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.ActorRefFactory
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.FSM
+import org.apache.pekko.actor.FSM.CurrentState
+import org.apache.pekko.actor.FSM.SubscribeTransitionCallBack
+import org.apache.pekko.actor.FSM.Transition
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.testkit.ImplicitSender
+import org.apache.pekko.testkit.TestFSMRef
+import org.apache.pekko.testkit.TestKit
+import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.util.Timeout
 import common.{LoggedFunction, StreamLogging}
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy, Unresponsive}
 import org.apache.openwhisk.common.{InvokerHealth, InvokerState, TransactionId}

@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.containerpool.v2
 
-import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorSystem, FSM, Props, Stash}
-import akka.grpc.internal.ClientClosedException
-import akka.pattern.pipe
+import org.apache.pekko.actor.Status.{Failure => FailureMessage}
+import org.apache.pekko.actor.{ActorSystem, FSM, Props, Stash}
+import org.apache.pekko.grpc.internal.ClientClosedException
+import org.apache.pekko.pattern.pipe
 import io.grpc.StatusRuntimeException
 import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ActivationMessage

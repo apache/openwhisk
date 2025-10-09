@@ -220,10 +220,10 @@ dependencies {
     implementation "junit:junit:4.11"
     implementation "io.rest-assured:rest-assured:4.5.1"
     implementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
-    implementation "com.typesafe.akka:akka-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    implementation "org.apache.pekko:pekko-testkit_${gradle.scala.depVersion}:${gradle.pekko.version}"
     implementation "com.google.code.gson:gson:2.10.1"
     implementation "org.scalamock:scalamock_${gradle.scala.depVersion}:4.4.0"
-    implementation "com.typesafe.akka:akka-http-testkit_${gradle.scala.depVersion}:${gradle.akka_http.version}"
+    implementation "org.apache.pekko:pekko-http-testkit_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
     implementation "com.github.java-json-tools:json-schema-validator:2.2.8"
     implementation "org.mockito:mockito-core:2.27.0"
     implementation "io.opentracing:opentracing-mock:0.31.0"
@@ -244,8 +244,8 @@ dependencies {
             because 'embeddedkafka dependency cannot be upgraded currently and avro in embedded kafka 2.4.0 has vulns'
         }
     }
-    implementation "com.typesafe.akka:akka-stream-kafka-testkit_${gradle.scala.depVersion}:${gradle.akka_kafka.version}"
-    implementation "com.typesafe.akka:akka-stream-testkit_${gradle.scala.depVersion}:${gradle.akka.version}"
+    implementation "org.apache.pekko:pekko-connectors-kafka-testkit_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}"
+    implementation "org.apache.pekko:pekko-stream-testkit_${gradle.scala.depVersion}:${gradle.pekko.version}"
     implementation "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"
     implementation "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 

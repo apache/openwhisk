@@ -24,8 +24,8 @@ import scala.concurrent.blocking
 import scala.concurrent.duration._
 import scala.util.Failure
 import org.apache.kafka.clients.consumer.CommitFailedException
-import akka.actor.FSM
-import akka.pattern.pipe
+import org.apache.pekko.actor.FSM
+import org.apache.pekko.pattern.pipe
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 

@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.scheduler.queue.test
 
 import java.util.concurrent.atomic.AtomicInteger
-import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.core.entity.{EntityName, EntityPath, FullyQualifiedEntityName, SemVer}
 import org.apache.openwhisk.core.scheduler.SchedulingConfig

@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.containerpool.yarn.test
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.DateTime
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.DateTime
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.WhiskConfig._
