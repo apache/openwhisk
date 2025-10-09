@@ -151,12 +151,11 @@ dependencies {
     constraints {
         api("org.apache.commons:commons-text:1.10.0")
         api("com.google.code.gson:gson:2.8.9")
-        // grpc-netty-shaded 1.30.0 (from akka-grpc 1.0.2) contains Netty 4.1.48 with HIGH CVEs
-        // Upgrading to 1.75.0 brings Netty 4.1.124+ which fixes CVE-2025-55163, GHSA-xpw8-rcwv-8f8p, CVE-2021-37136, CVE-2021-37137
-        // Note: This is a significant jump from 1.30.0, test thoroughly
         // All gRPC components should be kept at the same version for compatibility
+        // grpc-netty (non-shaded) comes from etcd-java:0.0.13 and must match other grpc versions
         api("io.grpc:grpc-core:1.75.0")
         api("io.grpc:grpc-stub:1.75.0")
+        api("io.grpc:grpc-netty:1.75.0")
         api("io.grpc:grpc-netty-shaded:1.75.0")
         api("com.google.protobuf:protobuf-java:3.25.5")
         api("org.xerial.snappy:snappy-java:1.1.10.4")
