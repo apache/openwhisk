@@ -151,12 +151,7 @@ dependencies {
     constraints {
         api("org.apache.commons:commons-text:1.10.0")
         api("com.google.code.gson:gson:2.8.9")
-        // All gRPC components should be kept at the same version for compatibility
-        // grpc-netty (non-shaded) comes from etcd-java:0.0.13 and must match other grpc versions
-        api("io.grpc:grpc-core:1.75.0")
-        api("io.grpc:grpc-stub:1.75.0")
-        api("io.grpc:grpc-netty:1.75.0")
-        api("io.grpc:grpc-netty-shaded:1.75.0")
+
         api("com.google.protobuf:protobuf-java:3.25.5")
         api("org.xerial.snappy:snappy-java:1.1.10.4")
         api("ch.qos.logback:logback-core:1.2.13")
