@@ -115,7 +115,7 @@ dependencies {
     api "com.microsoft.azure:azure-cosmosdb:2.6.2"
     constraints {
         api("com.microsoft.azure:azure-cosmosdb:2.6.2")
-        api("com.fasterxml.jackson.core:jackson-core:2.14.2") {
+        api("com.fasterxml.jackson.core:jackson-core:2.15.0") {
             because "cannot upgrade azure-cosmosdb to new major version to remediate vulns w/o breaking change"
         }
     }
@@ -151,10 +151,11 @@ dependencies {
     constraints {
         api("org.apache.commons:commons-text:1.10.0")
         api("com.google.code.gson:gson:2.8.9")
-        api("io.grpc:grpc-stub:1.62.2")
-        api("io.grpc:grpc-netty-shaded:1.62.2")
+        api("io.grpc:grpc-stub:1.75.0")
+        api("io.grpc:grpc-netty-shaded:1.75.0")
         api("com.google.protobuf:protobuf-java:3.25.5")
         api("org.xerial.snappy:snappy-java:1.1.10.4")
+        api("software.amazon.ion:ion-java:1.11.10")
         api("ch.qos.logback:logback-core:1.2.13")
         api("io.netty:netty-codec:${gradle.netty.version}")
         api("io.netty:netty-common:${gradle.netty.version}")
