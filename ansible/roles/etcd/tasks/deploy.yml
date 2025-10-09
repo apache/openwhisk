@@ -38,7 +38,7 @@
 - name: (re)start etcd
   docker_container:
     name: etcd{{ groups['etcd'].index(inventory_hostname) }}
-    image: bitnami/etcd:{{ etcd.version }}
+    image: bitnamilegacy/etcd:{{ etcd.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
