@@ -46,7 +46,7 @@ import common.{
 import javax.net.ssl._
 import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.apache.openwhisk.common.Https.HttpsConfig
-import org.apache.openwhisk.common.{PekkoLogging, Https, TransactionId}
+import org.apache.openwhisk.common.{Https, PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.utils.retry
 import org.scalatest.Matchers

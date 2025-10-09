@@ -432,14 +432,14 @@ case class SchedulingConfig(staleThreshold: FiniteDuration,
  * Custom Kryo initializer that combines:
  * 1. Akka/Pekko wire compatibility (via AkkaCompatKryoInitializer base class)
  * 2. Schema evolution support (via CompatibleFieldSerializer)
- * 
+ *
  * The AkkaCompatKryoInitializer handles ActorRef and ByteString compatibility between Akka and Pekko nodes,
  * allowing rolling upgrades from Akka to Pekko clusters.
- * 
+ *
  * CompatibleFieldSerializer provides forward and backward compatibility when case class schemas change:
  * - New fields can be added without breaking deserialization of old messages
  * - Old fields can be removed without breaking deserialization of new messages
- * 
+ *
  * This combination ensures safe rolling upgrades both for the Akka→Pekko migration AND
  * for future OpenWhisk schema changes.
  */

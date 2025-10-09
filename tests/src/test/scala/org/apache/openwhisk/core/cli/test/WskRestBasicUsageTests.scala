@@ -44,7 +44,15 @@ import org.apache.openwhisk.core.entity.size.SizeInt
 import TestJsonArgs._
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.http.scaladsl.model.HttpMethods.POST
-import org.apache.pekko.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader, HttpMethod, HttpRequest, HttpResponse, Uri}
+import org.apache.pekko.http.scaladsl.model.{
+  ContentTypes,
+  HttpEntity,
+  HttpHeader,
+  HttpMethod,
+  HttpRequest,
+  HttpResponse,
+  Uri
+}
 import org.apache.pekko.http.scaladsl.model.Uri.{Path, Query}
 import org.apache.pekko.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, RawHeader}
 import org.apache.pekko.util.ByteString

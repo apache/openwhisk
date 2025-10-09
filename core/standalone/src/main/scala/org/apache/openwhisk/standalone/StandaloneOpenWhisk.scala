@@ -26,7 +26,7 @@ import org.apache.pekko.event.slf4j.SLF4JLogging
 import org.apache.pekko.http.scaladsl.model.Uri
 import org.apache.commons.io.{FileUtils, FilenameUtils, IOUtils}
 import org.apache.openwhisk.common.TransactionId.systemPrefix
-import org.apache.openwhisk.common.{PekkoLogging, Config, Logging, TransactionId}
+import org.apache.openwhisk.common.{Config, Logging, PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.cli.WhiskAdmin
 import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}

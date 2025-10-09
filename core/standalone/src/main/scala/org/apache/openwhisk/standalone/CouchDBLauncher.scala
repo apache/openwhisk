@@ -24,7 +24,15 @@ import java.nio.charset.StandardCharsets.UTF_8
 import org.apache.pekko.Done
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.http.scaladsl.model.headers.{Accept, Authorization, BasicHttpCredentials}
-import org.apache.pekko.http.scaladsl.model.{HttpHeader, HttpMethods, HttpRequest, MediaTypes, StatusCode, StatusCodes, Uri}
+import org.apache.pekko.http.scaladsl.model.{
+  HttpHeader,
+  HttpMethods,
+  HttpRequest,
+  MediaTypes,
+  StatusCode,
+  StatusCodes,
+  Uri
+}
 import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.IOUtils

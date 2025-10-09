@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb.cache
 
 import org.apache.pekko.actor.ActorSystem
 import kamon.Kamon
-import org.apache.openwhisk.common.{PekkoLogging, ConfigMXBean, Logging}
+import org.apache.openwhisk.common.{ConfigMXBean, Logging, PekkoLogging}
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 
 import scala.concurrent.ExecutionContext

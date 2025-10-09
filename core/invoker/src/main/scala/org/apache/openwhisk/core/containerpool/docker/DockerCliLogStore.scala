@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.containerpool.docker
 import java.time.Instant
 
 import org.apache.pekko.actor.ActorSystem
-import org.apache.openwhisk.common.{PekkoLogging, Logging, TransactionId}
+import org.apache.openwhisk.common.{Logging, PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.containerpool.Container.ACTIVATION_LOG_SENTINEL
 import org.apache.openwhisk.core.containerpool.logging.{DockerToActivationLogStore, LogStore, LogStoreProvider}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerId}

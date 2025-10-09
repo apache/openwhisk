@@ -25,7 +25,7 @@ import ch.qos.logback.classic.{Level, LoggerContext}
 import org.rogach.scallop._
 import org.slf4j.LoggerFactory
 import pureconfig.error.ConfigReaderException
-import org.apache.openwhisk.common.{PekkoLogging, Logging, TransactionId}
+import org.apache.openwhisk.common.{Logging, PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.database.{LimitsCommand, UserCommand}
 
 import scala.concurrent.duration.{Duration, DurationInt}

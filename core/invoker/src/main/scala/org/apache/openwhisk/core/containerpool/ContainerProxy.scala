@@ -43,7 +43,7 @@ import org.apache.openwhisk.common.TransactionId.systemPrefix
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import org.apache.openwhisk.common.{PekkoLogging, Counter, LoggingMarkers, TransactionId}
+import org.apache.openwhisk.common.{Counter, LoggingMarkers, PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.{
