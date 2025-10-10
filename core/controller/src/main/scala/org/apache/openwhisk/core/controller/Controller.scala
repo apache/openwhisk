@@ -292,6 +292,16 @@ object Controller {
   }
 
   def start(args: Array[String])(implicit actorSystem: ActorSystem, logger: Logging): Unit = {
+    // Configure Jackson 2.15+ StreamReadConstraints before any Jackson usage
+    // Jackson 2.15+ has a 20MB default limit, but OpenWhisk allows 48MB action code
+    // Set to 100MB for safety margin
+    import com.fasterxml.jackson.core.StreamReadConstraints
+    StreamReadConstraints.overrideDefaultStreamReadConstraints(
+      StreamReadConstraints
+        .builder()
+        .maxStringLength(104857600) // 100MB
+        .build())
+
     ConfigMXBean.register()
     Kamon.init()
 
