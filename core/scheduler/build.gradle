@@ -48,8 +48,8 @@ buildscript {
     }
     dependencies {
         // Pekko gRPC plugin is deployed in Maven Central
-        // See: https://pekko.apache.org/docs/pekko-grpc/current/release-notes/releases-1.0.html
-        classpath 'org.apache.pekko:pekko-grpc-gradle-plugin:1.0.2'
+        // See: https://pekko.apache.org/docs/pekko-grpc/current/release-notes/
+        classpath "org.apache.pekko:pekko-grpc-gradle-plugin:${gradle.pekko_grpc.version}"
     }
 }
 

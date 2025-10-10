@@ -40,7 +40,7 @@ subprojects {
     pluginManager.withPlugin('scala') {
         // Constraint all transitive pekko-* dependencies to the one we want to use to avoid issues.
         def cons = project.getDependencies().getConstraints()
-        def pekko = ['pekko-actor', 'pekko-cluster', 'pekko-cluster-metrics', 'pekko-cluster-tools', 'pekko-coordination',
+        def pekko = ['pekko-actor', 'pekko-actor-typed', 'pekko-cluster', 'pekko-cluster-metrics', 'pekko-cluster-tools', 'pekko-coordination',
                     'pekko-discovery', 'discovery-kubernetes-api', 'discovery-marathon-api', 'pekko-distributed-data','grpc-runtime','pekko-protobuf', 'pekko-remote', 'pekko-slf4j',
                     'pekko-stream', 'pekko-stream-testkit', 'pekko-testkit', 'pekko-persistence', 'pekko-cluster-sharding','pekko-protobuf-v3','pekko-pki','pekko-serialization-jackson']
         def pekkoHttp = ['pekko-http', 'pekko-http-core', 'pekko-http-spray-json', 'pekko-http-testkit', 'pekko-http-xml',
