@@ -316,9 +316,6 @@ gradle.projectsEvaluated {
     tasks.withType(Test) {
         systemProperties(System.getProperties())
         systemProperty("whisk.server.jar", getStandaloneJarFilePath())
-        // Jackson 2.15+ introduced StreamReadConstraints with default max string length of 20MB
-        // Pre-2.15 had no limit. Set to Integer.MAX_VALUE to restore unlimited behavior for tests
-        systemProperty("com.fasterxml.jackson.core.StreamReadConstraints.maxStringLength", "2147483647")
 
         testLogging {
             events "passed", "skipped", "failed"

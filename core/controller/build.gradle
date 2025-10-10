@@ -53,8 +53,5 @@ dependencies {
 
 mainClassName = "org.apache.openwhisk.core.controller.Controller"
 applicationDefaultJvmArgs = [
-    "-Djava.security.egd=file:/dev/./urandom",
-    // Jackson 2.15+ has default 20MB string limit, but OpenWhisk allows 48MB action code
-    // Set to 100MB for safety margin
-    "-Dcom.fasterxml.jackson.core.StreamReadConstraints.maxStringLength=104857600"
+    "-Djava.security.egd=file:/dev/./urandom"
 ]
