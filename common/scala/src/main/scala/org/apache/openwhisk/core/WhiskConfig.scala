@@ -193,7 +193,7 @@ object WhiskConfig {
   val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
   val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
   val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
-  val controllerSeedNodes = "akka.cluster.seed.nodes"
+  val controllerSeedNodes = "pekko.cluster.seed.nodes"
 
   val schedulerHost = "whisk.scheduler.endpoints.host"
   val schedulerRpcPort = "whisk.scheduler.endpoints.rpcPort"

@@ -182,7 +182,7 @@ protected class AkkaContainerClient(
 }
 
 object AkkaContainerClient {
-  private val queueSize = loadConfigOrThrow[Int]("akka.http.host-connection-pool.max-connections")
+  private val queueSize = loadConfigOrThrow[Int]("pekko.http.host-connection-pool.max-connections")
 
   /** A helper method to post one single request to a connection. Used for container tests. */
   def post(host: String, port: Int, endPoint: String, content: JsValue, timeout: FiniteDuration)(

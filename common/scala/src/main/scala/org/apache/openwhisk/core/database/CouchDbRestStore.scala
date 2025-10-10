@@ -74,7 +74,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
   // This the the amount of allowed parallel requests for each entity, before batching starts. If there are already maxOpenDbRequests
   // and more documents need to be stored, then all arriving documents will be put into batches (if enabled) to avoid a long queue.
-  private val maxOpenDbRequests = system.settings.config.getInt("akka.http.host-connection-pool.max-connections") / 2
+  private val maxOpenDbRequests = system.settings.config.getInt("pekko.http.host-connection-pool.max-connections") / 2
 
   private val maxRetry = loadConfigOrThrow[Int]("whisk.activation-store.retry-config.max-tries")
   private val batcher: Batcher[JsObject, Either[ArtifactStoreException, DocInfo]] =
