@@ -107,6 +107,6 @@ object CacheInvalidator {
   def kafkaProducerSettings(config: Config): ProducerSettings[String, String] =
     ProducerSettings(config, new StringSerializer, new StringSerializer)
 
-  def defaultProducerConfig(globalConfig: Config): Config = globalConfig.getConfig("akka.kafka.producer")
+  def defaultProducerConfig(globalConfig: Config): Config = globalConfig.getConfig("pekko.kafka.producer")
 
 }

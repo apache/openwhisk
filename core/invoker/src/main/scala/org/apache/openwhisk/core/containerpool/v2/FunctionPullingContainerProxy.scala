@@ -692,7 +692,7 @@ class FunctionPullingContainerProxy(
             "")
           parent ! Resumed(data)
           // the new queue may locates on an different scheduler, so recreate the activation client when necessary
-          // since akka port will no be used, we can put any value except 0 here
+          // since pekko port will no be used, we can put any value except 0 here
           data.clientProxy ! RequestActivation(
             newScheduler = Some(SchedulerEndpoints(job.schedulerHost, job.rpcPort, 10)))
           startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)

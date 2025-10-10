@@ -34,7 +34,7 @@ object ExecutionContextFactory {
   private type CancellableFuture[T] = (Cancellable, Future[T])
 
   /**
-   * akka.pattern.after has a memory drag issue: it opaquely
+   * org.apache.pekko.pattern.after has a memory drag issue: it opaquely
    * schedules an actor which consequently results in drag for the
    * timeout duration
    *

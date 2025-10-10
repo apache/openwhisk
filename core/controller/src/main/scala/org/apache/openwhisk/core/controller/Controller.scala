@@ -56,7 +56,7 @@ import scala.util.{Failure, Success}
  *
  * It extends the BasicRasService so it includes a ping endpoint for monitoring.
  *
- * Akka sends messages to akka Actors -- the Controller is an Actor, ready to receive messages.
+ * Pekko sends messages to pekko Actors -- the Controller is an Actor, ready to receive messages.
  *
  * It is possible to deploy a hot-standby controller. Each controller needs its own instance. This instance is a
  * consecutive numbering, starting with 0.
@@ -67,7 +67,7 @@ import scala.util.{Failure, Success}
  * back to the base controller, there could be an inconsistency in the cache (e.g. if a user has updated an action). This
  * inconsistency will be resolved by its own after removing the cached item, 5 minutes after it has been generated.
  *
- * Uses the Akka routing DSL: http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/overview.html
+ * Uses the Pekko routing DSL: http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/overview.html
  *
  * @param config A set of properties needed to run an instance of the controller service
  * @param instance if running in scale-out, a unique identifier for this instance in the group
@@ -89,9 +89,9 @@ class Controller(val instance: ControllerInstanceId,
     logLevel = InfoLevel)
 
   /**
-   * A Route in Akka is technically a function taking a RequestContext as a parameter.
+   * A Route in Pekko is technically a function taking a RequestContext as a parameter.
    *
-   * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
+   * The "~" Pekko DSL operator composes two independent Routes, building a routing tree structure.
    *
    * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
    */

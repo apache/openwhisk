@@ -26,7 +26,7 @@ import org.apache.pekko.management.cluster.bootstrap.ClusterBootstrap
 import org.apache.pekko.pattern.ask
 import org.apache.pekko.util.Timeout
 import com.typesafe.config.ConfigValueFactory
-import io.altoo.pekko.serialization.kryo.compat.AkkaCompatKryoInitializer
+import io.altoo.serialization.kryo.pekko.DefaultKryoInitializer
 import io.altoo.serialization.kryo.scala.serializer.ScalaKryo
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
@@ -428,22 +428,7 @@ case class SchedulingConfig(staleThreshold: FiniteDuration,
                             allowOverProvisionBeforeThrottle: Boolean,
                             namespaceOverProvisionBeforeThrottleRatio: Double)
 
-/**
- * Custom Kryo initializer that combines:
- * 1. Akka/Pekko wire compatibility (via AkkaCompatKryoInitializer base class)
- * 2. Schema evolution support (via CompatibleFieldSerializer)
- *
- * The AkkaCompatKryoInitializer handles ActorRef and ByteString compatibility between Akka and Pekko nodes,
- * allowing rolling upgrades from Akka to Pekko clusters.
- *
- * CompatibleFieldSerializer provides forward and backward compatibility when case class schemas change:
- * - New fields can be added without breaking deserialization of old messages
- * - Old fields can be removed without breaking deserialization of new messages
- *
- * This combination ensures safe rolling upgrades both for the Akka→Pekko migration AND
- * for future OpenWhisk schema changes.
- */
-class CompatibleKryoInitializer extends AkkaCompatKryoInitializer {
+class CompatibleKryoInitializer extends DefaultKryoInitializer {
   override def preInit(kryo: ScalaKryo): Unit = {
     super.preInit(kryo)
     // Use CompatibleFieldSerializer for schema evolution support

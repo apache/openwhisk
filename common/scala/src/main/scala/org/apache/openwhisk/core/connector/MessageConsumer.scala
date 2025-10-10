@@ -111,8 +111,8 @@ class MessageFeed(description: String,
 
   // Immutable Queue
   // although on the surface it seems to make sense to use an immutable variable with a mutable Queue,
-  // Akka Actor state defies the usual "prefer immutable" guideline in Scala, esp. w/ Collections.
-  // If, for some reason, this Queue was mutable and is accidentally leaked in say an Akka message,
+  // Pekko Actor state defies the usual "prefer immutable" guideline in Scala, esp. w/ Collections.
+  // If, for some reason, this Queue was mutable and is accidentally leaked in say an Pekko message,
   // another Actor or recipient would be able to mutate the internal state of this Actor.
   // Best practice dictates a mutable variable pointing at an immutable collection for this reason
   private var outstandingMessages = immutable.Queue.empty[(String, Int, Long, Array[Byte])]

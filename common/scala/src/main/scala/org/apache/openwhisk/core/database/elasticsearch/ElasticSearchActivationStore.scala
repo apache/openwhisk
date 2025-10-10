@@ -77,7 +77,7 @@ class ElasticSearchActivationStore(
 
   private val esType = "_doc"
   private val maxOpenDbRequests = actorSystem.settings.config
-    .getInt("akka.http.host-connection-pool.max-connections") / 2
+    .getInt("org.apache.pekko.http.host-connection-pool.max-connections") / 2
   private val maxRetry = loadConfigOrThrow[Int]("whisk.activation-store.retry-config.max-tries")
   private val batcher: Batcher[IndexRequest, Either[ArtifactStoreException, DocInfo]] =
     new Batcher(500, maxOpenDbRequests, maxRetry)(doStore(_, _)(TransactionId.dbBatcher))

@@ -317,7 +317,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
                                           js: JsValue,
                                           transid: TransactionId) = {
     findContentTypeInHeader(headers, transid, `application/json`) match {
-      // use the default akka-http response marshaler for standard application/json
+      // use the default pekko-http response marshaler for standard application/json
       case Success(mediaType) if mediaType == `application/json` =>
         respondWithHeaders(removeContentTypeHeader(headers)) {
           complete(code, js)

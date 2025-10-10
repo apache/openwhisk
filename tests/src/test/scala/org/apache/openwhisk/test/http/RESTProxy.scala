@@ -115,7 +115,7 @@ class RESTProxy(val host: String, val port: Int)(val serviceAuthority: Uri.Autho
         Http().outgoingConnection(destHost, destPort)
       }
 
-      // akka-http doesn't like us to set those headers ourselves.
+      // pekko-http doesn't like us to set those headers ourselves.
       val upstreamRequest = request.withHeaders(headers = request.headers.filter(_ match {
         case `Timeout-Access`(_) => false
         case _                   => true

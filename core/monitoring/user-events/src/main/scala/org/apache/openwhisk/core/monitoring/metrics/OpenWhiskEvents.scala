@@ -67,5 +67,5 @@ object OpenWhiskEvents extends SLF4JLogging {
   def eventConsumerSettings(config: Config): ConsumerSettings[String, String] =
     ConsumerSettings(config, new StringDeserializer, new StringDeserializer)
 
-  def defaultConsumerConfig(globalConfig: Config): Config = globalConfig.getConfig("akka.kafka.consumer")
+  def defaultConsumerConfig(globalConfig: Config): Config = globalConfig.getConfig("pekko.kafka.consumer")
 }

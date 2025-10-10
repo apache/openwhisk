@@ -37,7 +37,7 @@ import scala.util.{Failure, Success, Try}
  * Http client to talk to a known host.
  *
  * This class only handles the basic communication to the proper endpoints. It is up to its clients to interpret the
- * results. It is built on akka-http host-level connection pools; compared to single requests, it saves some time
+ * results. It is built on pekko-http host-level connection pools; compared to single requests, it saves some time
  * on each request because it doesn't need to look up the pool corresponding to the host. It is also easier to add an
  * extra queueing mechanism.
  */
