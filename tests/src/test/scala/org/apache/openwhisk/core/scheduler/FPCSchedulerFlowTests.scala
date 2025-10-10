@@ -306,7 +306,7 @@ class FPCSchedulerFlowTests
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
-        response.result.get.asJsObject().getFields("error") shouldBe Messages.abnormalInitialization.toJson
+        response.result.get.asJsObject().getFields("error") shouldBe Seq(Messages.abnormalInitialization.toJson)
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
 
@@ -325,7 +325,8 @@ class FPCSchedulerFlowTests
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
-        response.result.get.asJsObject().getFields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
+        response.result.get.asJsObject().getFields("error") shouldBe Seq(
+          Messages.timedoutActivation(3 seconds, true).toJson)
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
 
@@ -344,7 +345,7 @@ class FPCSchedulerFlowTests
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
         val response = activation.response
-        response.result.get.asJsObject().getFields("error") shouldBe Messages.abnormalRun.toJson
+        response.result.get.asJsObject().getFields("error") shouldBe Seq(Messages.abnormalRun.toJson)
         response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
       }
 
@@ -376,7 +377,7 @@ class FPCSchedulerFlowTests
         activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.DeveloperError)
         activation.response.result.get
           .asJsObject()
-          .getFields("error") shouldBe s"Failed to pull container image '$containerName'.".toJson
+          .getFields("error") shouldBe Seq(s"Failed to pull container image '$containerName'.".toJson)
       }
 
       val timeout = creationJobBaseTimeout.toSeconds * 3

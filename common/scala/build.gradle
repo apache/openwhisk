@@ -115,7 +115,7 @@ dependencies {
     api "com.microsoft.azure:azure-cosmosdb:2.6.2"
     constraints {
         api("com.microsoft.azure:azure-cosmosdb:2.6.2")
-        api("com.fasterxml.jackson.core:jackson-core:2.15.0") {
+        api("com.fasterxml.jackson.core:jackson-core:2.15.4") {
             because "cannot upgrade azure-cosmosdb to new major version to remediate vulns w/o breaking change"
         }
     }
