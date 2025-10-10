@@ -61,11 +61,11 @@ dependencies {
 
     api "org.apache.pekko:pekko-connectors-file_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}"
 
-    api "ch.qos.logback:logback-classic:1.2.11"
+    api "ch.qos.logback:logback-classic:1.2.13"
     api "org.slf4j:jcl-over-slf4j:1.7.25"
     api "org.slf4j:log4j-over-slf4j:1.7.25"
     api "commons-codec:commons-codec:1.9"
-    api "commons-io:commons-io:2.11.0"
+    api "commons-io:commons-io:2.14.0"
     api "commons-collections:commons-collections:3.2.2"
     api "org.apache.kafka:kafka-clients:2.8.2"
     api "org.apache.httpcomponents:httpclient:4.5.5"
@@ -106,7 +106,7 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
-    api "com.amazonaws:aws-java-sdk-cloudfront:1.12.395"
+    api "com.amazonaws:aws-java-sdk-cloudfront:1.12.792" // Upgraded to remove ion-java dependency (CVE-2024-21634)
 
     api ("com.azure:azure-storage-blob:12.7.0") {
         exclude group: "com.azure", module: "azure-core-test"
@@ -115,7 +115,7 @@ dependencies {
     api "com.microsoft.azure:azure-cosmosdb:2.6.2"
     constraints {
         api("com.microsoft.azure:azure-cosmosdb:2.6.2")
-        api("com.fasterxml.jackson.core:jackson-core:2.14.2") {
+        api("com.fasterxml.jackson.core:jackson-core:2.15.4") {
             because "cannot upgrade azure-cosmosdb to new major version to remediate vulns w/o breaking change"
         }
     }
@@ -144,8 +144,21 @@ dependencies {
     api "io.netty:netty-codec-http2:${gradle.netty.version}"
     api "io.netty:netty-transport-native-epoll:${gradle.netty.version}"
     api "io.netty:netty-transport-native-unix-common:${gradle.netty.version}"
+
     api "org.apache.pekko:pekko-grpc-runtime_${gradle.scala.depVersion}:${gradle.pekko_grpc.version}"
     api "org.apache.pekko:pekko-stream_${gradle.scala.depVersion}:${gradle.pekko.version}"
+
+    // Constraints for transitive dependencies to address security vulnerabilities
+    constraints {
+        api("org.apache.commons:commons-text:1.10.0")
+        api("com.google.code.gson:gson:2.8.9")
+
+        api("com.google.protobuf:protobuf-java:3.25.5")
+        api("org.xerial.snappy:snappy-java:1.1.10.4")
+        api("ch.qos.logback:logback-core:1.2.13")
+        api("io.netty:netty-codec:${gradle.netty.version}")
+        api("io.netty:netty-common:${gradle.netty.version}")
+    }
 }
 
 configurations {

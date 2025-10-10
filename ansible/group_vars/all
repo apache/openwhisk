@@ -466,7 +466,7 @@ zeroDowntimeDeployment:
   enabled: "{{ zerodowntime_deployment_switch | default(false) }}"
 
 etcd:
-  version: "{{ etcd_version | default('3.5') }}"
+  version: "{{ etcd_version | default('3.5.21') }}"
   client:
     port: 2379
   server:
@@ -554,5 +554,3 @@ scheduler:
     throttlingFraction: "{{ scheduler_queue_throttlingFraction | default(0.9) }}"
     durationBufferSize: "{{ scheduler_queue_durationBufferSize | default(10) }}"
   deployment_ignore_error: "{{ scheduler_deployment_ignore_error | default('False') }}"
-  dataManagementService:
-    retryInterval: "{{ scheduler_dataManagementService_retryInterval | default('1 second') }}"

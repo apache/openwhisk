@@ -52,4 +52,6 @@ dependencies {
 }
 
 mainClassName = "org.apache.openwhisk.core.controller.Controller"
-applicationDefaultJvmArgs = ["-Djava.security.egd=file:/dev/./urandom"]
+applicationDefaultJvmArgs = [
+    "-Djava.security.egd=file:/dev/./urandom"
+]

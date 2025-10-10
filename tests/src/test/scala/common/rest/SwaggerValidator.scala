@@ -28,8 +28,18 @@ import com.atlassian.oai.validator.model.SimpleResponse
 import com.atlassian.oai.validator.report.ValidationReport
 import com.atlassian.oai.validator.whitelist.ValidationErrorsWhitelist
 import com.atlassian.oai.validator.whitelist.rule.WhitelistRules
+import com.fasterxml.jackson.core.StreamReadConstraints
 
 trait SwaggerValidator {
+  // Configure Jackson's default constraints globally for the test JVM
+  // Jackson 2.15+ has a 20MB default limit, but OpenWhisk allows 48MB action code
+  // Set to 100MB for safety margin - this applies to all Jackson instances in tests
+  StreamReadConstraints.overrideDefaultStreamReadConstraints(
+    StreamReadConstraints
+      .builder()
+      .maxStringLength(104857600) // 100MB
+      .build())
+
   private val specWhitelist = ValidationErrorsWhitelist
     .create()
     .withRule(
