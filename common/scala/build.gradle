@@ -88,21 +88,8 @@ dependencies {
     api "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.1.12"
     api "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
 
-    // for etcd
-    api "com.ibm.etcd:etcd-java:0.0.24"
-
-    // Force etcd-java to use gRPC versions compatible with Pekko gRPC
-    constraints {
-        api("io.grpc:grpc-netty") {
-            version {
-                strictly "1.67.1"
-            }
-            because "etcd-java uses 1.59.0 which is incompatible with Pekko gRPC 1.1.1 (uses 1.67.1)"
-        }
-        api("io.grpc:grpc-core:1.67.1")
-        api("io.grpc:grpc-stub:1.67.1")
-        api("io.grpc:grpc-protobuf:1.67.1")
-    }
+    // for etcd - downgraded to 0.0.13 to test gRPC compatibility
+    api "com.ibm.etcd:etcd-java:0.0.13"
 
     //tracing support
     api "io.opentracing:opentracing-api:0.31.0"
