@@ -25,9 +25,11 @@ import kamon.prometheus.PrometheusReporter
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.scalatest.matchers.Matcher
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import pureconfig.loadConfigOrThrow
 import io.prometheus.client.CollectorRegistry
 import pureconfig.generic.auto._
@@ -36,7 +38,7 @@ import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
 class ApiTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalatestRouteTest
     with EventsTestHelper

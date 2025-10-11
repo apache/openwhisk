@@ -31,8 +31,10 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.pekko.io.Tcp.{Close, CommandFailed, Connect, Connected}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
@@ -64,7 +66,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 class ContainerProxyTests
     extends TestKit(ActorSystem("ContainerProxys"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with StreamLogging {
@@ -2219,7 +2221,7 @@ class ContainerProxyTests
   }
 }
 @RunWith(classOf[JUnitRunner])
-class TCPPingClientTests extends TestKit(ActorSystem("TCPPingClient")) with Matchers with FlatSpecLike {
+class TCPPingClientTests extends TestKit(ActorSystem("TCPPingClient")) with Matchers with AnyFlatSpecLike {
   val config = ContainerProxyHealthCheckConfig(true, 200.milliseconds, 2)
   val addr = new InetSocketAddress("1.2.3.4", 12345)
   val localAddr = new InetSocketAddress("localhost", 5432)

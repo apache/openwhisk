@@ -24,7 +24,7 @@ import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.entity.ExecManifest.Runtimes
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import system.rest.RestUtil
 import spray.json._
 import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._

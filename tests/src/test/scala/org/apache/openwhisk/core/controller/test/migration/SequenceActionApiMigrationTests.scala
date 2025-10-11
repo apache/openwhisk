@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.controller.test.migration
 import scala.Vector
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import common.TestHelpers
 import common.WskTestHelpers

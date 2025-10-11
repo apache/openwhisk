@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.database
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.cli.{CommandMessages, Conf, WhiskAdmin}
 import org.apache.openwhisk.core.entity._
@@ -30,7 +30,7 @@ import scala.util.Try
 import org.apache.openwhisk.core.database.UserCommand.ExtendedAuth
 
 @RunWith(classOf[JUnitRunner])
-class UserCommandTests extends FlatSpec with WhiskAdminCliTestBase {
+class UserCommandTests extends AnyFlatSpec with WhiskAdminCliTestBase {
   private val usersToDelete = ListBuffer[String]()
 
   behavior of "create user"

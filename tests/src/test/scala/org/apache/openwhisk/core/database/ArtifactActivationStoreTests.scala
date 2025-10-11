@@ -24,12 +24,12 @@ import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehavior
 import org.apache.openwhisk.core.entity.{EntityPath, WhiskActivation}
 import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class ArtifactActivationStoreTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with ArtifactActivationStoreBehaviorBase
     with ActivationStoreBehavior {
   override def checkQueryActivations(namespace: String,

@@ -24,8 +24,8 @@ import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.TransactionId

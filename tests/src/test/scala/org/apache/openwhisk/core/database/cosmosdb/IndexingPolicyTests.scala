@@ -20,11 +20,12 @@ package org.apache.openwhisk.core.database.cosmosdb
 import com.microsoft.azure.cosmosdb.DataType.String
 import com.microsoft.azure.cosmosdb.IndexKind.Range
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 @RunWith(classOf[JUnitRunner])
-class IndexingPolicyTests extends FlatSpec with Matchers {
+class IndexingPolicyTests extends AnyFlatSpec with Matchers {
   behavior of "IndexingPolicy"
 
   it should "match same instance" in {

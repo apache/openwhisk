@@ -35,8 +35,10 @@ import org.apache.openwhisk.core.scheduler.queue.{
 }
 import org.apache.openwhisk.grpc.{FetchRequest, FetchResponse, RescheduleRequest, RescheduleResponse}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.core.scheduler.grpc.{ActivationResponse, GetActivation}
 import org.scalatest.concurrent.ScalaFutures
 import spray.json.JsonParser.ParsingException
@@ -49,7 +51,7 @@ class ActivationServiceImplTests
     extends TestKit(ActorSystem("ActivationService"))
     with CommonVariable
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach

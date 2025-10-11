@@ -24,13 +24,13 @@ import org.apache.openwhisk.core.database.memory.{MemoryArtifactStoreBehaviorBas
 import org.apache.openwhisk.core.database.test.AttachmentStoreBehaviors
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreAttachmentBehaviors
 import org.apache.openwhisk.core.entity.WhiskEntity
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.reflect.ClassTag
 import scala.util.Random
 
 trait AzureBlobAttachmentStoreBehaviorBase
-    extends FlatSpec
+    extends AnyFlatSpec
     with MemoryArtifactStoreBehaviorBase
     with ArtifactStoreAttachmentBehaviors
     with AttachmentStoreBehaviors {

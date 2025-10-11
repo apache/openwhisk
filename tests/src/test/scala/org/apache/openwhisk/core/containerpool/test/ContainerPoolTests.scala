@@ -26,10 +26,10 @@ import scala.concurrent.duration._
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.FlatSpecLike
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.pekko.actor.ActorRefFactory
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.ImplicitSender
@@ -54,7 +54,7 @@ import org.scalatest.concurrent.Eventually
 class ContainerPoolTests
     extends TestKit(ActorSystem("ContainerPool"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with MockFactory
@@ -993,7 +993,7 @@ abstract class MockableContainer extends Container {
  * of the ContainerPool object.
  */
 @RunWith(classOf[JUnitRunner])
-class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
+class ContainerPoolObjectTests extends AnyFlatSpec with Matchers with MockFactory {
 
   val actionExec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
   val standardNamespace = EntityName("standardNamespace")

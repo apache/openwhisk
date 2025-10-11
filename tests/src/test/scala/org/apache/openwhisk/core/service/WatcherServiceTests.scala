@@ -35,8 +35,10 @@ import org.apache.openwhisk.core.etcd.EtcdClient
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -45,7 +47,7 @@ import scala.concurrent.duration._
 class WatcherServiceTests
     extends TestKit(ActorSystem("WatcherService"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with MockFactory

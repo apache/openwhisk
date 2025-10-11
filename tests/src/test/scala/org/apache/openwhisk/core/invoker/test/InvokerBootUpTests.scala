@@ -31,8 +31,9 @@ import org.apache.openwhisk.core.etcd.EtcdKV.{InstanceKeys, InvokerKeys}
 import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 import pureconfig.loadConfigOrThrow
 import org.apache.openwhisk.core.entity.size._
 
@@ -44,7 +45,7 @@ import pureconfig.generic.auto._
 @RunWith(classOf[JUnitRunner])
 class InvokerBootUpTests
     extends TestKit(ActorSystem("SchedulerFlow"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with BeforeAndAfterAll
     with WskTestHelpers
     with ScalaFutures {

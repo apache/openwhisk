@@ -55,8 +55,10 @@ import org.apache.openwhisk.core.service.{GetLease, Lease, RegisterData, Unregis
 import org.apache.openwhisk.http.Messages
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{Assertion, BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{Assertion, BeforeAndAfterAll}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, _}
 
@@ -72,7 +74,7 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Pro
 class FunctionPullingContainerProxyTests
     extends TestKit(ActorSystem("FunctionPullingContainerProxy"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with MockFactory
     with BeforeAndAfterAll

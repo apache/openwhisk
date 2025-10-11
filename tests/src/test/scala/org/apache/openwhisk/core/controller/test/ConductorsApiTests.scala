@@ -23,7 +23,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.pekko.http.scaladsl.model.StatusCodes._
 import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller

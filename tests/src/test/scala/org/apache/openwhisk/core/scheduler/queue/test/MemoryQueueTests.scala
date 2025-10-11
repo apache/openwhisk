@@ -51,9 +51,13 @@ import org.apache.openwhisk.core.scheduler.queue._
 import org.apache.openwhisk.core.service._
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest._
+import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.{JsObject, JsString}
 
 import scala.collection.immutable.Queue
@@ -66,7 +70,7 @@ import scala.language.{higherKinds, postfixOps}
 class MemoryQueueTests
     extends MemoryQueueTestsFixture
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with MockFactory

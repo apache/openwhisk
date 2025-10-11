@@ -22,7 +22,7 @@ import java.util.Base64
 import scala.util.Failure
 import scala.util.Try
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import io.restassured.RestAssured
 import io.restassured.http.Header
 import common._

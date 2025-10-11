@@ -20,15 +20,16 @@ package org.apache.openwhisk.common
 import java.io.File
 
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterEach, FlatSpec}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import common.RunCliCmd
 import common.TestUtils._
 
 import scala.collection.mutable.Buffer
 
 @RunWith(classOf[JUnitRunner])
-class RunCliCmdTests extends FlatSpec with RunCliCmd with BeforeAndAfterEach {
+class RunCliCmdTests extends AnyFlatSpec with RunCliCmd with BeforeAndAfterEach {
 
   case class TestRunResult(code: Int) extends RunResult(code, "", "")
   val defaultRR = TestRunResult(0)

@@ -27,7 +27,7 @@ import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.http.Messages.sequenceComponentNotFound
 import org.apache.openwhisk.http.{ErrorResponse, Messages}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 

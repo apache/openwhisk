@@ -21,11 +21,12 @@ import java.time.{Instant}
 import spray.json._
 import common.StreamLogging
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class TransactionIdTests extends FlatSpec with Matchers with StreamLogging {
+class TransactionIdTests extends AnyFlatSpec with Matchers with StreamLogging {
 
   behavior of "TransactionId deserialization"
 

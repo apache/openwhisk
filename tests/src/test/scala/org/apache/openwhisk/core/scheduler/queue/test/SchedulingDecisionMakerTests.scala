@@ -26,15 +26,16 @@ import org.apache.openwhisk.core.scheduler.SchedulingConfig
 import org.apache.openwhisk.core.scheduler.queue._
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
 class SchedulingDecisionMakerTests
     extends TestKit(ActorSystem("SchedulingDecisionMakerTests"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with StreamLogging {

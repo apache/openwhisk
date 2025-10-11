@@ -18,9 +18,9 @@
 package org.apache.openwhisk.core.database
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehavior
 
 @RunWith(classOf[JUnitRunner])
-class CouchDBArtifactStoreTests extends FlatSpec with CouchDBStoreBehaviorBase with ArtifactStoreBehavior {}
+class CouchDBArtifactStoreTests extends AnyFlatSpec with CouchDBStoreBehaviorBase with ArtifactStoreBehavior {}

@@ -21,11 +21,11 @@ import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.database.{AttachmentStore, DocumentSerializer}
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.reflect.ClassTag
 
-trait AzureBlob extends FlatSpec {
+trait AzureBlob extends AnyFlatSpec {
   def azureCdnConfig: String = ""
 
   def makeAzureStore[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,

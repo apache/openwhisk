@@ -25,7 +25,7 @@ import common.WskProps
 import common.WskTestHelpers
 import common.rest.WskRestOperations
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 

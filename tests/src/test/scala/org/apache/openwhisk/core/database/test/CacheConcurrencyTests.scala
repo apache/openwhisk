@@ -22,8 +22,8 @@ import java.util.concurrent.Executors
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.pekko.http.scaladsl.model.StatusCodes.NotFound
 import common.TestUtils._
 import common._
@@ -36,7 +36,7 @@ import scala.concurrent.ExecutionContext
 
 @RunWith(classOf[JUnitRunner])
 class CacheConcurrencyTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with WskTestHelpers
     with WskActorSystem
     with BeforeAndAfterEach

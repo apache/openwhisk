@@ -23,8 +23,10 @@ import java.util.Base64
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import org.apache.pekko.http.scaladsl.model.FormData
 import org.apache.pekko.http.scaladsl.model.HttpEntity
@@ -70,7 +72,7 @@ import scala.collection.immutable.Set
  */
 
 @RunWith(classOf[JUnitRunner])
-class WebActionsApiCommonTests extends FlatSpec with Matchers {
+class WebActionsApiCommonTests extends AnyFlatSpec with Matchers {
   "extension splitter" should "split action name and extension" in {
     Seq(".http", ".json", ".text", ".html", ".svg").foreach { ext =>
       Seq(s"t$ext", s"tt$ext", s"t.wxyz$ext", s"tt.wxyz$ext").foreach { s =>
@@ -98,7 +100,7 @@ class WebActionsApiCommonTests extends FlatSpec with Matchers {
 }
 
 @RunWith(classOf[JUnitRunner])
-class WebActionsApiTests extends FlatSpec with Matchers with WebActionsApiBaseTests {
+class WebActionsApiTests extends AnyFlatSpec with Matchers with WebActionsApiBaseTests {
   override lazy val webInvokePathSegments = Seq("web")
   override lazy val webApiDirectives = new WebApiDirectives()
 

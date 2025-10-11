@@ -18,9 +18,9 @@
 package system.rest
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import io.restassured.RestAssured
 
@@ -31,7 +31,7 @@ import DefaultJsonProtocol._
  * Basic tests of the download link for Go CLI binaries
  */
 @RunWith(classOf[JUnitRunner])
-class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
+class GoCLINginxTests extends AnyFlatSpec with Matchers with RestUtil {
   val DownloadLinkGoCli = "cli/go/download"
   val ServiceURL = getServiceURL()
 

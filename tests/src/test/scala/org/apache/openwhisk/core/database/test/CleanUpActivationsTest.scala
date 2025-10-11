@@ -25,10 +25,10 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import org.apache.pekko.http.scaladsl.model.StatusCodes
 import common.StreamLogging
@@ -41,7 +41,7 @@ import spray.json._
 
 @RunWith(classOf[JUnitRunner])
 class CleanUpActivationsTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaFutures
     with WskActorSystem

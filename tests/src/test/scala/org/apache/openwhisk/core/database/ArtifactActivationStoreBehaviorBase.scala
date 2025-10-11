@@ -19,9 +19,9 @@ package org.apache.openwhisk.core.database
 
 import org.apache.openwhisk.core.controller.test.WhiskAuthHelpers
 import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehaviorBase
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 
-trait ArtifactActivationStoreBehaviorBase extends FlatSpec with ActivationStoreBehaviorBase {
+trait ArtifactActivationStoreBehaviorBase extends AnyFlatSpec with ActivationStoreBehaviorBase {
   override def storeType = "Artifact"
 
   override val context = UserContext(WhiskAuthHelpers.newIdentity())

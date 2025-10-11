@@ -19,7 +19,7 @@ package common
 
 import java.time.Instant
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Failure

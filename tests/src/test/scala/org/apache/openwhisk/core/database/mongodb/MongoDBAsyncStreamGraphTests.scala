@@ -28,16 +28,17 @@ import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.mongodb.scala.gridfs.helpers.AsyncStreamHelper
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.Random
 
 @RunWith(classOf[JUnitRunner])
 class MongoDBAsyncStreamGraphTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaFutures
     with WskActorSystem

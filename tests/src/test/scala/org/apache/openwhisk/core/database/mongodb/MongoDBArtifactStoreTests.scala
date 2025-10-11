@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.database.mongodb
 
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehavior
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class MongoDBArtifactStoreTests extends FlatSpec with MongoDBStoreBehaviorBase with ArtifactStoreBehavior {}
+class MongoDBArtifactStoreTests extends AnyFlatSpec with MongoDBStoreBehaviorBase with ArtifactStoreBehavior {}

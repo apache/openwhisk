@@ -26,8 +26,10 @@ import org.apache.pekko.util.ByteString
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import pureconfig._
 import pureconfig.generic.auto._
 import spray.json._
@@ -45,7 +47,7 @@ import scala.reflect.classTag
 
 @RunWith(classOf[JUnitRunner])
 class AttachmentCompatibilityTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaFutures
     with BeforeAndAfterEach

@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.apigw.actions.test
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import common.rest.WskRestOperations
 

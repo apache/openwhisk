@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.cli.test
 
 import org.apache.pekko.http.scaladsl.model.StatusCodes.OK
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.JsObject
 import spray.json._
 import common.rest.WskRestOperations

@@ -21,13 +21,13 @@ import org.apache.pekko.actor.ActorSystem
 
 import scala.concurrent.Future
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.core.containerpool.docker.RuncClient
 import common.{StreamLogging, WskActorSystem}
 import org.apache.openwhisk.core.containerpool.ContainerId
@@ -39,7 +39,7 @@ import org.apache.openwhisk.common.LoggingMarkers.INVOKER_RUNC_CMD
 
 @RunWith(classOf[JUnitRunner])
 class RuncClientTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with StreamLogging
     with BeforeAndAfterEach

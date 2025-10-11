@@ -30,8 +30,10 @@ import org.apache.openwhisk.core.invoker.{DefaultInvokerServer, InvokerCore}
 import org.apache.openwhisk.http.BasicHttpService
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.Future
 
@@ -40,7 +42,7 @@ import scala.concurrent.Future
  */
 @RunWith(classOf[JUnitRunner])
 class DefaultInvokerServerTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with BeforeAndAfterEach
     with BeforeAndAfterAll
     with ScalatestRouteTest

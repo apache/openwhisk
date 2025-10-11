@@ -49,7 +49,7 @@ import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common.{Https, PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.utils.retry
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
 import pureconfig._

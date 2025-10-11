@@ -23,13 +23,14 @@ import java.nio.file.Files
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import pureconfig._
 import pureconfig.generic.auto._
 
 @RunWith(classOf[JUnitRunner])
-class ConfigMapValueTests extends FlatSpec with Matchers {
+class ConfigMapValueTests extends AnyFlatSpec with Matchers {
   behavior of "ConfigMapValue"
 
   case class ValueTest(template: ConfigMapValue, count: Int)

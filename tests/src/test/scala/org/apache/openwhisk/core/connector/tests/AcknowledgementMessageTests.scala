@@ -18,8 +18,9 @@
 package org.apache.openwhisk.core.connector.tests
 
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import spray.json._
 import org.apache.openwhisk.common.{TransactionId, WhiskInstants}
 import org.apache.openwhisk.core.connector.{
@@ -38,7 +39,7 @@ import scala.util.Success
  * Unit tests for the AcknowledgementMessageTests object.
  */
 @RunWith(classOf[JUnitRunner])
-class AcknowledgementMessageTests extends FlatSpec with Matchers with WhiskInstants {
+class AcknowledgementMessageTests extends AnyFlatSpec with Matchers with WhiskInstants {
 
   behavior of "acknowledgement message"
 

@@ -20,14 +20,15 @@ package org.apache.openwhisk.core.entity.test
 import org.apache.openwhisk.core.entity.size.SizeInt
 import org.apache.openwhisk.core.entity.{ByteSize, InstanceId, InvokerInstanceId}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.{JsArray, JsNumber, JsObject, JsString}
 
 import scala.util.Success
 
 @RunWith(classOf[JUnitRunner])
-class InvokerInstanceIdTests extends FlatSpec with Matchers {
+class InvokerInstanceIdTests extends AnyFlatSpec with Matchers {
 
   behavior of "InvokerInstanceIdTests"
 

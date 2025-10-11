@@ -27,7 +27,7 @@ import org.apache.openwhisk.core.controller.actions.ControllerActivationConfig
 import org.apache.openwhisk.core.database.{ActivationStoreLevel, UserContext}
 import org.apache.openwhisk.core.entity._
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 

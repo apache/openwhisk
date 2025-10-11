@@ -22,20 +22,20 @@ import common.WskActorSystem
 
 import scala.concurrent.Future
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 
 import org.apache.openwhisk.core.containerpool.docker._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.concurrent.Await
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 
 import scala.language.reflectiveCalls // Needed to invoke run() method of structural ProcessRunner extension
 
 @RunWith(classOf[JUnitRunner])
-class ProcessRunnerTests extends FlatSpec with Matchers with WskActorSystem {
+class ProcessRunnerTests extends AnyFlatSpec with Matchers with WskActorSystem {
 
   def await[A](f: Future[A], timeout: FiniteDuration = 2.seconds) = Await.result(f, timeout)
 

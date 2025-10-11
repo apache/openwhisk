@@ -18,9 +18,11 @@
 package org.apache.openwhisk.http
 
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.pekko.NotUsed
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.scaladsl.Flow
@@ -42,7 +44,7 @@ import org.apache.openwhisk.http.PoolingRestClient._
 @RunWith(classOf[JUnitRunner])
 class PoolingRestClientTests
     extends TestKit(ActorSystem("PoolingRestClientTests"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with ScalaFutures

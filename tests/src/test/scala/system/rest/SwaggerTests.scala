@@ -18,9 +18,9 @@
 package system.rest
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import io.restassured.RestAssured
 
@@ -30,7 +30,7 @@ import common.WhiskProperties
  * Basic tests of Swagger support
  */
 @RunWith(classOf[JUnitRunner])
-class SwaggerTests extends FlatSpec with Matchers with RestUtil {
+class SwaggerTests extends AnyFlatSpec with Matchers with RestUtil {
 
   "Whisk API service" should "respond to /docs with Swagger UI" in {
     val response = RestAssured.given().config(sslconfig).get(getServiceURL() + "/api/v1/docs/index.html")

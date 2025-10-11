@@ -25,7 +25,7 @@ import org.apache.openwhisk.core.entity.{ActivationId, ActivationResponse, Subje
 import org.apache.openwhisk.core.monitoring.metrics.OpenWhiskEvents.MetricConfig
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import pureconfig._
 import pureconfig.generic.auto._
 

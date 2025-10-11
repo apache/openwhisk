@@ -27,8 +27,9 @@ import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, InvokerInstanceId, SizeUnits}
 import org.apache.openwhisk.core.yarn.{YARNConfig, YARNContainerFactory, YARNRESTUtil, YARNTask}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, Suite}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Suite}
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.apache.openwhisk.core.entity.test.ExecHelpers
 
 import scala.collection.immutable.Map
@@ -39,7 +40,7 @@ import scala.concurrent.duration._
 class YARNContainerFactoryTests
     extends Suite
     with BeforeAndAfter
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ExecHelpers
     with BeforeAndAfterAll {
 

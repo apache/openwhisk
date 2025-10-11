@@ -34,7 +34,9 @@ import org.apache.openwhisk.core.scheduler.queue.{DurationCheckResult, ElasticSe
 import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.junit.JUnitRunner
 import pureconfig.generic.auto._
 import pureconfig.loadConfigOrThrow
@@ -52,7 +54,7 @@ import scala.concurrent.duration._
  */
 @RunWith(classOf[JUnitRunner])
 class ElasticSearchDurationCheckerTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaFutures
     with WskTestHelpers

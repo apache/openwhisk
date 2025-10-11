@@ -29,9 +29,9 @@ import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.language.reflectiveCalls
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.matchers.should.Matchers
 import common.{StreamLogging, WskActorSystem}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -42,7 +42,7 @@ import org.apache.openwhisk.core.containerpool.docker.DockerClientWithFileAccess
 
 @RunWith(classOf[JUnitRunner])
 class DockerClientWithFileAccessTestsIp
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with StreamLogging
     with BeforeAndAfterEach
@@ -115,7 +115,7 @@ class DockerClientWithFileAccessTestsIp
 
 @RunWith(classOf[JUnitRunner])
 class DockerClientWithFileAccessTestsOom
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with StreamLogging
     with BeforeAndAfterEach

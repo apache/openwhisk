@@ -19,9 +19,11 @@ package org.apache.openwhisk.core.containerpool.logging
 
 import spray.json._
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.pekko.NotUsed
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.http.scaladsl.model._
@@ -39,7 +41,7 @@ import scala.util.{Success, Try}
 @RunWith(classOf[JUnitRunner])
 class ElasticSearchRestClientTests
     extends TestKit(ActorSystem("ElasticSearchRestClient"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with ScalaFutures

@@ -24,9 +24,9 @@ import scala.concurrent.Future
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpecLike
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorRefFactory
 import org.apache.pekko.actor.ActorSystem
@@ -62,7 +62,7 @@ import org.apache.openwhisk.core.entity.ControllerInstanceId
 class InvokerSupervisionTests
     extends TestKit(ActorSystem("InvokerSupervision"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with MockFactory

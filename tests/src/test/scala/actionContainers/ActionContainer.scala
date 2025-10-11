@@ -33,7 +33,8 @@ import scala.sys.process.stringToProcess
 import scala.util.Random
 import scala.util.{Failure, Success}
 import org.apache.commons.lang3.StringUtils
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.pekko.actor.ActorSystem
 
 import scala.concurrent.ExecutionContext
@@ -56,7 +57,7 @@ trait ActionContainer {
   def runMultiple(values: Seq[JsValue])(implicit ec: ExecutionContext): Seq[(Int, Option[JsObject])]
 }
 
-trait ActionProxyContainerTestUtils extends FlatSpec with Matchers with StreamLogging {
+trait ActionProxyContainerTestUtils extends AnyFlatSpec with Matchers with StreamLogging {
   import ActionContainer.{filterSentinel, sentinel}
 
   def initPayload(code: String, main: String = "main", env: Option[Map[String, JsString]] = None): JsObject =

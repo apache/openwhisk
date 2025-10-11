@@ -20,8 +20,9 @@ package org.apache.openwhisk.core.containerpool.logging.test
 import org.apache.pekko.actor.ActorSystem
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.core.containerpool.logging.{
   DockerToActivationLogStoreProvider,
   LogCollectingException,
@@ -42,7 +43,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
+class DockerToActivationLogStoreTests extends AnyFlatSpec with Matchers with WskActorSystem with StreamLogging {
   def await[T](future: Future[T]) = Await.result(future, 1.minute)
 
   val uuid = UUID()

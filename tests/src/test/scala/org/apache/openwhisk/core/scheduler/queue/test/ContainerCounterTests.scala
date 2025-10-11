@@ -46,8 +46,9 @@ import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpecLike, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -55,7 +56,7 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 class ContainerCounterTests
     extends TestKit(ActorSystem("ContainerCounter"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with MockFactory
     with ScalaFutures

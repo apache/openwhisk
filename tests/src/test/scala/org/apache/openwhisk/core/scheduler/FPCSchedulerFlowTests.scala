@@ -42,8 +42,9 @@ import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -60,7 +61,7 @@ import scala.util.control.Breaks._
 @RunWith(classOf[JUnitRunner])
 class FPCSchedulerFlowTests
     extends TestKit(ActorSystem("SchedulerFlow"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with BeforeAndAfterAll
     with WskTestHelpers
     with ScalaFutures {

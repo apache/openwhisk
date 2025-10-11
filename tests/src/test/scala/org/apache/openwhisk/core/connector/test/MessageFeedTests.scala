@@ -26,9 +26,9 @@ import scala.concurrent.duration._
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.FlatSpecLike
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
@@ -46,7 +46,7 @@ import org.apache.openwhisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class MessageFeedTests
-    extends FlatSpecLike
+    extends AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterEach
     with BeforeAndAfterAll

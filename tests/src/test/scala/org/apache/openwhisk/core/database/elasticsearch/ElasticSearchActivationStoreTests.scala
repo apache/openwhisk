@@ -20,8 +20,8 @@ package org.apache.openwhisk.core.database.elasticsearch
 import java.time.Instant
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehavior
@@ -30,7 +30,7 @@ import org.apache.openwhisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class ElasticSearchActivationStoreTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with ElasticSearchActivationStoreBehaviorBase
     with ActivationStoreBehavior {
 

@@ -44,7 +44,8 @@ dependencies {
     implementation "io.prometheus:simpleclient_common:0.6.0"
 
     testImplementation "junit:junit:4.11"
-    testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
+    testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.2.14"
+    testImplementation "org.scalatestplus:junit-4-13_${gradle.scala.depVersion}:3.2.14.0"
     testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.8.1"
     constraints {
         testImplementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.8.1")

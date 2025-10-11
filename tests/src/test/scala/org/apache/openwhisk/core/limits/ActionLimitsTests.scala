@@ -26,7 +26,7 @@ import java.time.Instant
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils

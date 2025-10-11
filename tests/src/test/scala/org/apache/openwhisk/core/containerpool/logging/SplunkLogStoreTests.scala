@@ -31,8 +31,10 @@ import org.apache.pekko.testkit.TestKit
 import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import pureconfig.error.ConfigReaderException
 import spray.json._
 import org.apache.openwhisk.core.entity._
@@ -46,7 +48,7 @@ import scala.util.{Failure, Success, Try}
 @RunWith(classOf[JUnitRunner])
 class SplunkLogStoreTests
     extends TestKit(ActorSystem("SplunkLogStore"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with ScalaFutures

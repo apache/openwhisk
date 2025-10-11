@@ -23,10 +23,10 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.http.scaladsl.model.HttpRequest
 import org.apache.pekko.http.scaladsl.model.StatusCodes
@@ -45,7 +45,7 @@ import org.apache.openwhisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class ShootComponentsTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with WskTestHelpers
     with ScalaFutures

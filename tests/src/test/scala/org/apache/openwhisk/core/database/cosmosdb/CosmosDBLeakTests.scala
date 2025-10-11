@@ -31,8 +31,8 @@ import org.apache.openwhisk.core.entity.{
   WhiskNamespace
 }
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.duration.DurationInt
 
@@ -41,7 +41,7 @@ import scala.concurrent.duration.DurationInt
  * By default this test is disabled
  */
 @RunWith(classOf[JUnitRunner])
-class CosmosDBLeakTests extends FlatSpec with CosmosDBStoreBehaviorBase {
+class CosmosDBLeakTests extends AnyFlatSpec with CosmosDBStoreBehaviorBase {
 
   behavior of s"CosmosDB leak"
 

@@ -21,7 +21,7 @@ import io.opentracing.Span
 import io.opentracing.mock.{MockSpan, MockTracer}
 import com.github.benmanes.caffeine.cache.Ticker
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.common.{LoggingMarkers, TransactionId}
@@ -29,7 +29,8 @@ import org.apache.openwhisk.common.tracing.{OpenTracer, TracingConfig}
 import org.apache.openwhisk.core.ConfigKeys
 
 import scala.ref.WeakReference
-import org.scalatest.{Matchers, TestData}
+import org.scalatest.TestData
+import org.scalatest.matchers.should.Matchers
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])

@@ -22,13 +22,15 @@ import java.time.Instant
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.s3.S3AttachmentStoreProvider.S3Config
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers, OptionValues}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.OptionValues
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import pureconfig._
 import pureconfig.generic.auto._
 
 @RunWith(classOf[JUnitRunner])
-class CloudFrontSignerTests extends FlatSpec with Matchers with OptionValues {
+class CloudFrontSignerTests extends AnyFlatSpec with Matchers with OptionValues {
 
   val qt = "\"\"\""
   val privateKey =

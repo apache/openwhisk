@@ -20,7 +20,7 @@ package system.basic
 import java.io.File
 import io.restassured.RestAssured
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.duration.DurationInt
 import common._

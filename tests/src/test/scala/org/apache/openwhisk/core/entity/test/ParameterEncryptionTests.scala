@@ -20,13 +20,15 @@ import java.security.InvalidAlgorithmParameterException
 
 import org.apache.openwhisk.core.entity._
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 @RunWith(classOf[JUnitRunner])
-class ParameterEncryptionTests extends FlatSpec with Matchers with BeforeAndAfter {
+class ParameterEncryptionTests extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
   val k128 = "ra1V6AfOYAv0jCzEdufIFA=="
   val k256 = "j5rLzhtxwzPyUVUy8/p8XJmBoKeDoSzNJP1SITJEY9E="

@@ -28,7 +28,7 @@ import scala.language.postfixOps
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._

@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.controller.test
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import org.apache.pekko.http.scaladsl.model.StatusCodes.NotFound
 import org.apache.pekko.http.scaladsl.model.StatusCodes.OK

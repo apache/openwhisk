@@ -28,7 +28,7 @@ import org.apache.openwhisk.core.connector.{Activation, EventMessage}
 import org.apache.openwhisk.core.entity.{ActivationId, ActivationResponse, Subject, UUID}
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.duration._
 

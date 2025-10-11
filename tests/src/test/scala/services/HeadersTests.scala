@@ -22,10 +22,10 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.collection.immutable.Seq
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.scalatest.time.Span.convertDurationToSpan
 import common.TestUtils
 import common.WhiskProperties
@@ -52,7 +52,7 @@ import common.WskActorSystem
 import pureconfig._
 
 @RunWith(classOf[JUnitRunner])
-class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem with WskTestHelpers {
+class HeadersTests extends AnyFlatSpec with Matchers with ScalaFutures with WskActorSystem with WskTestHelpers {
 
   behavior of "Headers at general API"
 

@@ -180,7 +180,8 @@ dependencies {
     implementation "org.apache.pekko:pekko-http-cors_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
 
     testImplementation "junit:junit:4.11"
-    testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
+    testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.2.14"
+    testImplementation "org.scalatestplus:junit-4-13_${gradle.scala.depVersion}:3.2.14.0"
 }
 
 gradle.projectsEvaluated {

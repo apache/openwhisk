@@ -20,12 +20,13 @@ package org.apache.openwhisk.common.etcd
 import common.WskActorSystem
 import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.ExecutionContextExecutor
 @RunWith(classOf[JUnitRunner])
-class EtcdConfigTests extends FlatSpec with Matchers with WskActorSystem {
+class EtcdConfigTests extends AnyFlatSpec with Matchers with WskActorSystem {
   behavior of "EtcdConfig"
 
   implicit val ece: ExecutionContextExecutor = actorSystem.dispatcher

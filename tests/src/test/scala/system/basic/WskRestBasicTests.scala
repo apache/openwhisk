@@ -26,7 +26,7 @@ import java.time.Instant
 
 import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
 import common.rest.RestResult

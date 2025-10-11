@@ -30,9 +30,9 @@ import scala.util.Success
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
 import common.{StreamLogging, WskActorSystem}
 import org.apache.openwhisk.common.LogMarker
@@ -45,7 +45,7 @@ import org.apache.openwhisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class DockerClientTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with StreamLogging
     with BeforeAndAfterEach

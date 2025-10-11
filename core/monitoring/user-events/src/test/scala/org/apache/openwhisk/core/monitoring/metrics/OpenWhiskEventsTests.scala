@@ -24,7 +24,7 @@ import com.typesafe.config.ConfigFactory
 import io.prometheus.client.CollectorRegistry
 import kamon.Kamon
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.duration._
 import scala.util.Try

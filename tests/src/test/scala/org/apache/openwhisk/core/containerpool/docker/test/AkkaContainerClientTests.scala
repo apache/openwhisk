@@ -30,9 +30,9 @@ import org.apache.http.protocol.HttpRequestHandler
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import scala.concurrent.Await
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -48,7 +48,7 @@ import org.apache.openwhisk.core.entity.size._
  */
 @RunWith(classOf[JUnitRunner])
 class AkkaContainerClientTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with BeforeAndAfter
     with BeforeAndAfterAll

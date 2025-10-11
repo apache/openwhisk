@@ -19,11 +19,12 @@ package org.apache.openwhisk.common
 import java.lang.management.ManagementFactory
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 @RunWith(classOf[JUnitRunner])
-class ConfigMXBeanTests extends FlatSpec with Matchers {
+class ConfigMXBeanTests extends AnyFlatSpec with Matchers {
   behavior of "ConfigMBean"
 
   it should "return config at path" in {

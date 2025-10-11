@@ -55,8 +55,10 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import pureconfig.loadConfigOrThrow
 import spray.json.{JsArray, JsBoolean, JsString}
 import pureconfig.generic.auto._
@@ -70,7 +72,7 @@ import scala.concurrent.duration.{FiniteDuration, _}
 class ContainerManagerTests
     extends TestKit(ActorSystem("ContainerManager"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with MockFactory
@@ -1489,7 +1491,7 @@ class ContainerManagerTests
 
 @RunWith(classOf[JUnitRunner])
 class ContainerManager2Tests
-    extends FlatSpecLike
+    extends AnyFlatSpecLike
     with Matchers
     with StreamLogging
     with ExecHelpers

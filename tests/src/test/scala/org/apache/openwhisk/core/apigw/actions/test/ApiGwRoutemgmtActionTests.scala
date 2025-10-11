@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.apigw.actions.test
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import common.JsHelpers
 import common.StreamLogging

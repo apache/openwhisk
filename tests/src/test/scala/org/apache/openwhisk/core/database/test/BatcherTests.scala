@@ -22,8 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import common.{LoggedFunction, WskActorSystem}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.core.database.Batcher
 import org.apache.openwhisk.utils.retry
 
@@ -32,7 +33,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
 @RunWith(classOf[JUnitRunner])
-class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
+class BatcherTests extends AnyFlatSpec with Matchers with WskActorSystem {
 
   def await[V](f: Future[V]) = Await.result(f, 10.seconds)
 

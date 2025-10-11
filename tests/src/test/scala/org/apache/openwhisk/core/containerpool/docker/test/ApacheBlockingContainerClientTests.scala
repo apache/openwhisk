@@ -27,11 +27,11 @@ import org.apache.http.localserver.LocalServerTestBase
 import org.apache.http.protocol.HttpContext
 import org.apache.http.protocol.HttpRequestHandler
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.JsObject
 import common.StreamLogging
 import common.WskActorSystem
@@ -50,7 +50,7 @@ import org.apache.openwhisk.core.entity.ActivationResponse._
  */
 @RunWith(classOf[JUnitRunner])
 class ApacheBlockingContainerClientTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with BeforeAndAfter
     with BeforeAndAfterAll

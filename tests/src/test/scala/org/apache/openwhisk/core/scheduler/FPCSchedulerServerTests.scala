@@ -28,8 +28,10 @@ import org.apache.openwhisk.core.connector.StatusData
 import org.apache.openwhisk.core.entity.{ActivationId, SchedulerInstanceId}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -40,7 +42,7 @@ import scala.concurrent.Future
  */
 @RunWith(classOf[JUnitRunner])
 class FPCSchedulerServerTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with BeforeAndAfterEach
     with BeforeAndAfterAll
     with ScalatestRouteTest

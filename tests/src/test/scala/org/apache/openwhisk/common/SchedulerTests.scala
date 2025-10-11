@@ -26,16 +26,16 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import org.apache.pekko.actor.PoisonPill
 import common.StreamLogging
 import common.WskActorSystem
 
 @RunWith(classOf[JUnitRunner])
-class SchedulerTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
+class SchedulerTests extends AnyFlatSpec with Matchers with WskActorSystem with StreamLogging {
 
   val timeBetweenCalls = 50 milliseconds
   val callsToProduce = 5

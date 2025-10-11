@@ -25,7 +25,9 @@ import org.apache.openwhisk.core.database.{ActivationStore, CacheChangeNotificat
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreTestUtil.storeAvailable
 import org.apache.openwhisk.core.entity._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers, Outcome}
+import org.scalatest.{BeforeAndAfterEach, Outcome}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
@@ -35,7 +37,7 @@ import scala.language.postfixOps
 import scala.util.{Random, Try}
 
 trait ActivationStoreBehaviorBase
-    extends FlatSpec
+    extends AnyFlatSpec
     with ScalaFutures
     with Matchers
     with StreamLogging

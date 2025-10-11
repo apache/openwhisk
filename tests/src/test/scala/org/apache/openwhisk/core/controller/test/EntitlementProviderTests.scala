@@ -22,7 +22,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.pekko.http.scaladsl.model.StatusCodes._
 import org.apache.openwhisk.core.controller.RejectRequest
 import org.apache.openwhisk.core.entitlement._

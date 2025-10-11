@@ -19,7 +19,9 @@ package org.apache.openwhisk.core.monitoring.metrics
 
 import org.apache.pekko.kafka.testkit.scaladsl.ScalatestKafkaSpec
 import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
-import org.scalatest._
+import org.scalatest.Suite
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -28,7 +30,7 @@ abstract class KafkaSpecBase
     extends ScalatestKafkaSpec(6065)
     with Matchers
     with ScalaFutures
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with EmbeddedKafka
     with IntegrationPatience
     with Eventually

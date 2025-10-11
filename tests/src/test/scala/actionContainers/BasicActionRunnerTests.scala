@@ -19,7 +19,7 @@ package actionContainers
 
 import org.junit.runner.RunWith
 import org.scalatest.exceptions.TestPendingException
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
