@@ -520,7 +520,7 @@ scheduler:
   pekko:
     provider: cluster
     cluster:
-      basePort: 25520
+      basePort: 17355
       host: "{{ groups['schedulers'] | map('extract', hostvars, 'ansible_host') | list }}"
       bindPort: 3551
       # at this moment all schedulers are seed nodes
