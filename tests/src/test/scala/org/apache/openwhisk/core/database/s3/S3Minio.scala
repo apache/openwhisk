@@ -39,7 +39,7 @@ trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
     val config = ConfigFactory.parseString(s"""
       |whisk {
       |     s3 {
-      |      alpakka {
+      |      pekko-connectors {
       |         aws {
       |           credentials {
       |             provider = static

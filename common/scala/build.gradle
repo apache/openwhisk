@@ -91,6 +91,19 @@ dependencies {
     // for etcd
     api "com.ibm.etcd:etcd-java:0.0.24"
 
+    // Force etcd-java to use gRPC versions compatible with Pekko gRPC
+    constraints {
+        api("io.grpc:grpc-netty") {
+            version {
+                strictly "1.67.1"
+            }
+            because "etcd-java uses 1.59.0 which is incompatible with Pekko gRPC 1.1.1 (uses 1.67.1)"
+        }
+        api("io.grpc:grpc-core:1.67.1")
+        api("io.grpc:grpc-stub:1.67.1")
+        api("io.grpc:grpc-protobuf:1.67.1")
+    }
+
     //tracing support
     api "io.opentracing:opentracing-api:0.31.0"
     api "io.opentracing:opentracing-util:0.31.0"

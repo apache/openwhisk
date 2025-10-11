@@ -49,7 +49,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 
 object S3AttachmentStoreProvider extends AttachmentStoreProvider {
-  val alpakkaConfigKey = s"${ConfigKeys.s3}.alpakka"
+  val pekkoConnectorsConfigKey = s"${ConfigKeys.s3}.pekko-connectors"
   case class S3Config(bucket: String, prefix: Option[String], cloudFrontConfig: Option[CloudFrontConfig] = None) {
     def prefixFor[D](implicit tag: ClassTag[D]): String = {
       val className = tag.runtimeClass.getSimpleName.toLowerCase
@@ -71,7 +71,7 @@ object S3AttachmentStoreProvider extends AttachmentStoreProvider {
     new S3AttachmentStore(s3Settings(config), s3config.bucket, s3config.prefixFor[D], s3config.signer)
   }
 
-  private def s3Settings(config: Config) = S3Settings(config.getConfig(alpakkaConfigKey))
+  private def s3Settings(config: Config) = S3Settings(config.getConfig(pekkoConnectorsConfigKey))
 
 }
 
