@@ -46,7 +46,6 @@
         "{{ scheduler.pekko.cluster.host[(scheduler_index | int)] }}"
       "CONFIG_pekko_remote_artery_canonical_port":
         "{{ scheduler.pekko.cluster.basePort + (scheduler_index | int) }}"
-      "CONFIG_pekko_remote_artery_bind_hostname": "0.0.0.0"
       "CONFIG_pekko_remote_artery_bind_port":
         "{{ scheduler.pekko.cluster.bindPort }}"
   set_fact:

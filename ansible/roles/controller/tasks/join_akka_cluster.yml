@@ -46,7 +46,6 @@
         "{{ controller.pekko.cluster.host[(controller_index | int)] }}"
       "CONFIG_pekko_remote_artery_canonical_port":
         "{{ controller.pekko.cluster.basePort + (controller_index | int) }}"
-      "CONFIG_pekko_remote_artery_bind_hostname": "0.0.0.0"
       "CONFIG_pekko_remote_artery_bind_port":
         "{{ controller.pekko.cluster.bindPort }}"
   set_fact:
