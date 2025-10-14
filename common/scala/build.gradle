@@ -88,8 +88,8 @@ dependencies {
     api "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.1.12"
     api "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
 
-    // for etcd - downgraded to 0.0.13 to test gRPC compatibility
-    api "com.ibm.etcd:etcd-java:0.0.13"
+    // for etcd - aligned with Pekko gRPC
+    api "com.ibm.etcd:etcd-java:0.0.24"
 
     //tracing support
     api "io.opentracing:opentracing-api:0.31.0"
@@ -153,6 +153,34 @@ dependencies {
 
     // Constraints for transitive dependencies to address security vulnerabilities
     constraints {
+        api("io.grpc:grpc-api:${gradle.grpc.version}") {
+            version { strictly gradle.grpc.version }
+            because "Align all gRPC artifacts with Pekko gRPC runtime ${gradle.pekko_grpc.version}"
+        }
+        api("io.grpc:grpc-core:${gradle.grpc.version}") {
+            version { strictly gradle.grpc.version }
+            because "Align all gRPC artifacts with Pekko gRPC runtime ${gradle.pekko_grpc.version}"
+        }
+        api("io.grpc:grpc-netty:${gradle.grpc.version}") {
+            version { strictly gradle.grpc.version }
+            because "Align all gRPC artifacts with Pekko gRPC runtime ${gradle.pekko_grpc.version}"
+        }
+        api("io.grpc:grpc-netty-shaded:${gradle.grpc.version}") {
+            version { strictly gradle.grpc.version }
+            because "Align all gRPC artifacts with Pekko gRPC runtime ${gradle.pekko_grpc.version}"
+        }
+        api("io.grpc:grpc-protobuf:${gradle.grpc.version}") {
+            version { strictly gradle.grpc.version }
+            because "Align all gRPC artifacts with Pekko gRPC runtime ${gradle.pekko_grpc.version}"
+        }
+        api("io.grpc:grpc-protobuf-lite:${gradle.grpc.version}") {
+            version { strictly gradle.grpc.version }
+            because "Align all gRPC artifacts with Pekko gRPC runtime ${gradle.pekko_grpc.version}"
+        }
+        api("io.grpc:grpc-stub:${gradle.grpc.version}") {
+            version { strictly gradle.grpc.version }
+            because "Align all gRPC artifacts with Pekko gRPC runtime ${gradle.pekko_grpc.version}"
+        }
         api("org.apache.commons:commons-text:1.10.0")
         api("com.google.code.gson:gson:2.8.9")
 
