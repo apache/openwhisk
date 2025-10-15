@@ -88,7 +88,11 @@ dependencies {
     api "io.kamon:kamon-prometheus_${gradle.scala.depVersion}:2.1.12"
     api "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
 
+<<<<<<< HEAD
     // for etcd - aligned with Pekko gRPC
+=======
+    // for etcd
+>>>>>>> master
     api "com.ibm.etcd:etcd-java:0.0.24"
 
     //tracing support
