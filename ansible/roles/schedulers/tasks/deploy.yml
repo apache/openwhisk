@@ -348,14 +348,43 @@
       >> /logs/{{ scheduler_name }}_logs.log 2>&1"
 
 - name: wait until the Scheduler in this host is up and running
-  uri:
-    url:
-      "{{scheduler.protocol}}://{{ansible_host}}:{{scheduler_port}}/ping"
-    validate_certs: "no"
-  register: result
-  until: result.status == 200
-  retries: 12
-  delay: 5
+  block:
+    - name: ping scheduler health endpoint
+      uri:
+        url:
+          "{{scheduler.protocol}}://{{ansible_host}}:{{scheduler_port}}/ping"
+        validate_certs: "no"
+      register: result
+      until: result.status == 200
+      retries: 12
+      delay: 5
+  rescue:
+    - name: dump scheduler docker logs
+      shell: |
+        docker logs {{ scheduler_name }} >/tmp/scheduler-docker.log 2>&1 || true
+        cat /tmp/scheduler-docker.log
+      register: scheduler_logs
+      failed_when: false
+    - name: output scheduler logs for debugging
+      debug:
+        var: scheduler_logs.stdout_lines
+    - name: dump scheduler file logs
+      shell: |
+        cat /var/tmp/wsklogs/{{ scheduler_name }}/{{ scheduler_name }}_logs.log
+      register: scheduler_file_logs
+      failed_when: false
+    - name: output scheduler file logs for debugging
+      debug:
+        var: scheduler_file_logs.stdout_lines
+    - name: inspect scheduler container configuration
+      shell: "docker inspect {{ scheduler_name }}"
+      register: scheduler_inspect
+      failed_when: false
+    - name: output scheduler inspect for debugging
+      debug:
+        var: scheduler_inspect.stdout_lines
+    - fail:
+        msg: "Scheduler failed to start; logs emitted above"
 
 - name: create scheduler jmx.yml
   template:
