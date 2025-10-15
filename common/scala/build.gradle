@@ -86,7 +86,7 @@ dependencies {
     api "io.kamon:kamon-datadog_${gradle.scala.depVersion}:2.1.12"
 
     // for etcd
-    api "com.ibm.etcd:etcd-java:0.0.13"
+    api "com.ibm.etcd:etcd-java:0.0.24"
 
     //tracing support
     api "io.opentracing:opentracing-api:0.31.0"
@@ -145,6 +145,51 @@ dependencies {
     api "io.netty:netty-transport-native-epoll:${gradle.netty.version}"
     api "io.netty:netty-transport-native-unix-common:${gradle.netty.version}"
     api "com.lightbend.akka.grpc:akka-grpc-runtime_${gradle.scala.depVersion}:${gradle.akka_gprc.version}"
+    constraints {
+        api("com.lightbend.akka.grpc:akka-grpc-runtime_${gradle.scala.depVersion}:${gradle.akka_gprc.version}")
+        api("io.grpc:grpc-api:${gradle.grpc.version}") {
+            version {
+                strictly gradle.grpc.version
+            }
+            because "Akka gRPC runtime 1.0.2 requires gRPC 1.32.1"
+        }
+        api("io.grpc:grpc-core:${gradle.grpc.version}") {
+            version {
+                strictly gradle.grpc.version
+            }
+            because "Akka gRPC runtime 1.0.2 requires gRPC 1.32.1"
+        }
+        api("io.grpc:grpc-netty:${gradle.grpc.version}") {
+            version {
+                strictly gradle.grpc.version
+            }
+            because "Akka gRPC runtime 1.0.2 requires gRPC 1.32.1"
+        }
+        api("io.grpc:grpc-netty-shaded:${gradle.grpc.version}") {
+            version {
+                strictly gradle.grpc.version
+            }
+            because "Akka gRPC runtime 1.0.2 requires gRPC 1.32.1"
+        }
+        api("io.grpc:grpc-stub:${gradle.grpc.version}") {
+            version {
+                strictly gradle.grpc.version
+            }
+            because "Akka gRPC runtime 1.0.2 requires gRPC 1.32.1"
+        }
+        api("io.grpc:grpc-protobuf:${gradle.grpc.version}") {
+            version {
+                strictly gradle.grpc.version
+            }
+            because "Akka gRPC runtime 1.0.2 requires gRPC 1.32.1"
+        }
+        api("io.grpc:grpc-protobuf-lite:${gradle.grpc.version}") {
+            version {
+                strictly gradle.grpc.version
+            }
+            because "Akka gRPC runtime 1.0.2 requires gRPC 1.32.1"
+        }
+    }
     api "com.typesafe.akka:akka-stream_${gradle.scala.depVersion}:${gradle.akka.version}"
 
     // Constraints for transitive dependencies to address security vulnerabilities
