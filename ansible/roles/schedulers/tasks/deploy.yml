@@ -122,7 +122,7 @@
 
       "WHISK_SCHEDULER_ENDPOINTS_HOST": "{{ ansible_host }}"
       "WHISK_SCHEDULER_ENDPOINTS_RPCPORT": "{{ scheduler.grpc.basePort + (scheduler_index | int)}}"
-      "WHISK_SCHEDULER_ENDPOINTS_AKKAPORT": "{{ scheduler.akka.cluster.basePort + (scheduler_index | int) }}"
+      "WHISK_SCHEDULER_ENDPOINTS_PEKKOPORT": "{{ scheduler.pekko.cluster.basePort + (scheduler_index | int) }}"
       "CONFIG_whisk_scheduler_protocol": "{{ scheduler.protocol }}"
       "CONFIG_whisk_scheduler_maxPeek": "{{ scheduler.maxPeek }}"
       "CONFIG_whisk_scheduler_dataManagementService_retryInterval": "{{ scheduler.dataManagementService.retryInterval }}"
