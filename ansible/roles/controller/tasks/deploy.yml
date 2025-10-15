@@ -443,18 +443,27 @@
       >> /logs/{{ controller_name }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
-  uri:
-    url:
-      "{{controller.protocol}}://{{ansible_host}}:{{controller_port}}/ping"
-    validate_certs: "no"
-    client_key:
-      "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.key }}"
-    client_cert:
-      "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.cert }}"
-  register: result
-  until: result.status == 200
-  retries: 12
-  delay: 10
+  block:
+    - uri:
+        url: "{{ controller.protocol }}://{{ ansible_host }}:{{ controller_port }}/ping"
+        validate_certs: no
+        client_key: "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.key }}"
+        client_cert: "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.cert }}"
+      register: result
+      until: result.status == 200
+      retries: 12
+      delay: 10
+      failed_when: result.status is defined and result.status not in [200]
+  rescue:
+    - name: dump controller docker logs
+      shell: "docker logs {{ controller_name }}"
+      register: controller_logs
+      failed_when: false
+    - name: output controller logs for debugging
+      debug:
+        var: controller_logs.stdout_lines
+    - fail:
+        msg: "Controller failed to start; logs emitted above"
 
 - name: warm up activation path
   uri:

@@ -122,7 +122,6 @@ object KamonMetricsReporter {
   }
 
   def isCounterMetric(metric: KafkaMetric): Boolean = Try(metric.measurable()) match {
-    case Success(_: CumulativeSum)                         => true
     case Success(_: CumulativeCount)                       => true
     case Success(m) if m.getClass.getSimpleName == "Total" => true
     case Success(m) if m.getClass.getSimpleName == "WindowedSum" && metric.metricName().name().endsWith("-total") =>
