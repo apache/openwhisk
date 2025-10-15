@@ -88,7 +88,7 @@ class WhiskConfig(requiredProperties: Map[String, String],
 
   val schedulerHost = this(WhiskConfig.schedulerHost)
   val schedulerRpcPort = this(WhiskConfig.schedulerRpcPort)
-  val schedulerAkkaPort = this(WhiskConfig.schedulerAkkaPort)
+  val schedulerAkkaPort = this(WhiskConfig.schedulerPekkoPort)
 }
 
 object WhiskConfig {
@@ -197,7 +197,7 @@ object WhiskConfig {
 
   val schedulerHost = "whisk.scheduler.endpoints.host"
   val schedulerRpcPort = "whisk.scheduler.endpoints.rpcPort"
-  val schedulerAkkaPort = "whisk.scheduler.endpoints.akkaPort"
+  val schedulerPekkoPort = "whisk.scheduler.endpoints.pekkoPort"
 }
 
 object ConfigKeys {

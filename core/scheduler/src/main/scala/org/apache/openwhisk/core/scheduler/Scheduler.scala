@@ -267,13 +267,13 @@ object Scheduler {
   val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
 
   /**
-   * The scheduler has two ports, one for akka-remote and the other for akka-grpc.
+   * The scheduler has two ports, one for pekko-remote and the other for pekko-grpc.
    */
   def requiredProperties =
     Map(
       servicePort -> 8080.toString,
       schedulerHost -> null,
-      schedulerAkkaPort -> null,
+      schedulerPekkoPort -> null,
       schedulerRpcPort -> null,
       WhiskConfig.actionInvokeConcurrentLimit -> null) ++
       kafkaHosts ++
