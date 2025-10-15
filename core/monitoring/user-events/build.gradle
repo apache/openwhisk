@@ -50,6 +50,11 @@ dependencies {
     constraints {
         testImplementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.5.1")
     }
+    testImplementation ("org.apache.zookeeper:zookeeper:3.8.4") {
+        exclude group: 'org.slf4j'
+        exclude group: 'log4j'
+        exclude group: 'jline'
+    }
     testImplementation "org.apache.pekko:pekko-connectors-kafka-testkit_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}"
     testImplementation "org.apache.pekko:pekko-testkit_${gradle.scala.depVersion}:${gradle.pekko.version}"
     testImplementation "org.apache.pekko:pekko-stream-testkit_${gradle.scala.depVersion}:${gradle.pekko.version}"

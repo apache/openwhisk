@@ -173,6 +173,11 @@ dependencies {
     constraints {
         implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.5.1")
     }
+    implementation ("org.apache.zookeeper:zookeeper:3.8.4") {
+        exclude group: 'org.slf4j'
+        exclude group: 'log4j'
+        exclude group: 'jline'
+    }
     implementation "org.scala-lang:scala-reflect:${gradle.scala.version}"
     implementation "org.apache.pekko:pekko-http-cors_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
 

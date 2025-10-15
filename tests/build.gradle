@@ -243,6 +243,11 @@ dependencies {
     constraints {
         implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.5.1")
     }
+    implementation ("org.apache.zookeeper:zookeeper:3.8.4") {
+        exclude group: 'org.slf4j'
+        exclude group: 'log4j'
+        exclude group: 'jline'
+    }
     implementation "org.apache.pekko:pekko-connectors-kafka-testkit_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}"
     implementation "org.apache.pekko:pekko-stream-testkit_${gradle.scala.depVersion}:${gradle.pekko.version}"
     implementation "io.fabric8:kubernetes-server-mock:${gradle.kube_client.version}"

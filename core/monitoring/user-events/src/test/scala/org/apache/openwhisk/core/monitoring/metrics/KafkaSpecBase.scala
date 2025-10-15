@@ -27,7 +27,7 @@ import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 abstract class KafkaSpecBase
-    extends ScalatestKafkaSpec(6065)
+    extends ScalatestKafkaSpec(0)
     with Matchers
     with ScalaFutures
     with AnyFlatSpecLike
@@ -40,7 +40,7 @@ abstract class KafkaSpecBase
   override protected val topicCreationTimeout = 60.seconds
   override protected val producerPublishTimeout: FiniteDuration = 60.seconds
 
-  lazy implicit val embeddedKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
+  lazy implicit val embeddedKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig()
 
   override def bootstrapServers = s"localhost:${embeddedKafkaConfig.kafkaPort}"
 

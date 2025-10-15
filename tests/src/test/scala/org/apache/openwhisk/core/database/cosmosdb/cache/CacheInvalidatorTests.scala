@@ -47,7 +47,7 @@ import scala.util.Random
 
 @RunWith(classOf[JUnitRunner])
 class CacheInvalidatorTests
-    extends ScalatestKafkaSpec(6061)
+    extends ScalatestKafkaSpec(0)
     with EmbeddedKafka
     with CosmosDBTestSupport
     with Matchers
@@ -57,12 +57,12 @@ class CacheInvalidatorTests
   private implicit val logging = new PekkoLogging(system.log)
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
 
-  def createKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
+  lazy val embeddedKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig()
 
-  override def bootstrapServers = s"localhost:$kafkaPort"
+  override def bootstrapServers = s"localhost:${embeddedKafkaConfig.kafkaPort}"
 
   override def setUp(): Unit = {
-    EmbeddedKafka.start()(createKafkaConfig)
+    EmbeddedKafka.start()(embeddedKafkaConfig)
     super.setUp()
   }
 
@@ -104,8 +104,9 @@ class CacheInvalidatorTests
     //This should result in change feed trigger and event to kafka topic
     val topic = RemoteCacheInvalidation.cacheInvalidationTopic
     val msgs =
-      consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 60.seconds)(createKafkaConfig, new StringDeserializer())(
-        topic)
+      consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 60.seconds)(
+        embeddedKafkaConfig,
+        new StringDeserializer())(topic)
 
     CacheInvalidationMessage.parse(msgs.head).get.key.mainId shouldBe pkg.docid.asString
 
