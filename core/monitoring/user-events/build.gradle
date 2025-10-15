@@ -46,12 +46,9 @@ dependencies {
     testImplementation "junit:junit:4.11"
     testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.2.14"
     testImplementation "org.scalatestplus:junit-4-13_${gradle.scala.depVersion}:3.2.14.0"
-    testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.8.1"
+    testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.5.1"
     constraints {
-        testImplementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.8.1")
-        testImplementation('org.apache.avro:avro:1.11.1') {
-            because 'embeddedkafka dependency cannot be upgraded currently and avro in embedded kafka 2.4.0 has vulns'
-        }
+        testImplementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.5.1")
     }
     testImplementation "org.apache.pekko:pekko-connectors-kafka-testkit_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}"
     testImplementation "org.apache.pekko:pekko-testkit_${gradle.scala.depVersion}:${gradle.pekko.version}"
