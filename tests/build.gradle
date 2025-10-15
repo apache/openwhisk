@@ -239,11 +239,11 @@ dependencies {
             because 'swagger-request-validator-core cannot be upgraded to 2.x where vuln is remediated'
         }
     }
-    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.5.1"
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.7.0"
     constraints {
-        implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.5.1")
+        implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.7.0")
     }
-    implementation ("org.apache.zookeeper:zookeeper:3.8.4") {
+    implementation ("org.apache.zookeeper:zookeeper:3.9.2") {
         exclude group: 'org.slf4j'
         exclude group: 'log4j'
         exclude group: 'jline'

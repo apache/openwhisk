@@ -21,6 +21,7 @@ import org.apache.pekko.Done
 import org.apache.pekko.actor.CoordinatedShutdown
 import org.apache.pekko.kafka.testkit.scaladsl.ScalatestKafkaSpec
 import com.typesafe.config.ConfigFactory
+import common.FreePortFinder
 import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.serialization.StringDeserializer
@@ -57,7 +58,8 @@ class CacheInvalidatorTests
   private implicit val logging = new PekkoLogging(system.log)
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
 
-  lazy val embeddedKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig()
+  lazy val embeddedKafkaConfig: EmbeddedKafkaConfig =
+    EmbeddedKafkaConfig(kafkaPort = FreePortFinder.freePort(), zooKeeperPort = FreePortFinder.freePort())
 
   override def bootstrapServers = s"localhost:${embeddedKafkaConfig.kafkaPort}"
 

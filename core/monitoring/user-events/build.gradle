@@ -46,11 +46,11 @@ dependencies {
     testImplementation "junit:junit:4.11"
     testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.2.14"
     testImplementation "org.scalatestplus:junit-4-13_${gradle.scala.depVersion}:3.2.14.0"
-    testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.5.1"
+    testImplementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.7.0"
     constraints {
-        testImplementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.5.1")
+        testImplementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.7.0")
     }
-    testImplementation ("org.apache.zookeeper:zookeeper:3.8.4") {
+    testImplementation ("org.apache.zookeeper:zookeeper:3.9.2") {
         exclude group: 'org.slf4j'
         exclude group: 'log4j'
         exclude group: 'jline'

@@ -40,7 +40,8 @@ abstract class KafkaSpecBase
   override protected val topicCreationTimeout = 60.seconds
   override protected val producerPublishTimeout: FiniteDuration = 60.seconds
 
-  lazy implicit val embeddedKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig()
+  lazy implicit val embeddedKafkaConfig: EmbeddedKafkaConfig =
+    EmbeddedKafkaConfig(kafkaPort = freePort(), zooKeeperPort = freePort())
 
   override def bootstrapServers = s"localhost:${embeddedKafkaConfig.kafkaPort}"
 
