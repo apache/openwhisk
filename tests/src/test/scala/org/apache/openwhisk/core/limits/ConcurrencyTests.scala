@@ -47,7 +47,7 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
   val concurrentAction = TestUtils.getTestActionFilename("concurrent.js")
 
   //NOTE: this test will only succeed if:
-  // whisk.container-pool.akka-client = "true" (only the akka client properly handles concurrent requests to action containers)
+  // whisk.container-pool.pekko-client = "true" (only the pekko client properly handles concurrent requests to action containers)
   // whisk.container-factory.container-args.extra-args.env.0 = "__OW_ALLOW_CONCURRENT=true" (only action containers that tolerate concurrency can be tested - this enables concurrency in nodejs runtime)
 
   behavior of "Action concurrency limits"

@@ -46,7 +46,7 @@ case class ContainerArgsConfig(network: String,
 
 case class ContainerPoolConfig(userMemory: ByteSize,
                                concurrentPeekFactor: Double,
-                               akkaClient: Boolean,
+                               pekkoClient: Boolean,
                                prewarmExpirationCheckInitDelay: FiniteDuration,
                                prewarmExpirationCheckInterval: FiniteDuration,
                                prewarmExpirationCheckIntervalVariance: Option[FiniteDuration],

@@ -163,7 +163,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
     settings
       .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, id)
       .withProperty(ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
-      .withStopTimeout(Duration.Zero) // https://doc.akka.io/docs/alpakka-kafka/current/consumer.html#draining-control
+      .withStopTimeout(Duration.Zero) // https://pekko.apache.org/api/pekko-connectors-kafka/current/org/apache/pekko/kafka/scaladsl/Consumer$$DrainingControl$.html
 }
 
 object EventConsumer {

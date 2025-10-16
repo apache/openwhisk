@@ -67,7 +67,7 @@ import scala.util.{Failure, Success}
  * back to the base controller, there could be an inconsistency in the cache (e.g. if a user has updated an action). This
  * inconsistency will be resolved by its own after removing the cached item, 5 minutes after it has been generated.
  *
- * Uses the Pekko routing DSL: http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/overview.html
+ * Uses the Pekko routing DSL: https://pekko.apache.org/docs/pekko-http/current/routing-dsl/index.html
  *
  * @param config A set of properties needed to run an instance of the controller service
  * @param instance if running in scale-out, a unique identifier for this instance in the group
@@ -93,7 +93,7 @@ class Controller(val instance: ControllerInstanceId,
    *
    * The "~" Pekko DSL operator composes two independent Routes, building a routing tree structure.
    *
-   * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
+   * @see https://pekko.apache.org/docs/pekko-http/current/routing-dsl/routes.html#composing-routes
    */
   override def routes(implicit transid: TransactionId): Route = {
     super.routes ~ {

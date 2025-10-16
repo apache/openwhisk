@@ -45,7 +45,7 @@ import scala.util.control.NonFatal
  * This HTTP client is used only in the invoker to communicate with the action container.
  * It allows to POST a JSON object and receive JSON object back; that is the
  * content type and the accept headers are both 'application/json.
- * This implementation uses the akka http host-level client API.
+ * This implementation uses the pekko http host-level client API.
  * NOTE: Keepalive is disabled to prevent issues with paused containers
  *
  * @param hostname the host name
@@ -54,7 +54,7 @@ import scala.util.control.NonFatal
  * @param queueSize once all connections are used, how big of queue to allow for additional requests
  * @param retryInterval duration between retries for TCP connection errors
  */
-protected class AkkaContainerClient(
+protected class PekkoContainerClient(
   hostname: String,
   port: Int,
   timeout: FiniteDuration,
@@ -181,7 +181,7 @@ protected class AkkaContainerClient(
   }
 }
 
-object AkkaContainerClient {
+object PekkoContainerClient {
   private val queueSize = loadConfigOrThrow[Int]("pekko.http.host-connection-pool.max-connections")
 
   /** A helper method to post one single request to a connection. Used for container tests. */
@@ -190,7 +190,7 @@ object AkkaContainerClient {
     as: ActorSystem,
     ec: ExecutionContext,
     tid: TransactionId): (Int, Option[JsObject]) = {
-    val connection = new AkkaContainerClient(host, port, timeout, 1)
+    val connection = new PekkoContainerClient(host, port, timeout, 1)
     val response = executeRequest(connection, endPoint, content)
     val result = Await.result(response, timeout + 10.seconds) //additional timeout to complete futures
     connection.close()
@@ -203,7 +203,7 @@ object AkkaContainerClient {
     as: ActorSystem,
     ec: ExecutionContext,
     tid: TransactionId): (Int, Option[JsArray]) = {
-    val connection = new AkkaContainerClient(host, port, timeout, 1)
+    val connection = new PekkoContainerClient(host, port, timeout, 1)
     val response = executeRequestForJsArray(connection, endPoint, content)
     val result = Await.result(response, timeout + 10.seconds) //additional timeout to complete futures
     connection.close()
@@ -216,14 +216,14 @@ object AkkaContainerClient {
     tid: TransactionId,
     as: ActorSystem,
     ec: ExecutionContext): Seq[(Int, Option[JsObject])] = {
-    val connection = new AkkaContainerClient(host, port, timeout, queueSize)
+    val connection = new PekkoContainerClient(host, port, timeout, queueSize)
     val futureResults = contents.map { executeRequest(connection, endPoint, _) }
     val results = Await.result(Future.sequence(futureResults), timeout + 10.seconds) //additional timeout to complete futures
     connection.close()
     results
   }
 
-  private def executeRequest(connection: AkkaContainerClient, endpoint: String, content: JsValue)(
+  private def executeRequest(connection: PekkoContainerClient, endpoint: String, content: JsValue)(
     implicit logging: Logging,
     as: ActorSystem,
     ec: ExecutionContext,
@@ -248,7 +248,7 @@ object AkkaContainerClient {
     res
   }
 
-  private def executeRequestForJsArray(connection: AkkaContainerClient, endpoint: String, content: JsValue)(
+  private def executeRequestForJsArray(connection: PekkoContainerClient, endpoint: String, content: JsValue)(
     implicit logging: Logging,
     as: ActorSystem,
     ec: ExecutionContext,

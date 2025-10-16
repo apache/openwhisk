@@ -177,7 +177,7 @@ class SplunkLogStore(
       .fields(splunkConfig.logStreamField)
       .convertTo[String]}: ${l.fields(splunkConfig.logMessageField).convertTo[String].trim}"
 
-  //based on http://doc.akka.io/docs/akka-http/10.0.6/scala/http/client-side/host-level.html
+  //based on https://pekko.apache.org/docs/pekko-http/current/client-side/host-level.html
   val queue =
     Source
       .queue[(HttpRequest, Promise[HttpResponse])](maxPendingRequests, OverflowStrategy.dropNew)

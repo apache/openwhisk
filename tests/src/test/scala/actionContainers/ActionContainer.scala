@@ -253,7 +253,7 @@ object ActionContainer {
 
     implicit val transid = TransactionId.testing
 
-    org.apache.openwhisk.core.containerpool.AkkaContainerClient.post(host, port, endPoint, content, 30.seconds)
+    org.apache.openwhisk.core.containerpool.PekkoContainerClient.post(host, port, endPoint, content, 30.seconds)
   }
 
   private def syncPostForJsArray(host: String, port: Int, endPoint: String, content: JsValue)(
@@ -262,7 +262,7 @@ object ActionContainer {
 
     implicit val transid = TransactionId.testing
 
-    org.apache.openwhisk.core.containerpool.AkkaContainerClient
+    org.apache.openwhisk.core.containerpool.PekkoContainerClient
       .postForJsArray(host, port, endPoint, content, 30.seconds)
   }
 
@@ -272,7 +272,7 @@ object ActionContainer {
 
     implicit val transid = TransactionId.testing
 
-    org.apache.openwhisk.core.containerpool.AkkaContainerClient
+    org.apache.openwhisk.core.containerpool.PekkoContainerClient
       .concurrentPost(host, port, endPoint, contents, 30.seconds)
   }
 

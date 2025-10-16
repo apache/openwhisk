@@ -80,14 +80,11 @@ dependencies {
     }
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
     implementation project(':common:scala')
-    // Pekko Kryo serialization with Akka compatibility for rolling upgrades
     implementation "io.altoo:pekko-kryo-serialization_${gradle.scala.depVersion}:1.3.0"
     implementation "org.apache.pekko:pekko-management-cluster-bootstrap_${gradle.scala.depVersion}:${gradle.pekko_management.version}"
     implementation "org.apache.pekko:pekko-discovery-kubernetes-api_${gradle.scala.depVersion}:${gradle.pekko_management.version}"
 }
 
-// workaround for pekko-grpc
-// https://github.com/akka/akka-grpc/issues/786
 printProtocLogs.doFirst {
     mkdir "$buildDir"
     file("$buildDir/pekko-grpc-gradle-plugin.log").text = "x"

@@ -246,8 +246,8 @@ trait Container {
       }
   }
   private def openConnections(timeout: FiniteDuration, maxConcurrent: Int) = {
-    if (Container.config.akkaClient) {
-      new AkkaContainerClient(addr.host, addr.port, timeout, 1024)
+    if (Container.config.pekkoClient) {
+      new PekkoContainerClient(addr.host, addr.port, timeout, 1024)
     } else {
       new ApacheBlockingContainerClient(s"${addr.host}:${addr.port}", timeout, maxConcurrent)
     }

@@ -122,8 +122,6 @@
 
       "WHISK_SCHEDULER_ENDPOINTS_HOST": "{{ ansible_host }}"
       "WHISK_SCHEDULER_ENDPOINTS_RPCPORT": "{{ scheduler.grpc.basePort + (scheduler_index | int)}}"
-      # TODO(pekko-migration): remove once downstream config switches to pekko.* naming
-      "WHISK_SCHEDULER_ENDPOINTS_AKKAPORT": "{{ scheduler.pekko.cluster.basePort + (scheduler_index | int) }}"
       "WHISK_SCHEDULER_ENDPOINTS_PEKKOPORT": "{{ scheduler.pekko.cluster.basePort + (scheduler_index | int) }}"
       "CONFIG_whisk_scheduler_protocol": "{{ scheduler.protocol }}"
       "CONFIG_whisk_scheduler_maxPeek": "{{ scheduler.maxPeek }}"

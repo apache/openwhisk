@@ -320,7 +320,7 @@ object Scheduler {
     val port = config.servicePort.toInt
     val host = config.schedulerHost
     val rpcPort = config.schedulerRpcPort.toInt
-    val akkaPort = config.schedulerAkkaPort.toInt
+    val pekkoPort = config.schedulerPekkoPort.toInt
 
     // if deploying multiple instances (scale out), must pass the instance number as they need to be uniquely identified.
     require(args.length >= 1, "scheduler instance required")
@@ -345,7 +345,7 @@ object Scheduler {
 
     ExecManifest.initialize(config) match {
       case Success(_) =>
-        val schedulerEndpoints = SchedulerEndpoints(host, rpcPort, akkaPort)
+        val schedulerEndpoints = SchedulerEndpoints(host, rpcPort, pekkoPort)
         // Create scheduler
         val scheduler = new Scheduler(instanceId, schedulerEndpoints)
 
@@ -365,15 +365,15 @@ object Scheduler {
     }
   }
 }
-case class SchedulerEndpoints(host: String, rpcPort: Int, akkaPort: Int) {
-  require(rpcPort != 0 || akkaPort != 0)
+case class SchedulerEndpoints(host: String, rpcPort: Int, pekkoPort: Int) {
+  require(rpcPort != 0 || pekkoPort != 0)
   def asRpcEndpoint: String = s"$host:$rpcPort"
-  def asAkkaEndpoint: String = s"$host:$akkaPort"
+  def asPekkoEndpoint: String = s"$host:$pekkoPort"
 
   def getRemoteRef(name: String)(implicit context: ActorRefFactory): ActorSelection = {
     implicit val ec = context.dispatcher
 
-    val path = s"pekko://scheduler-actor-system@${asAkkaEndpoint}/user/${name}"
+    val path = s"pekko://scheduler-actor-system@${asPekkoEndpoint}/user/${name}"
     context.actorSelection(path)
   }
 
@@ -381,7 +381,7 @@ case class SchedulerEndpoints(host: String, rpcPort: Int, akkaPort: Int) {
 }
 
 object SchedulerEndpoints extends DefaultJsonProtocol {
-  implicit val serdes = jsonFormat(SchedulerEndpoints.apply, "host", "rpcPort", "akkaPort")
+  implicit val serdes = jsonFormat(SchedulerEndpoints.apply, "host", "rpcPort", "pekkoPort")
   def parse(endpoints: String) = Try(serdes.read(endpoints.parseJson))
 }
 
@@ -391,7 +391,7 @@ case class SchedulerStates(sid: SchedulerInstanceId, queueSize: Int, endpoints: 
   def getRemoteRef(name: String)(implicit context: ActorRefFactory): ActorSelection = {
     implicit val ec = context.dispatcher
 
-    val path = s"pekko://scheduler-actor-system@${endpoints.asAkkaEndpoint}/user/${name}"
+    val path = s"pekko://scheduler-actor-system@${endpoints.asPekkoEndpoint}/user/${name}"
     context.actorSelection(path)
   }
 

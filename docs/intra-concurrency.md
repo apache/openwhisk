@@ -28,7 +28,7 @@ Concurrency within a container instance of an actions can improve container reus
 Concurrent activation processing within the same action container can be enabled by:
 
 * enable the pekko http client at invoker config
-  * e.g. CONFIG_whisk_containerPool_akkaClient=true
+  * e.g. CONFIG_whisk_containerPool_pekkoClient=true
 * use a kind that supports concurrency (**currently only the nodejs family / language**)
 * enable concurrency at runtime container env (nodejs container only allows concurrency when started with an env var __OW_ALLOW_CONCURRENT=true)
   * e.g. CONFIG_whisk_containerFactory_containerArgs_extraArgs_env_0="__OW_ALLOW_CONCURRENT=true"

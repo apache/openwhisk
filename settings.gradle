@@ -100,20 +100,13 @@ gradle.ext.scalafmt = [
     config: new File(rootProject.projectDir, '.scalafmt.conf')
 ]
 
-// Pekko versions (migrating from Akka)
+// Pekko versions
 gradle.ext.pekko = [version : '1.1.5']
 gradle.ext.pekko_kafka = [version : '1.1.0']
 gradle.ext.pekko_http = [version : '1.1.0']
 gradle.ext.pekko_management = [version : '1.1.1']
 gradle.ext.pekko_grpc = [version : '1.1.1']
 gradle.ext.grpc = [version : '1.75.0']
-
-// Keep Akka versions temporarily for compatibility during migration
-gradle.ext.akka = [version : '2.6.12']
-gradle.ext.akka_kafka = [version : '2.0.7']
-gradle.ext.akka_http = [version : '10.2.7']
-gradle.ext.akka_management = [version : '1.0.10']
-gradle.ext.akka_gprc = [version : '1.0.2']
 
 gradle.ext.curator = [version : '4.3.0']
 gradle.ext.kube_client = [version: '4.10.3']

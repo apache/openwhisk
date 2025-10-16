@@ -198,14 +198,14 @@ class ActivationClientProxy(
         // In such situation, it is better to stop the activationClientProxy, otherwise, in short time,
         // it would print huge log due to create another grpcClient to fetch activation again.
         case t: StatusRuntimeException if t.getMessage.contains(ActivationClientProxy.hostResolveError) =>
-          logging.error(this, s"[${containerId.asString}] akka grpc server connection failed: $t")
+          logging.error(this, s"[${containerId.asString}] pekko grpc server connection failed: $t")
           context.parent ! FailureMessage(t)
           self ! ClientClosed
 
           goto(ClientProxyRemoving)
 
         case t: StatusRuntimeException =>
-          logging.error(this, s"[${containerId.asString}] akka grpc server connection failed: $t")
+          logging.error(this, s"[${containerId.asString}] pekko grpc server connection failed: $t")
           c.activationClient
             .close()
             .flatMap(_ =>

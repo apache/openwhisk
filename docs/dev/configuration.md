@@ -31,5 +31,5 @@ To solve that mismatch, we use a script to transform environment variables into 
 ### Examples:
 
 - `CONFIG_whisk_loadbalancer_invokerBusyThreshold` becomes `-Dwhisk.loadbalancer.invoker-busy-threshold`
-- `CONFIG_akka_remote_netty_tcp_bindPort` becomes `-Dakka.remote.netty.tcp.bind-port`
+- `CONFIG_pekko_remote_netty_tcp_bindPort` becomes `-Dpekko.remote.netty.tcp.bind-port`
 - `CONFIG_whisk_spi_LogStoreProvider` becomes `-Dwhisk.spi.LogStoreProvider`

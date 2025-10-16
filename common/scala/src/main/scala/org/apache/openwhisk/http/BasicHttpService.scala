@@ -35,7 +35,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
 /**
- * This trait extends the Akka Directives and Actor with logging and transaction counting
+ * This trait extends the Pekko Directives and Actor with logging and transaction counting
  * facilities common to all OpenWhisk REST services.
  */
 trait BasicHttpService extends Directives {
@@ -188,7 +188,7 @@ object BasicHttpService {
     }
   }
 
-  /** Rejection handler to terminate connection on a bad request. Delegates to Akka handler. */
+  /** Rejection handler to terminate connection on a bad request. Delegates to Pekko handler. */
   def customRejectionHandler(implicit transid: TransactionId) = {
     RejectionHandler.default.mapRejectionResponse {
       case res @ HttpResponse(_, _, ent: HttpEntity.Strict, _) =>

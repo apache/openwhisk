@@ -295,7 +295,7 @@ class ActivationClientProxyTests
     probe.expectMsg(RetryRequestActivation)
   }
 
-  it should "be recreated when akka grpc server connection failed" in within(timeout) {
+  it should "be recreated when pekko grpc server connection failed" in within(timeout) {
     var creationCount = 0
     val fetch = (_: FetchRequest) =>
       Future {

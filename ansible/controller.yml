@@ -43,8 +43,8 @@
     #   configuration settings.  (Plugins are found in the
     #   'roles/controller/tasks' directory for now.)
     controller_plugins:
-      # Join an akka cluster rather than running standalone akka
-      - "join_akka_cluster"
+      # Join an pekko cluster rather than running standalone pekko
+      - "join_pekko_cluster"
 
   roles:
     - controller
