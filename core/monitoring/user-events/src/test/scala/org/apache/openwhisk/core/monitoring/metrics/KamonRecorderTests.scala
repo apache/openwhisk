@@ -68,7 +68,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
   it should "push user events to kamon" in {
     createCustomTopic(EventConsumer.userEventTopic)
 
-    val consumer = createConsumer(kafkaPort, system.settings.config, KamonRecorder)
+    val consumer = createConsumer(embeddedKafkaConfig.kafkaPort, system.settings.config, KamonRecorder)
 
     publishStringMessageToKafka(
       EventConsumer.userEventTopic,

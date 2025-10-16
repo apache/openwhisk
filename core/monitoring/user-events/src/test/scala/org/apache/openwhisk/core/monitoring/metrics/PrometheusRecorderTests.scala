@@ -46,7 +46,7 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
     CollectorRegistry.defaultRegistry.clear()
     val metricConfig = loadConfigOrThrow[MetricConfig](system.settings.config, "user-events")
     val metricRecorder = PrometheusRecorder(new PrometheusReporter, metricConfig)
-    val consumer = createConsumer(kafkaPort, system.settings.config, metricRecorder)
+    val consumer = createConsumer(embeddedKafkaConfig.kafkaPort, system.settings.config, metricRecorder)
     publishStringMessageToKafka(
       EventConsumer.userEventTopic,
       newActivationEvent(s"$namespaceDemo/$actionWithCustomPackage", kind, memory).serialize)
@@ -107,7 +107,7 @@ class PrometheusRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with
     CollectorRegistry.defaultRegistry.clear()
     val metricConfig = loadConfigOrThrow[MetricConfig](config, "whisk.user-events")
     val metricRecorder = PrometheusRecorder(new PrometheusReporter, metricConfig)
-    val consumer = createConsumer(kafkaPort, system.settings.config, metricRecorder)
+    val consumer = createConsumer(embeddedKafkaConfig.kafkaPort, system.settings.config, metricRecorder)
 
     publishStringMessageToKafka(
       EventConsumer.userEventTopic,

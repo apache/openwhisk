@@ -37,8 +37,8 @@ class OpenWhiskEventsTests extends KafkaSpecBase {
     val httpPort = freePort()
     val globalConfig = system.settings.config
     val config = ConfigFactory.parseString(s"""
-           | org.apache.pekko.kafka.consumer.kafka-clients {
-           |  bootstrap.servers = "localhost:$kafkaPort"
+           | pekko.kafka.consumer.kafka-clients {
+           |  bootstrap.servers = "localhost:${embeddedKafkaConfig.kafkaPort}"
            | }
            | kamon {
            |  metric {

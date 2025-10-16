@@ -19,7 +19,6 @@ package org.apache.openwhisk.standalone
 
 import java.io.File
 import org.apache.pekko.actor.ActorSystem
-import kafka.server.KafkaConfig
 import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.commons.io.FileUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
@@ -57,11 +56,11 @@ class KafkaLauncher(
     // Here controller / invoker will use LISTENER_LOCAL since they run in the same JVM as the embedded Kafka
     // and Kafka UI will run in a Docker container and use LISTENER_DOCKER
     val brokerProps = Map(
-      KafkaConfig.ListenersProp -> s"LISTENER_LOCAL://localhost:$kafkaPort,LISTENER_DOCKER://localhost:$kafkaDockerPort",
-      KafkaConfig.AdvertisedListenersProp -> s"LISTENER_LOCAL://localhost:$kafkaPort,LISTENER_DOCKER://${StandaloneDockerSupport
+      "listeners" -> s"LISTENER_LOCAL://localhost:$kafkaPort,LISTENER_DOCKER://localhost:$kafkaDockerPort",
+      "advertised.listeners" -> s"LISTENER_LOCAL://localhost:$kafkaPort,LISTENER_DOCKER://${StandaloneDockerSupport
         .getLocalHostIp()}:$kafkaDockerPort",
-      KafkaConfig.ListenerSecurityProtocolMapProp -> "LISTENER_LOCAL:PLAINTEXT,LISTENER_DOCKER:PLAINTEXT",
-      KafkaConfig.InterBrokerListenerNameProp -> "LISTENER_LOCAL")
+      "listener.security.protocol.map" -> "LISTENER_LOCAL:PLAINTEXT,LISTENER_DOCKER:PLAINTEXT",
+      "inter.broker.listener.name" -> "LISTENER_LOCAL")
     implicit val config: EmbeddedKafkaConfig =
       EmbeddedKafkaConfig(kafkaPort = kafkaPort, zooKeeperPort = zkPort, customBrokerProperties = brokerProps)
 

@@ -58,7 +58,7 @@ class CacheInvalidatorTests
   private implicit val logging = new PekkoLogging(system.log)
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
 
-  lazy val embeddedKafkaConfig: EmbeddedKafkaConfig =
+  implicit val embeddedKafkaConfig: EmbeddedKafkaConfig =
     EmbeddedKafkaConfig(kafkaPort = FreePortFinder.freePort(), zooKeeperPort = FreePortFinder.freePort())
 
   override def bootstrapServers = s"localhost:${embeddedKafkaConfig.kafkaPort}"
@@ -75,7 +75,7 @@ class CacheInvalidatorTests
 
   behavior of "CosmosDB CacheInvalidation"
 
-  private val server = s"localhost:$kafkaPort"
+  private val server = s"localhost:${embeddedKafkaConfig.kafkaPort}"
   private var dbName: String = _
 
   override def afterAll(): Unit = {
