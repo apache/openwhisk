@@ -345,12 +345,11 @@ class InvokerHealthManagerTests
           TestActor.KeepRunning
     })
 
+    fsm.underlyingActor.healthActionProxy = Some(mockHealthActionProxy.ref)
+
     fsm ! Enable
 
     probe.expectMsg(Transition(fsm, Offline, Unhealthy))
-
-    fsm.underlyingActor.healthActionProxy = Some(mockHealthActionProxy.ref)
-
     probe.expectMsg(10.seconds, Transition(fsm, Unhealthy, Healthy))
 
     dataManagementService.expectMsg(
