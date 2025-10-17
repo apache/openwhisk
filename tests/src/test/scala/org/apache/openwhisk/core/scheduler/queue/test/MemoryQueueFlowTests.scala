@@ -724,6 +724,8 @@ class MemoryQueueFlowTests
     fsm ! messages(0)
 
     expectInitialData(watcher, dataMgmtService)
+    fsm ! testInitialDataStorageResult
+
     probe.expectMsg(Transition(fsm, Uninitialized, Running))
 
     clock.plusSeconds(FiniteDuration(retentionTimeout, MILLISECONDS).toSeconds)

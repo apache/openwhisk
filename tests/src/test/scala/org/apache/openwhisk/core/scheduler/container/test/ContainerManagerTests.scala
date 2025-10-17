@@ -1071,6 +1071,13 @@ class ContainerManagerTests
       system.actorOf(ContainerManager
         .props(factory(mockJobManager), mockMessaging(Some(receiver.ref)), testsid, mockEtcd, config, mockWatcher.ref))
 
+    // Consume warmUp messages for all invokers
+    (0 to 2).foreach { i =>
+      receiver.expectMsgPF() {
+        case msg: String if msg.contains("warmUp") && msg.contains(s"invoker$i") => true
+      }
+    }
+
     val msg = ContainerDeletionMessage(
       TransactionId.containerDeletion,
       testInvocationNamespace,
@@ -1083,12 +1090,11 @@ class ContainerManagerTests
 
     val expectedMsgs = invokers.map(i => s"invoker${i.id.instance}-$msg")
 
-    receiver.expectMsgPF() {
-      case msg: String if msg.contains("warmUp") => true
-      case msg: String                           => expectedMsgs.contains(msg)
-      case msg =>
-        println(s"unexpected message: $msg")
-        fail()
+    // Expect all 3 deletion messages
+    expectedMsgs.foreach { expectedMsg =>
+      receiver.expectMsgPF() {
+        case msg: String if msg == expectedMsg => true
+      }
     }
   }
 

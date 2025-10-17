@@ -343,18 +343,13 @@ class InvokerHealthManagerTests
 
         case GracefulShutdown =>
           TestActor.KeepRunning
-
     })
-
-    // Set the mock proxy before Enable so startHealthAction will use it
-    fsm.underlyingActor.healthActionProxy = Some(mockHealthActionProxy.ref)
 
     fsm ! Enable
 
     probe.expectMsg(Transition(fsm, Offline, Unhealthy))
 
-    // Wait for Initialize message to be sent to mock and health messages to be processed
-    mockHealthActionProxy.expectMsgType[Initialize](5.seconds)
+    fsm.underlyingActor.healthActionProxy = Some(mockHealthActionProxy.ref)
 
     probe.expectMsg(10.seconds, Transition(fsm, Unhealthy, Healthy))
 

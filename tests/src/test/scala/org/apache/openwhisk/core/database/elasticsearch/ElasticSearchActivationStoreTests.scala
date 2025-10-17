@@ -27,6 +27,7 @@ import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehavior
 import org.apache.openwhisk.core.entity.{EntityPath, WhiskActivation}
 import org.apache.openwhisk.utils.retry
+import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
 class ElasticSearchActivationStoreTests
@@ -39,7 +40,7 @@ class ElasticSearchActivationStoreTests
   }
 
   override def checkDeleteActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
-    retry(super.checkDeleteActivation(activation), 10)
+    retry(super.checkDeleteActivation(activation), 10, Some(500.milliseconds))
   }
 
   override def checkQueryActivations(namespace: String,

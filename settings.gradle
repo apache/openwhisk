@@ -108,7 +108,7 @@ gradle.ext.pekko_management = [version : '1.1.1']
 gradle.ext.pekko_grpc = [version : '1.1.1']
 gradle.ext.grpc = [version : '1.75.0']
 
-gradle.ext.curator = [version : '4.3.0']
+gradle.ext.curator = [version : '5.7.0']
 gradle.ext.kube_client = [version: '4.10.3']
 
 gradle.ext.netty = [version : '4.1.128.Final']
