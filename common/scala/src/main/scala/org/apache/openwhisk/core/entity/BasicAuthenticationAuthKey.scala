@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.entity
 
-import akka.http.scaladsl.model.headers.{BasicHttpCredentials, HttpCredentials}
+import org.apache.pekko.http.scaladsl.model.headers.{BasicHttpCredentials, HttpCredentials}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 

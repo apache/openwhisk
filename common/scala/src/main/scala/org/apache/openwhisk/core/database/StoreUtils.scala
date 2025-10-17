@@ -19,10 +19,10 @@ package org.apache.openwhisk.core.database
 
 import java.security.MessageDigest
 
-import akka.event.Logging.ErrorLevel
-import akka.stream.SinkShape
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, Sink}
-import akka.util.ByteString
+import org.apache.pekko.event.Logging.ErrorLevel
+import org.apache.pekko.stream.SinkShape
+import org.apache.pekko.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, Sink}
+import org.apache.pekko.util.ByteString
 import com.google.common.base.Throwables
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsObject, JsValue, RootJsonFormat}

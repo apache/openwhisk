@@ -21,14 +21,16 @@ import java.io.File
 import java.nio.file.Paths
 import java.time.Instant
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpRequest
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.HttpRequest
+import org.apache.pekko.testkit.TestKit
 import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId, WhiskInstants}
@@ -45,7 +47,7 @@ import scala.io.Source
 @RunWith(classOf[JUnitRunner])
 class ArtifactWithFileStorageActivationStoreTests()
     extends TestKit(ActorSystem("ArtifactWithFileStorageActivationStoreTests"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with ScalaFutures

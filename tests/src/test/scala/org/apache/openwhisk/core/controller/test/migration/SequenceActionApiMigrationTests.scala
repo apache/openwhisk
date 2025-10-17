@@ -20,14 +20,14 @@ package org.apache.openwhisk.core.controller.test.migration
 import scala.Vector
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import common.TestHelpers
 import common.WskTestHelpers
 
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.model.StatusCodes.OK
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.model.StatusCodes.OK
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
 import spray.json.DefaultJsonProtocol._
 import spray.json._

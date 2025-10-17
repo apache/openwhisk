@@ -29,14 +29,14 @@ import java.nio.file.attribute.PosixFilePermission.{
 import java.util.EnumSet
 import java.time.Instant
 
-import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.stream.alpakka.file.scaladsl.LogRotatorSink
-import akka.stream.{Graph, RestartSettings, SinkShape, UniformFanOutShape}
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, MergeHub, RestartSink, Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.connectors.file.scaladsl.LogRotatorSink
+import org.apache.pekko.stream.{Graph, RestartSettings, SinkShape, UniformFanOutShape}
+import org.apache.pekko.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, MergeHub, RestartSink, Sink, Source}
+import org.apache.pekko.util.ByteString
 
-import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
+import org.apache.openwhisk.common.{PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.containerpool.Container
 import org.apache.openwhisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 import org.apache.openwhisk.core.entity.size._
@@ -59,7 +59,7 @@ import scala.concurrent.duration._
 class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: Path = Paths.get("logs"))
     extends DockerToActivationLogStore(system) {
 
-  private val logging = new AkkaLogging(system.log)
+  private val logging = new PekkoLogging(system.log)
 
   /**
    * End of an event as written to a file. Closes the json-object and also appends a newline.

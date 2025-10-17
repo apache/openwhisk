@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.common.etcd
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
-import akka.util.Timeout
+import org.apache.pekko.actor.{ActorRef, ActorSystem}
+import org.apache.pekko.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
+import org.apache.pekko.util.Timeout
 import com.ibm.etcd.api.{DeleteRangeResponse, PutResponse, TxnResponse}
 import common.StreamLogging
 import io.grpc.{Status, StatusRuntimeException}
@@ -40,9 +40,11 @@ import org.apache.openwhisk.core.service.{
 }
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -51,7 +53,7 @@ import scala.concurrent.duration._
 class EtcdWorkerTests
     extends TestKit(ActorSystem("EtcdWorker"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with MockFactory

@@ -21,8 +21,8 @@ import scala.concurrent.Await
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import common.{StreamLogging, WskActorSystem}
 import org.apache.openwhisk.common.WhiskInstants
 import org.mockito.Mockito._
@@ -34,7 +34,7 @@ import org.apache.openwhisk.core.entity._
 
 @RunWith(classOf[JUnitRunner])
 class DatastoreTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with BeforeAndAfterEach
     with BeforeAndAfterAll
     with WskActorSystem

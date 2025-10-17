@@ -443,18 +443,42 @@
       >> /logs/{{ controller_name }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
-  uri:
-    url:
-      "{{controller.protocol}}://{{ansible_host}}:{{controller_port}}/ping"
-    validate_certs: "no"
-    client_key:
-      "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.key }}"
-    client_cert:
-      "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.cert }}"
-  register: result
-  until: result.status == 200
-  retries: 12
-  delay: 10
+  block:
+    - name: ping controller health endpoint
+      uri:
+        url: "{{ controller.protocol }}://{{ ansible_host }}:{{ controller_port }}/ping"
+        validate_certs: no
+        client_key: "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.key }}"
+        client_cert: "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.cert }}"
+        return_content: yes
+        user: "{{ controller.username }}"
+        password: "{{ controller.password }}"
+        force_basic_auth: yes
+      register: result
+      until: result.status == 200
+      retries: 12
+      delay: 10
+      failed_when: result.status is defined and result.status not in [200]
+  rescue:
+    - name: dump controller docker logs
+      shell: |
+        docker logs {{ controller_name }} >/tmp/controller-docker.log 2>&1 || true
+        cat /tmp/controller-docker.log
+      register: controller_logs
+      failed_when: false
+    - name: output controller logs for debugging
+      debug:
+        var: controller_logs.stdout_lines
+    - name: dump controller file logs
+      shell: |
+        cat /var/tmp/wsklogs/{{ controller_name }}/{{ controller_name }}_logs.log
+      register: controller_file_logs
+      failed_when: false
+    - name: output controller file logs for debugging
+      debug:
+        var: controller_file_logs.stdout_lines
+    - fail:
+        msg: "Controller failed to start; logs emitted above"
 
 - name: warm up activation path
   uri:

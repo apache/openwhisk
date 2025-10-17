@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.scheduler.grpc
 
-import akka.actor.ActorSystem
-import akka.pattern.ask
-import akka.util.Timeout
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.Timeout
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.WarmUp
 import org.apache.openwhisk.core.connector.{ActivationMessage, Message}

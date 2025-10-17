@@ -20,7 +20,9 @@ package org.apache.openwhisk.core.database
 import common.{StreamLogging, WskActorSystem}
 import org.rogach.scallop.throwError
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.core.cli.{Conf, WhiskAdmin}
 import org.apache.openwhisk.core.database.test.DbUtils
 import org.apache.openwhisk.core.entity.WhiskAuthStore
@@ -28,7 +30,7 @@ import org.apache.openwhisk.core.entity.WhiskAuthStore
 import scala.util.Random
 
 trait WhiskAdminCliTestBase
-    extends FlatSpec
+    extends AnyFlatSpec
     with WskActorSystem
     with DbUtils
     with StreamLogging

@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.connector.kafka
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.{RetriableException, WakeupException}

@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.containerpool.kubernetes.test
 import java.io.IOException
 import java.time.{Instant, ZoneId}
 
-import akka.NotUsed
-import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.NotUsed
+import org.apache.pekko.stream.scaladsl.{Flow, Sink, Source}
+import org.apache.pekko.util.ByteString
 import common.TimingHelpers
 
 import scala.concurrent.Await
@@ -31,9 +31,9 @@ import scala.concurrent.Future
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.matchers.should.Matchers
 import common.{StreamLogging, WskActorSystem}
 import spray.json._
 import org.apache.openwhisk.common.LoggingMarkers._
@@ -59,7 +59,7 @@ import scala.collection.mutable
  */
 @RunWith(classOf[JUnitRunner])
 class KubernetesContainerTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with StreamLogging

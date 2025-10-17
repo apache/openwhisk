@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.docker
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
@@ -30,7 +30,7 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
 import pureconfig.generic.auto._
-import akka.event.Logging.{ErrorLevel, InfoLevel}
+import org.apache.pekko.event.Logging.{ErrorLevel, InfoLevel}
 import org.apache.openwhisk.core.containerpool.ContainerId
 
 import scala.concurrent.duration.Duration

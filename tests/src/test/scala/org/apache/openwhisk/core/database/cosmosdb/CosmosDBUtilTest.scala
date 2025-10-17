@@ -18,13 +18,15 @@
 package org.apache.openwhisk.core.database.cosmosdb
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers, OptionValues}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.OptionValues
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 import org.apache.openwhisk.utils.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
-class CosmosDBUtilTest extends FlatSpec with Matchers with OptionValues {
+class CosmosDBUtilTest extends AnyFlatSpec with Matchers with OptionValues {
 
   behavior of "prepare field"
 

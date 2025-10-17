@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.database.cosmosdb
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.core.database.DocumentSerializer
 import org.apache.openwhisk.core.database.memory.MemoryAttachmentStoreProvider
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreAttachmentBehaviors
@@ -28,7 +28,7 @@ import scala.reflect.ClassTag
 
 @RunWith(classOf[JUnitRunner])
 class CosmosDBAttachmentStoreTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with CosmosDBStoreBehaviorBase
     with ArtifactStoreAttachmentBehaviors {
   override protected def getAttachmentStore[D <: DocumentSerializer: ClassTag]() =

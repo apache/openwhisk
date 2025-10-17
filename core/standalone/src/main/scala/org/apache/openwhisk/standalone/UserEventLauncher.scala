@@ -20,7 +20,7 @@ package org.apache.openwhisk.standalone
 import java.io.File
 import java.nio.charset.StandardCharsets.UTF_8
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{checkOrAllocatePort, containerName, createRunCmd}

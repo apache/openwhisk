@@ -18,18 +18,20 @@
 package org.apache.openwhisk.http
 
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Flow
-import akka.testkit.TestKit
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.HttpMethods.{GET, POST}
-import akka.http.scaladsl.model.StatusCodes.{InternalServerError, NotFound}
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
+import org.scalatestplus.junit.JUnitRunner
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.Flow
+import org.apache.pekko.testkit.TestKit
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.HttpMethods.{GET, POST}
+import org.apache.pekko.http.scaladsl.model.StatusCodes.{InternalServerError, NotFound}
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 import common.StreamLogging
 import spray.json.JsObject
 import spray.json.DefaultJsonProtocol._
@@ -42,7 +44,7 @@ import org.apache.openwhisk.http.PoolingRestClient._
 @RunWith(classOf[JUnitRunner])
 class PoolingRestClientTests
     extends TestKit(ActorSystem("PoolingRestClientTests"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with ScalaFutures

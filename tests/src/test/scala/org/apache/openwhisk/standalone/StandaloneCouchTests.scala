@@ -19,7 +19,7 @@ package org.apache.openwhisk.standalone
 
 import common.WskProps
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import system.basic.WskRestBasicTests
 
 @RunWith(classOf[JUnitRunner])

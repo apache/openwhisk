@@ -18,11 +18,11 @@
 package org.apache.openwhisk.core.controller.test
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
-import akka.http.scaladsl.model.StatusCodes.NotFound
-import akka.http.scaladsl.model.StatusCodes.OK
-import akka.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.model.StatusCodes.NotFound
+import org.apache.pekko.http.scaladsl.model.StatusCodes.OK
+import org.apache.pekko.http.scaladsl.server.Route
 
 import org.apache.openwhisk.core.controller.RespondWithHeaders
 

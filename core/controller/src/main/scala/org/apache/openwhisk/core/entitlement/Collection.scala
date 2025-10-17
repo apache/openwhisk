@@ -21,11 +21,11 @@ import org.apache.openwhisk.core.entitlement.Privilege._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import akka.http.scaladsl.model.HttpMethod
-import akka.http.scaladsl.model.HttpMethods.DELETE
-import akka.http.scaladsl.model.HttpMethods.GET
-import akka.http.scaladsl.model.HttpMethods.POST
-import akka.http.scaladsl.model.HttpMethods.PUT
+import org.apache.pekko.http.scaladsl.model.HttpMethod
+import org.apache.pekko.http.scaladsl.model.HttpMethods.DELETE
+import org.apache.pekko.http.scaladsl.model.HttpMethods.GET
+import org.apache.pekko.http.scaladsl.model.HttpMethods.POST
+import org.apache.pekko.http.scaladsl.model.HttpMethods.PUT
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.ConfigKeys

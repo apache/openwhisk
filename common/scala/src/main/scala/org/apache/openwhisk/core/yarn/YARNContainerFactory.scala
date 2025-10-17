@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.yarn
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.http.scaladsl.model.{HttpMethods, StatusCodes}
-import akka.pattern.ask
-import akka.util.Timeout
+import org.apache.pekko.actor.{ActorRef, ActorSystem, Props}
+import org.apache.pekko.http.scaladsl.model.{HttpMethods, StatusCodes}
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.Timeout
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName

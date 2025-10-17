@@ -17,19 +17,19 @@
 
 package org.apache.openwhisk.core.loadBalancer.test
 
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
-import akka.actor.ActorSystem
-import akka.testkit.TestProbe
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.ActorRefFactory
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.TestProbe
 import common.{StreamLogging, WhiskProperties}
 
 import java.nio.charset.StandardCharsets
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.Await
 import scala.concurrent.Future
@@ -76,7 +76,7 @@ import org.apache.openwhisk.core.loadBalancer._
  */
 @RunWith(classOf[JUnitRunner])
 class ShardingContainerPoolBalancerTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with StreamLogging
     with ExecHelpers

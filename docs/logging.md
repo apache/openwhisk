@@ -25,7 +25,7 @@ OpenWhisk uses Logback as default logging provider via slf4j.
 Logback can be configured in the configuration file [logback.xml](../common/scala/src/main/resources/logback.xml).
 
 Besides other things this configuration file defines the default log level for OpenWhisk.
-Akka Logging inherits the log level defined here.
+Pekko Logging inherits the log level defined here.
 
 ## Enable debug-level logging for selected namespaces
 

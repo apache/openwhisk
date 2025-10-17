@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import kamon.Kamon
-import org.apache.openwhisk.common.{AkkaLogging, ConfigMXBean, Logging}
+import org.apache.openwhisk.common.{ConfigMXBean, Logging, PekkoLogging}
 import org.apache.openwhisk.http.{BasicHttpService, BasicRasService}
 
 import scala.concurrent.ExecutionContext
@@ -27,7 +27,7 @@ import scala.concurrent.ExecutionContext
 object Main {
   def main(args: Array[String]): Unit = {
     implicit val system: ActorSystem = ActorSystem("cache-invalidator-actor-system")
-    implicit val log: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
+    implicit val log: Logging = new PekkoLogging(org.apache.pekko.event.Logging.getLogger(system, this))
     implicit val ec: ExecutionContext = system.dispatcher
     ConfigMXBean.register()
     Kamon.init()

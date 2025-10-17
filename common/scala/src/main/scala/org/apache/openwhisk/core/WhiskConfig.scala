@@ -19,7 +19,7 @@ package org.apache.openwhisk.core
 
 import java.io.File
 
-import akka.http.scaladsl.model.Uri.normalize
+import org.apache.pekko.http.scaladsl.model.Uri.normalize
 import org.apache.openwhisk.common.{Config, Logging}
 
 import scala.io.Source
@@ -88,7 +88,7 @@ class WhiskConfig(requiredProperties: Map[String, String],
 
   val schedulerHost = this(WhiskConfig.schedulerHost)
   val schedulerRpcPort = this(WhiskConfig.schedulerRpcPort)
-  val schedulerAkkaPort = this(WhiskConfig.schedulerAkkaPort)
+  val schedulerPekkoPort = this(WhiskConfig.schedulerPekkoPort)
 }
 
 object WhiskConfig {
@@ -193,11 +193,11 @@ object WhiskConfig {
   val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
   val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
   val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
-  val controllerSeedNodes = "akka.cluster.seed.nodes"
+  val controllerSeedNodes = "pekko.cluster.seed.nodes"
 
   val schedulerHost = "whisk.scheduler.endpoints.host"
   val schedulerRpcPort = "whisk.scheduler.endpoints.rpcPort"
-  val schedulerAkkaPort = "whisk.scheduler.endpoints.akkaPort"
+  val schedulerPekkoPort = "whisk.scheduler.endpoints.pekkoPort"
 }
 
 object ConfigKeys {

@@ -20,8 +20,9 @@ package org.apache.openwhisk.core.invoker.test
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.test.DbUtils
@@ -33,7 +34,7 @@ import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class NamespaceBlacklistTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with DbUtils
     with ScalaFutures

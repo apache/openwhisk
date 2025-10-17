@@ -17,14 +17,15 @@
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
 import java.net.UnknownHostException
-import akka.Done
-import akka.actor.CoordinatedShutdown
-import akka.kafka.testkit.scaladsl.ScalatestKafkaSpec
+import org.apache.pekko.Done
+import org.apache.pekko.actor.CoordinatedShutdown
+import org.apache.pekko.kafka.testkit.scaladsl.ScalatestKafkaSpec
 import com.typesafe.config.ConfigFactory
+import common.FreePortFinder
 import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.openwhisk.common.{AkkaLogging, TransactionId}
+import org.apache.openwhisk.common.{PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.database.{CacheInvalidationMessage, RemoteCacheInvalidation}
 import org.apache.openwhisk.core.database.cosmosdb.{CosmosDBArtifactStoreProvider, CosmosDBTestSupport}
 import org.apache.openwhisk.core.entity.{
@@ -38,30 +39,32 @@ import org.apache.openwhisk.core.entity.{
 }
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{Matchers, TryValues}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.TryValues
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.util.Random
 
 @RunWith(classOf[JUnitRunner])
 class CacheInvalidatorTests
-    extends ScalatestKafkaSpec(6061)
+    extends ScalatestKafkaSpec(0)
     with EmbeddedKafka
     with CosmosDBTestSupport
     with Matchers
     with ScalaFutures
     with TryValues {
 
-  private implicit val logging = new AkkaLogging(system.log)
+  private implicit val logging = new PekkoLogging(system.log)
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = 300.seconds)
 
-  def createKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
+  implicit val embeddedKafkaConfig: EmbeddedKafkaConfig =
+    EmbeddedKafkaConfig(kafkaPort = FreePortFinder.freePort(), zooKeeperPort = FreePortFinder.freePort())
 
-  override def bootstrapServers = s"localhost:$kafkaPort"
+  override def bootstrapServers = s"localhost:${embeddedKafkaConfig.kafkaPort}"
 
   override def setUp(): Unit = {
-    EmbeddedKafka.start()(createKafkaConfig)
+    EmbeddedKafka.start()(embeddedKafkaConfig)
     super.setUp()
   }
 
@@ -72,7 +75,7 @@ class CacheInvalidatorTests
 
   behavior of "CosmosDB CacheInvalidation"
 
-  private val server = s"localhost:$kafkaPort"
+  private val server = s"localhost:${embeddedKafkaConfig.kafkaPort}"
   private var dbName: String = _
 
   override def afterAll(): Unit = {
@@ -103,8 +106,9 @@ class CacheInvalidatorTests
     //This should result in change feed trigger and event to kafka topic
     val topic = RemoteCacheInvalidation.cacheInvalidationTopic
     val msgs =
-      consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 60.seconds)(createKafkaConfig, new StringDeserializer())(
-        topic)
+      consumeNumberMessagesFromTopics(Set(topic), 1, timeout = 60.seconds)(
+        embeddedKafkaConfig,
+        new StringDeserializer())(topic)
 
     CacheInvalidationMessage.parse(msgs.head).get.key.mainId shouldBe pkg.docid.asString
 
@@ -164,7 +168,7 @@ class CacheInvalidatorTests
 
   private def startCacheInvalidator(): CacheInvalidator = {
     val tsconfig = ConfigFactory.parseString(s"""
-      |akka.kafka.producer {
+      |pekko.kafka.producer {
       |  kafka-clients {
       |    bootstrap.servers = "$server"
       |  }
@@ -182,7 +186,7 @@ class CacheInvalidatorTests
   }
   private def startCacheInvalidatorWithoutKafka(): CacheInvalidator = {
     val tsconfig = ConfigFactory.parseString(s"""
-      |akka.kafka.producer {
+      |pekko.kafka.producer {
       |  kafka-clients {
       |    #this config is missing
       |  }
@@ -200,7 +204,7 @@ class CacheInvalidatorTests
   }
   private def startCacheInvalidatorWithInvalidKafka(): CacheInvalidator = {
     val tsconfig = ConfigFactory.parseString(s"""
-      |akka.kafka.producer {
+      |pekko.kafka.producer {
       |  kafka-clients {
       |    bootstrap.servers = "localhost:9092"
       |  }
@@ -218,7 +222,7 @@ class CacheInvalidatorTests
   }
   private def startCacheInvalidatorWithoutCosmos(): CacheInvalidator = {
     val tsconfig = ConfigFactory.parseString(s"""
-      |akka.kafka.producer {
+      |pekko.kafka.producer {
       |  kafka-clients {
       |    bootstrap.servers = "$server"
       |  }

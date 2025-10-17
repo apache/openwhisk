@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.database.memory
 
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.openwhisk.core.database.{ArtifactStore, AttachmentStore, DocumentSerializer}
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehaviorBase
 import org.apache.openwhisk.core.entity.{
@@ -31,7 +31,7 @@ import org.apache.openwhisk.core.entity.{
 
 import scala.reflect.{classTag, ClassTag}
 
-trait MemoryArtifactStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase {
+trait MemoryArtifactStoreBehaviorBase extends AnyFlatSpec with ArtifactStoreBehaviorBase {
   override def storeType = "Memory"
 
   override lazy val authStore = {

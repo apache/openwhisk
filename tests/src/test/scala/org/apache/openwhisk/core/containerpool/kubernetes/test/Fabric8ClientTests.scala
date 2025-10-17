@@ -29,14 +29,15 @@ import org.apache.openwhisk.core.containerpool.kubernetes._
 import org.apache.openwhisk.core.entity.size._
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class Fabric8ClientTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with WskActorSystem
     with ScalaFutures

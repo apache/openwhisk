@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.invoker.test
 
 import java.nio.charset.StandardCharsets
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.TestKit
 import common.WskTestHelpers
 import org.apache.openwhisk.common.InvokerState.Healthy
 import org.apache.openwhisk.core.ConfigKeys
@@ -31,8 +31,9 @@ import org.apache.openwhisk.core.etcd.EtcdKV.{InstanceKeys, InvokerKeys}
 import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdConfig}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 import pureconfig.loadConfigOrThrow
 import org.apache.openwhisk.core.entity.size._
 
@@ -44,7 +45,7 @@ import pureconfig.generic.auto._
 @RunWith(classOf[JUnitRunner])
 class InvokerBootUpTests
     extends TestKit(ActorSystem("SchedulerFlow"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with BeforeAndAfterAll
     with WskTestHelpers
     with ScalaFutures {

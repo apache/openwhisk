@@ -38,14 +38,15 @@ import org.apache.openwhisk.core.containerpool.kubernetes.{
 }
 import org.apache.openwhisk.core.entity.size._
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class WhiskPodBuilderTests extends FlatSpec with Matchers with KubeClientSupport {
+class WhiskPodBuilderTests extends AnyFlatSpec with Matchers with KubeClientSupport {
   implicit val tid: TransactionId = TransactionId.testing
   private val testImage = "nodejs"
   private val memLimit = 10.MB

@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.entity
 
 import scala.util.Try
-import akka.http.scaladsl.model.StatusCodes.{OK, ServiceUnavailable}
+import org.apache.pekko.http.scaladsl.model.StatusCodes.{OK, ServiceUnavailable}
 import spray.json._
 import spray.json.DefaultJsonProtocol
 import org.apache.openwhisk.common.Logging

@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.kubernetes
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import pureconfig._
 import pureconfig.generic.auto._
 

@@ -19,10 +19,10 @@ package org.apache.openwhisk.core.database.test
 
 import scala.concurrent.duration.DurationInt
 import scala.io.Source
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import common.WaitFor
 import common.WhiskProperties
 import pureconfig._

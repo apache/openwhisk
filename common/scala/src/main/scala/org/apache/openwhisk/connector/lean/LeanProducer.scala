@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.connector.lean
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 
 import scala.concurrent.Future
 import org.apache.openwhisk.common.Counter

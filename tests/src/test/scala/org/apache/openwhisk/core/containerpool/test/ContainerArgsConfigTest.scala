@@ -18,16 +18,16 @@
 package org.apache.openwhisk.core.containerpool.test
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.containerpool.ContainerArgsConfig
 
 @RunWith(classOf[JUnitRunner])
-class ContainerArgsConfigTest extends FlatSpec with Matchers {
+class ContainerArgsConfigTest extends AnyFlatSpec with Matchers {
 
   it should "use defaults for container args map" in {
     val config = loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs)

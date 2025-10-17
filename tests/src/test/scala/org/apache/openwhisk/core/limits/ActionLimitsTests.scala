@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.limits
 
-import akka.http.scaladsl.model.StatusCodes.PayloadTooLarge
-import akka.http.scaladsl.model.StatusCodes.BadGateway
+import org.apache.pekko.http.scaladsl.model.StatusCodes.PayloadTooLarge
+import org.apache.pekko.http.scaladsl.model.StatusCodes.BadGateway
 import java.io.File
 import java.io.PrintWriter
 import java.time.Instant
@@ -26,7 +26,7 @@ import java.time.Instant
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils

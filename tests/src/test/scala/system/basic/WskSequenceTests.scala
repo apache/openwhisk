@@ -26,7 +26,7 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.matching.Regex
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common._
 import common.TestUtils._
 import common.rest.WskRestOperations

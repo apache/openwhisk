@@ -23,8 +23,11 @@ import java.time.Instant
 import scala.concurrent.Await
 import scala.language.postfixOps
 import org.junit.runner.RunWith
-import org.scalatest._
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import common.StreamLogging
 import common.WskActorSystem
 import org.apache.openwhisk.core.controller.test.WhiskAuthHelpers
@@ -35,7 +38,7 @@ import org.apache.openwhisk.core.entity._
 
 @RunWith(classOf[JUnitRunner])
 class ViewTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with BeforeAndAfterEach
     with BeforeAndAfterAll
     with Matchers

@@ -21,7 +21,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Instant
 import java.util.Base64
-import akka.http.scaladsl.model.ContentTypes
+import org.apache.pekko.http.scaladsl.model.ContentTypes
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future

@@ -26,11 +26,13 @@ import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.model.Filters.{equal => meq, _}
 import org.mongodb.scala.model.Sorts
-import org.scalatest.{FlatSpec, Matchers, OptionValues}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.OptionValues
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class MongoDBViewMapperTests extends FlatSpec with Matchers with OptionValues {
+class MongoDBViewMapperTests extends AnyFlatSpec with Matchers with OptionValues {
   implicit class RichBson(val b: Bson) {
     def toDoc: BsonDocument = b.toBsonDocument(classOf[Document], MongoClient.DEFAULT_CODEC_REGISTRY)
   }

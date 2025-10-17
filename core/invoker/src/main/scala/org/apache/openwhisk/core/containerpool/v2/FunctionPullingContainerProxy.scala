@@ -19,11 +19,11 @@ package org.apache.openwhisk.core.containerpool.v2
 
 import java.net.InetSocketAddress
 import java.time.Instant
-import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{actorRef2Scala, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
-import akka.event.Logging.InfoLevel
-import akka.io.{IO, Tcp}
-import akka.pattern.pipe
+import org.apache.pekko.actor.Status.{Failure => FailureMessage}
+import org.apache.pekko.actor.{actorRef2Scala, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
+import org.apache.pekko.event.Logging.InfoLevel
+import org.apache.pekko.io.{IO, Tcp}
+import org.apache.pekko.pattern.pipe
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider
 import org.apache.openwhisk.common.{LoggingMarkers, TransactionId, _}
 import org.apache.openwhisk.core.ConfigKeys
@@ -692,7 +692,7 @@ class FunctionPullingContainerProxy(
             "")
           parent ! Resumed(data)
           // the new queue may locates on an different scheduler, so recreate the activation client when necessary
-          // since akka port will no be used, we can put any value except 0 here
+          // since pekko port will no be used, we can put any value except 0 here
           data.clientProxy ! RequestActivation(
             newScheduler = Some(SchedulerEndpoints(job.schedulerHost, job.rpcPort, 10)))
           startSingleTimer(UnusedTimeoutName, StateTimeout, unusedTimeout)

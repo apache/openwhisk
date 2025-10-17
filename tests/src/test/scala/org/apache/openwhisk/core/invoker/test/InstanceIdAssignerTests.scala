@@ -20,12 +20,14 @@ package org.apache.openwhisk.core.invoker.test
 import common.StreamLogging
 import org.apache.curator.test.TestingServer
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.core.invoker.InstanceIdAssigner
 
 @RunWith(classOf[JUnitRunner])
-class InstanceIdAssignerTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
+class InstanceIdAssignerTests extends AnyFlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
   behavior of "Id Assignment"
 
   private var zkServer: TestingServer = _

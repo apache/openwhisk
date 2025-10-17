@@ -21,7 +21,7 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common._
 import common.rest.WskRestOperations
 import org.apache.openwhisk.core.entity.Annotations

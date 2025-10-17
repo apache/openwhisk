@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.controller.test
 import scala.concurrent.duration.DurationInt
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
@@ -36,7 +36,7 @@ import org.apache.openwhisk.core.entity.UserLimits
  * "using Specification DSL to write unit tests, as in should, must, not, be"
  */
 @RunWith(classOf[JUnitRunner])
-class RateThrottleTests extends FlatSpec with Matchers with StreamLogging {
+class RateThrottleTests extends AnyFlatSpec with Matchers with StreamLogging {
 
   implicit val transid = TransactionId.testing
   val subject = WhiskAuthHelpers.newIdentity()

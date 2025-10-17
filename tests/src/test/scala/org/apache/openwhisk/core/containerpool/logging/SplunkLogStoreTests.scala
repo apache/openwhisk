@@ -19,20 +19,22 @@ package org.apache.openwhisk.core.containerpool.logging
 
 import java.time.ZonedDateTime
 
-import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.http.javadsl.model.headers.Authorization
-import akka.http.scaladsl.model.HttpMethods.POST
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.scaladsl.Flow
-import akka.testkit.TestKit
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.javadsl.model.headers.Authorization
+import org.apache.pekko.http.scaladsl.model.HttpMethods.POST
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.stream.scaladsl.Flow
+import org.apache.pekko.testkit.TestKit
 import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import pureconfig.error.ConfigReaderException
 import spray.json._
 import org.apache.openwhisk.core.entity._
@@ -46,7 +48,7 @@ import scala.util.{Failure, Success, Try}
 @RunWith(classOf[JUnitRunner])
 class SplunkLogStoreTests
     extends TestKit(ActorSystem("SplunkLogStore"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with ScalaFutures

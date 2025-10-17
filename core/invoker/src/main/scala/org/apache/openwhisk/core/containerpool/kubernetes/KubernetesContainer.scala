@@ -17,14 +17,14 @@
 
 package org.apache.openwhisk.core.containerpool.kubernetes
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 
-import akka.stream.StreamLimitReachedException
-import akka.stream.scaladsl.Framing.FramingException
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
+import org.apache.pekko.stream.StreamLimitReachedException
+import org.apache.pekko.stream.scaladsl.Framing.FramingException
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.ByteString
 import io.fabric8.kubernetes.client.PortForward
 
 import scala.concurrent.ExecutionContext

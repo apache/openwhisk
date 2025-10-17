@@ -17,12 +17,12 @@
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
-import akka.Done
-import akka.actor.ActorSystem
-import akka.kafka.scaladsl.Producer
-import akka.kafka.{ProducerMessage, ProducerSettings}
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.stream._
+import org.apache.pekko.Done
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.kafka.scaladsl.Producer
+import org.apache.pekko.kafka.{ProducerMessage, ProducerSettings}
+import org.apache.pekko.stream.scaladsl.{Keep, Sink, Source}
+import org.apache.pekko.stream._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.openwhisk.common.Logging

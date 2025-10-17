@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.containerpool.docker.test
 
 import java.io.IOException
 import java.time.Instant
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.ByteString
 import common.TimingHelpers
 
 import scala.collection.mutable
@@ -30,10 +30,10 @@ import scala.concurrent.Future
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.openwhisk.core.containerpool.logging.{DockerToActivationLogStore, LogLine}
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.Matchers
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.matchers.should.Matchers
 import common.{StreamLogging, WskActorSystem}
 import spray.json._
 import org.apache.openwhisk.common.LoggingMarkers._
@@ -75,7 +75,7 @@ object DockerContainerTests {
  */
 @RunWith(classOf[JUnitRunner])
 class DockerContainerTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with StreamLogging

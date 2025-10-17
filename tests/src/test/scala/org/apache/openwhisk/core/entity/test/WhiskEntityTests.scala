@@ -18,9 +18,9 @@
 package org.apache.openwhisk.core.entity.test
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.core.entity.EntityPath
 import org.apache.openwhisk.core.entity.EntityName
 import org.apache.openwhisk.core.entity.WhiskAction
@@ -45,7 +45,7 @@ import org.apache.openwhisk.core.entity.WhiskRule
 import org.apache.openwhisk.core.database.DocumentTypeMismatchException
 
 @RunWith(classOf[JUnitRunner])
-class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
+class WhiskEntityTests extends AnyFlatSpec with ExecHelpers with Matchers {
 
   val namespace = EntityPath("testspace")
   val name = EntityName("testname")

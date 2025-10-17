@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.database.memory
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.ContentType
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.util.{ByteString, ByteStringBuilder}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.ContentType
+import org.apache.pekko.stream.scaladsl.{Keep, Sink, Source}
+import org.apache.pekko.util.{ByteString, ByteStringBuilder}
 import org.apache.openwhisk.common.LoggingMarkers.{
   DATABASE_ATTS_DELETE,
   DATABASE_ATT_DELETE,

@@ -20,8 +20,8 @@ package org.apache.openwhisk.common
 import java.io.PrintStream
 import java.time.{Clock, Instant, ZoneId}
 import java.time.format.DateTimeFormatter
-import akka.event.Logging._
-import akka.event.LoggingAdapter
+import org.apache.pekko.event.Logging._
+import org.apache.pekko.event.LoggingAdapter
 import kamon.Kamon
 import kamon.metric.{MeasurementUnit, Counter => KCounter, Gauge => KGauge, Histogram => KHistogram}
 import kamon.statsd.{MetricKeyGenerator, SimpleMetricKeyGenerator}
@@ -86,9 +86,9 @@ trait Logging {
 }
 
 /**
- * Implementation of Logging, that uses Akka logging.
+ * Implementation of Logging, that uses Pekko logging.
  */
-class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
+class PekkoLogging(loggingAdapter: LoggingAdapter) extends Logging {
   def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String) = {
     if (loggingAdapter.isEnabled(loglevel)) {
       val logmsg: String = message // generates the message

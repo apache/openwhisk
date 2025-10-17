@@ -23,9 +23,9 @@ import common.WskActorSystem
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.Await
 import scala.concurrent.Future
@@ -49,7 +49,7 @@ import pureconfig.generic.auto._
 
 @RunWith(classOf[JUnitRunner])
 class DockerContainerFactoryTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with StreamLogging

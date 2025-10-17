@@ -20,10 +20,10 @@ package org.apache.openwhisk.core.containerpool.docker
 import java.io.File
 import java.nio.file.Paths
 
-import akka.actor.ActorSystem
-import akka.stream.alpakka.file.scaladsl.FileTailSource
-import akka.stream.scaladsl.{FileIO, Source => AkkaSource}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.connectors.file.scaladsl.FileTailSource
+import org.apache.pekko.stream.scaladsl.{FileIO, Source => PekkoSource}
+import org.apache.pekko.util.ByteString
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -143,7 +143,7 @@ class DockerClientWithFileAccess(dockerHost: Option[String] = None,
   private val readChunkSize = 8192 // bytes
   override def rawContainerLogs(containerId: ContainerId,
                                 fromPos: Long,
-                                pollInterval: Option[FiniteDuration]): AkkaSource[ByteString, Any] =
+                                pollInterval: Option[FiniteDuration]): PekkoSource[ByteString, Any] =
     try {
       // If there is no waiting interval, we can end the stream early by reading just what is there from file.
       pollInterval match {
@@ -151,7 +151,7 @@ class DockerClientWithFileAccess(dockerHost: Option[String] = None,
         case None           => FileIO.fromPath(containerLogFile(containerId).toPath, readChunkSize, fromPos)
       }
     } catch {
-      case t: Throwable => AkkaSource.failed(t)
+      case t: Throwable => PekkoSource.failed(t)
     }
 }
 
@@ -168,5 +168,5 @@ trait DockerApiWithFileAccess extends DockerApi {
    */
   def rawContainerLogs(containerId: ContainerId,
                        fromPos: Long,
-                       pollInterval: Option[FiniteDuration]): AkkaSource[ByteString, Any]
+                       pollInterval: Option[FiniteDuration]): PekkoSource[ByteString, Any]
 }

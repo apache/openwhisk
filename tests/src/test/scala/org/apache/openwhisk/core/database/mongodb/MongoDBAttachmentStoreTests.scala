@@ -21,13 +21,16 @@ import org.apache.openwhisk.core.database.DocumentSerializer
 import org.apache.openwhisk.core.database.memory.MemoryAttachmentStoreProvider
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreAttachmentBehaviors
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.reflect.ClassTag
 
 @RunWith(classOf[JUnitRunner])
-class MongoDBAttachmentStoreTests extends FlatSpec with MongoDBStoreBehaviorBase with ArtifactStoreAttachmentBehaviors {
+class MongoDBAttachmentStoreTests
+    extends AnyFlatSpec
+    with MongoDBStoreBehaviorBase
+    with ArtifactStoreAttachmentBehaviors {
   override protected def getAttachmentStore[D <: DocumentSerializer: ClassTag]() =
     Some(MemoryAttachmentStoreProvider.makeStore[D]())
 }

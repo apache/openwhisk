@@ -20,12 +20,12 @@ package org.apache.openwhisk.core.monitoring.metrics
 import java.lang.management.ManagementFactory
 import java.util.concurrent.atomic.AtomicReference
 
-import akka.Done
-import akka.actor.ActorSystem
-import akka.kafka.scaladsl.{Committer, Consumer}
-import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
-import akka.stream.RestartSettings
-import akka.stream.scaladsl.{RestartSource, Sink}
+import org.apache.pekko.Done
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.kafka.scaladsl.{Committer, Consumer}
+import org.apache.pekko.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
+import org.apache.pekko.stream.RestartSettings
+import org.apache.pekko.stream.scaladsl.{RestartSource, Sink}
 import javax.management.ObjectName
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import kamon.Kamon
@@ -163,7 +163,7 @@ case class EventConsumer(settings: ConsumerSettings[String, String],
     settings
       .withProperty(ConsumerConfig.CLIENT_ID_CONFIG, id)
       .withProperty(ConsumerConfig.METRIC_REPORTER_CLASSES_CONFIG, KamonMetricsReporter.name)
-      .withStopTimeout(Duration.Zero) // https://doc.akka.io/docs/alpakka-kafka/current/consumer.html#draining-control
+      .withStopTimeout(Duration.Zero) // https://pekko.apache.org/api/pekko-connectors-kafka/current/org/apache/pekko/kafka/scaladsl/Consumer$$DrainingControl$.html
 }
 
 object EventConsumer {

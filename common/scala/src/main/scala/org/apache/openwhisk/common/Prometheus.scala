@@ -18,9 +18,9 @@
 package org.apache.openwhisk.common
 import java.nio.charset.StandardCharsets.UTF_8
 
-import akka.http.scaladsl.model.{ContentType, HttpCharsets, HttpEntity, MediaType}
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.model.{ContentType, HttpCharsets, HttpEntity, MediaType}
+import org.apache.pekko.http.scaladsl.server.Directives._
+import org.apache.pekko.http.scaladsl.server.Route
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
 

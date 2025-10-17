@@ -24,14 +24,14 @@ import scala.util.Success
 import scala.util.Try
 import scala.concurrent.Future
 
-import akka.http.scaladsl.server.Directives
-import akka.http.scaladsl.model.HttpMethod
-import akka.http.scaladsl.model.StatusCodes.Forbidden
-import akka.http.scaladsl.model.StatusCodes.NotFound
-import akka.http.scaladsl.server.RequestContext
-import akka.http.scaladsl.server.RouteResult
-import akka.http.scaladsl.model.StatusCodes.InternalServerError
-import akka.http.scaladsl.server.Directive1
+import org.apache.pekko.http.scaladsl.server.Directives
+import org.apache.pekko.http.scaladsl.model.HttpMethod
+import org.apache.pekko.http.scaladsl.model.StatusCodes.Forbidden
+import org.apache.pekko.http.scaladsl.model.StatusCodes.NotFound
+import org.apache.pekko.http.scaladsl.server.RequestContext
+import org.apache.pekko.http.scaladsl.server.RouteResult
+import org.apache.pekko.http.scaladsl.model.StatusCodes.InternalServerError
+import org.apache.pekko.http.scaladsl.server.Directive1
 
 import org.apache.openwhisk.core.entitlement.Collection
 import org.apache.openwhisk.common.TransactionId

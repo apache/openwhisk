@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.connector.kafka
 
-import akka.http.scaladsl.server.{Directives, Route}
+import org.apache.pekko.http.scaladsl.server.{Directives, Route}
 import org.apache.kafka.common.{Metric, MetricName => JMetricName}
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 

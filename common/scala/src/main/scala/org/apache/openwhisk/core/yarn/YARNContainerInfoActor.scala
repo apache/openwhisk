@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.yarn
 
-import akka.actor.{Actor, ActorRef, ActorSystem}
+import org.apache.pekko.actor.{Actor, ActorRef, ActorSystem}
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.containerpool.{ContainerAddress, ContainerId}
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName

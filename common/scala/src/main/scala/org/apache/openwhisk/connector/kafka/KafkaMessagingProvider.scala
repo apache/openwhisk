@@ -19,7 +19,7 @@ package org.apache.openwhisk.connector.kafka
 
 import java.util.Properties
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig, NewTopic}
 import org.apache.kafka.common.errors.{RetriableException, TopicExistsException}
 import pureconfig._

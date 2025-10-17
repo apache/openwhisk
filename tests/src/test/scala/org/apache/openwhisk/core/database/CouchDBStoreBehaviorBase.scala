@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.database
 
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehaviorBase
 import org.apache.openwhisk.core.entity.{
   DocumentReader,
@@ -30,7 +30,7 @@ import org.apache.openwhisk.core.entity.{
 
 import scala.reflect.{classTag, ClassTag}
 
-trait CouchDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase {
+trait CouchDBStoreBehaviorBase extends AnyFlatSpec with ArtifactStoreBehaviorBase {
   override def storeType = "CouchDB"
 
   override val authStore = {

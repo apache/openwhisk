@@ -77,7 +77,7 @@ The first entry point into the system is through **nginx**, “an HTTP and rever
 
 ### Entering the system: Controller
 
-Not having done much to our HTTP request, nginx forwards it to the **Controller**, the next component on our trip through OpenWhisk. It is a Scala-based implementation of the actual REST API (based on **Akka** and **Spray**) and thus serves as the interface for everything a user can do, including [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) requests for your entities in OpenWhisk and invocation of actions (which is what we’re doing right now).
+Not having done much to our HTTP request, nginx forwards it to the **Controller**, the next component on our trip through OpenWhisk. It is a Scala-based implementation of the actual REST API (based on **Pekko** and **Spray**) and thus serves as the interface for everything a user can do, including [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) requests for your entities in OpenWhisk and invocation of actions (which is what we’re doing right now).
 
 The Controller first disambiguates what the user is trying to do. It does so based on the HTTP method you use in your HTTP request. As per translation above, the user is issuing a POST request to an existing action, which the Controller translates to an **invocation of an action**.
 

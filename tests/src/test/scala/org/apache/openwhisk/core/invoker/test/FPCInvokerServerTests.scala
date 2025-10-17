@@ -17,11 +17,11 @@
 
 package org.apache.openwhisk.core.invoker.test
 
-import akka.http.scaladsl.model.StatusCodes.{OK, Unauthorized}
-import akka.http.scaladsl.model.headers.BasicHttpCredentials
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.http.scaladsl.model.StatusCodes.{OK, Unauthorized}
+import org.apache.pekko.http.scaladsl.model.headers.BasicHttpCredentials
+import org.apache.pekko.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.testkit.ScalatestRouteTest
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
 import common.StreamLogging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.containerpool.v2.{NotSupportedPoolState, TotalContainerPoolState}
@@ -30,8 +30,10 @@ import org.apache.openwhisk.core.invoker.{FPCInvokerServer, InvokerCore}
 import org.apache.openwhisk.http.BasicHttpService
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.Future
 
@@ -40,7 +42,7 @@ import scala.concurrent.Future
  */
 @RunWith(classOf[JUnitRunner])
 class FPCInvokerServerTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with BeforeAndAfterEach
     with BeforeAndAfterAll
     with ScalatestRouteTest

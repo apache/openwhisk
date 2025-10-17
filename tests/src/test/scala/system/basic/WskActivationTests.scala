@@ -19,7 +19,7 @@ package system.basic
 
 import common.rest.WskRestOperations
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common._
 
 import spray.json._

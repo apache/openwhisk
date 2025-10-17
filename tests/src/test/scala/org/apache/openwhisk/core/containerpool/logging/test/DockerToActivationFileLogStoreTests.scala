@@ -19,13 +19,13 @@ package org.apache.openwhisk.core.containerpool.logging.test
 
 import java.time.Instant
 
-import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.testkit.TestProbe
-import akka.util.ByteString
+import org.apache.pekko.stream.scaladsl.{Flow, Sink, Source}
+import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.util.ByteString
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.TransactionId

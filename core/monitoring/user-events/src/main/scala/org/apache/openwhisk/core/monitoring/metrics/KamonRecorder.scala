@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.event.slf4j.SLF4JLogging
+import org.apache.pekko.event.slf4j.SLF4JLogging
 import org.apache.openwhisk.core.connector.{Activation, Metric}
 import kamon.Kamon
 import kamon.metric.MeasurementUnit

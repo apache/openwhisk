@@ -19,12 +19,14 @@ package org.apache.openwhisk.common
 
 import java.nio.charset.StandardCharsets
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import common._
 import common.rest.WskRestOperations
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.connector.kafka.KafkaConsumerConnector
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.{Activation, EventMessage, Metric}
@@ -32,7 +34,7 @@ import org.apache.openwhisk.core.connector.{Activation, EventMessage, Metric}
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with StreamLogging with BeforeAndAfterAll {
+class UserEventTests extends AnyFlatSpec with Matchers with WskTestHelpers with StreamLogging with BeforeAndAfterAll {
 
   implicit val wskprops = WskProps()
   implicit val system = ActorSystem("UserEventTestSystem")

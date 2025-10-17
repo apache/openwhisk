@@ -19,10 +19,10 @@ package org.apache.openwhisk.core.controller
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.server.{RequestContext, RouteResult}
-import akka.http.scaladsl.unmarshalling.Unmarshaller
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.server.{RequestContext, RouteResult}
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import org.apache.openwhisk.core.database.{CacheChangeNotification, DocumentTypeMismatchException, NoDocumentException}

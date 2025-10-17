@@ -22,9 +22,9 @@ import java.time.Instant
 import scala.concurrent.duration.DurationInt
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import common.WskActorSystem
 import spray.json._
@@ -35,7 +35,7 @@ import org.apache.openwhisk.core.entity.size.SizeInt
 import org.apache.openwhisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
-class SequenceAccountingTests extends FlatSpec with Matchers with WskActorSystem {
+class SequenceAccountingTests extends AnyFlatSpec with Matchers with WskActorSystem {
 
   behavior of "sequence accounting"
 

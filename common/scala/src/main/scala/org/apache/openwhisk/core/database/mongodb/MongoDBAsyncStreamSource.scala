@@ -19,17 +19,17 @@ package org.apache.openwhisk.core.database.mongodb
 
 import java.nio.ByteBuffer
 
-import akka.Done
-import akka.stream.SourceShape
-import akka.stream.Attributes
-import akka.stream.Outlet
-import akka.stream.IOResult
-import akka.stream.scaladsl.Source
-import akka.stream.stage.GraphStageLogic
-import akka.stream.stage.OutHandler
-import akka.stream.stage.GraphStageWithMaterializedValue
-import akka.stream.stage.AsyncCallback
-import akka.util.ByteString
+import org.apache.pekko.Done
+import org.apache.pekko.stream.SourceShape
+import org.apache.pekko.stream.Attributes
+import org.apache.pekko.stream.Outlet
+import org.apache.pekko.stream.IOResult
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.stream.stage.GraphStageLogic
+import org.apache.pekko.stream.stage.OutHandler
+import org.apache.pekko.stream.stage.GraphStageWithMaterializedValue
+import org.apache.pekko.stream.stage.AsyncCallback
+import org.apache.pekko.util.ByteString
 import org.mongodb.scala.Completed
 import org.mongodb.scala.gridfs.AsyncInputStream
 

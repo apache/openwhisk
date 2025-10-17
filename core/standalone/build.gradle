@@ -169,18 +169,22 @@ dependencies {
     implementation project(':tools:admin')
     implementation "org.rogach:scallop_${gradle.scala.depVersion}:3.3.2"
 
-    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.8.1"
+    implementation "io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.9.1"
     constraints {
-        implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:2.8.1")
-        implementation('org.apache.avro:avro:1.11.1') {
-            because 'embeddedkafka dependency cannot be upgraded currently and avro in embedded kafka 2.4.0 has vulns'
-        }
+        implementation("io.github.embeddedkafka:embedded-kafka_${gradle.scala.depVersion}:3.9.1")
+        implementation("org.apache.kafka:kafka-clients:3.9.1")
+    }
+    implementation ("org.apache.zookeeper:zookeeper:3.9.3") {
+        exclude group: 'org.slf4j'
+        exclude group: 'log4j'
+        exclude group: 'jline'
     }
     implementation "org.scala-lang:scala-reflect:${gradle.scala.version}"
-    implementation "ch.megard:akka-http-cors_${gradle.scala.depVersion}:0.4.2"
+    implementation "org.apache.pekko:pekko-http-cors_${gradle.scala.depVersion}:${gradle.pekko_http.version}"
 
     testImplementation "junit:junit:4.11"
-    testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.0.8"
+    testImplementation "org.scalatest:scalatest_${gradle.scala.depVersion}:3.2.14"
+    testImplementation "org.scalatestplus:junit-4-13_${gradle.scala.depVersion}:3.2.14.0"
 }
 
 gradle.projectsEvaluated {

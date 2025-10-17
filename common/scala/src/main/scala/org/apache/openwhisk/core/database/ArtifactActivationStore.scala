@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database
 
 import java.time.Instant
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import spray.json.JsObject
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.entity._

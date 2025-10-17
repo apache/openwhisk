@@ -19,13 +19,13 @@ package org.apache.openwhisk.core.cli
 
 import java.io.File
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
 import ch.qos.logback.classic.{Level, LoggerContext}
 import org.rogach.scallop._
 import org.slf4j.LoggerFactory
 import pureconfig.error.ConfigReaderException
-import org.apache.openwhisk.common.{AkkaLogging, Logging, TransactionId}
+import org.apache.openwhisk.common.{Logging, PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.database.{LimitsCommand, UserCommand}
 
 import scala.concurrent.duration.{Duration, DurationInt}
@@ -98,7 +98,7 @@ object Main {
   }
 
   private def executeWithSystem(conf: Conf)(implicit actorSystem: ActorSystem): Int = {
-    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    implicit val logger = new PekkoLogging(org.apache.pekko.event.Logging.getLogger(actorSystem, this))
 
     val admin = new WhiskAdmin(conf)
     val result = Try {

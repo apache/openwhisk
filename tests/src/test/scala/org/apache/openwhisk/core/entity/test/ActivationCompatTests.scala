@@ -33,15 +33,16 @@ import org.apache.openwhisk.core.entity.{
   WhiskActivation
 }
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 
 import scala.concurrent.duration._
 import org.apache.openwhisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
-class ActivationCompatTests extends FlatSpec with Matchers with WhiskInstants with DefaultJsonProtocol {
+class ActivationCompatTests extends AnyFlatSpec with Matchers with WhiskInstants with DefaultJsonProtocol {
   behavior of "ActivationResponse"
 
   val activationResponseJs = """

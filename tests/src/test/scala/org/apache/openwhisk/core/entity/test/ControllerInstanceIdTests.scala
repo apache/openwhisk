@@ -18,16 +18,16 @@
 package org.apache.openwhisk.core.entity.test
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.core.entity.{ControllerInstanceId, InstanceId}
 import spray.json.{JsObject, JsString}
 
 import scala.util.Success
 
 @RunWith(classOf[JUnitRunner])
-class ControllerInstanceIdTests extends FlatSpec with Matchers {
+class ControllerInstanceIdTests extends AnyFlatSpec with Matchers {
 
   behavior of "ControllerInstanceId"
 

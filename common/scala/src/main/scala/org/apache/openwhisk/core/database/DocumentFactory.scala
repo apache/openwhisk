@@ -21,9 +21,9 @@ import java.io.InputStream
 import java.io.OutputStream
 
 import scala.concurrent.{Future, Promise}
-import akka.http.scaladsl.model.ContentType
-import akka.stream.IOResult
-import akka.stream.scaladsl.StreamConverters
+import org.apache.pekko.http.scaladsl.model.ContentType
+import org.apache.pekko.stream.IOResult
+import org.apache.pekko.stream.scaladsl.StreamConverters
 import spray.json.JsObject
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity.Attachments.Attached

@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.database.s3
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.core.entity.WhiskEntity
 
 @RunWith(classOf[JUnitRunner])

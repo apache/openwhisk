@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.loadBalancer.test
 
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
-import akka.http.scaladsl.Http
-import akka.testkit.TestProbe
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.testkit.TestProbe
 import common.{StreamLogging, WskActorSystem}
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common.{InvokerHealth, Logging, TransactionId}
@@ -38,8 +38,10 @@ import org.apache.openwhisk.utils.{retry => utilRetry}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterEach, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import pureconfig._
 import pureconfig.generic.auto._
 
@@ -51,7 +53,7 @@ import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
 class FPCPoolBalancerTests
-    extends FlatSpecLike
+    extends AnyFlatSpecLike
     with Matchers
     with StreamLogging
     with ExecHelpers
@@ -249,7 +251,7 @@ class FPCPoolBalancerTests
     val rpcPort4 = 19090
     val rpcPort5 = 19091
     val rpcPort6 = 19092
-    val akkaPort = 0
+    val pekkoPort = 0
     val mockConsumer = new TestConnector("fake", 4, true)
     val messageProvider = fakeMessageProvider(mockConsumer)
     val clusterName1 = loadConfigOrThrow[String](ConfigKeys.whiskClusterName)
@@ -257,22 +259,22 @@ class FPCPoolBalancerTests
 
     etcd.put(
       s"$clusterName1/scheduler/0",
-      SchedulerStates(SchedulerInstanceId("0"), queueSize = 0, SchedulerEndpoints(host, rpcPort1, akkaPort)).serialize)
+      SchedulerStates(SchedulerInstanceId("0"), queueSize = 0, SchedulerEndpoints(host, rpcPort1, pekkoPort)).serialize)
     etcd.put(
       s"$clusterName1/scheduler/1",
-      SchedulerStates(SchedulerInstanceId("1"), queueSize = 0, SchedulerEndpoints(host, rpcPort2, akkaPort)).serialize)
+      SchedulerStates(SchedulerInstanceId("1"), queueSize = 0, SchedulerEndpoints(host, rpcPort2, pekkoPort)).serialize)
     etcd.put(
       s"$clusterName1/scheduler/2",
-      SchedulerStates(SchedulerInstanceId("2"), queueSize = 0, SchedulerEndpoints(host, rpcPort3, akkaPort)).serialize)
+      SchedulerStates(SchedulerInstanceId("2"), queueSize = 0, SchedulerEndpoints(host, rpcPort3, pekkoPort)).serialize)
     etcd.put(
       s"$clusterName2/scheduler/3",
-      SchedulerStates(SchedulerInstanceId("3"), queueSize = 0, SchedulerEndpoints(host, rpcPort4, akkaPort)).serialize)
+      SchedulerStates(SchedulerInstanceId("3"), queueSize = 0, SchedulerEndpoints(host, rpcPort4, pekkoPort)).serialize)
     etcd.put(
       s"$clusterName2/scheduler/4",
-      SchedulerStates(SchedulerInstanceId("4"), queueSize = 0, SchedulerEndpoints(host, rpcPort5, akkaPort)).serialize)
+      SchedulerStates(SchedulerInstanceId("4"), queueSize = 0, SchedulerEndpoints(host, rpcPort5, pekkoPort)).serialize)
     etcd.put(
       s"$clusterName2/scheduler/5",
-      SchedulerStates(SchedulerInstanceId("5"), queueSize = 0, SchedulerEndpoints(host, rpcPort6, akkaPort)).serialize)
+      SchedulerStates(SchedulerInstanceId("5"), queueSize = 0, SchedulerEndpoints(host, rpcPort6, pekkoPort)).serialize)
     val poolBalancer =
       new FPCPoolBalancer(
         whiskConfig,

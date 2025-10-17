@@ -20,26 +20,27 @@ package org.apache.openwhisk.core.database.s3
 import java.net.ServerSocket
 
 import actionContainers.ActionContainer
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.typesafe.config.ConfigFactory
 import common.{SimpleExec, StreamLogging}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.database.{AttachmentStore, DocumentSerializer}
 
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
-trait S3Minio extends FlatSpec with BeforeAndAfterAll with StreamLogging {
+trait S3Minio extends AnyFlatSpec with BeforeAndAfterAll with StreamLogging {
   def makeS3Store[D <: DocumentSerializer: ClassTag]()(implicit actorSystem: ActorSystem,
                                                        logging: Logging): AttachmentStore = {
     val config = ConfigFactory.parseString(s"""
       |whisk {
       |     s3 {
-      |      alpakka {
+      |      pekko-connectors {
       |         aws {
       |           credentials {
       |             provider = static

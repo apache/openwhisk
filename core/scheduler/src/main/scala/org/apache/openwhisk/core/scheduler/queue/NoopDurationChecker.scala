@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.scheduler.queue
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.entity.WhiskActionMetaData
 

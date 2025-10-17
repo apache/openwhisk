@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
 import kamon.Kamon
 
 import scala.concurrent.duration.DurationInt

@@ -17,11 +17,11 @@
 
 package org.apache.openwhisk.core.controller
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.server.StandardRoute
-import akka.http.scaladsl.unmarshalling.Unmarshaller
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.server.StandardRoute
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller
 import spray.json.DeserializationException
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.controller.RestApiCommons.{ListLimit, ListSkip}

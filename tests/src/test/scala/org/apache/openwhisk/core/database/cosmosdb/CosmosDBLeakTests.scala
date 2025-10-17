@@ -16,7 +16,7 @@
  */
 
 package org.apache.openwhisk.core.database.cosmosdb
-import akka.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
 import io.netty.util.ResourceLeakDetector
 import io.netty.util.ResourceLeakDetector.Level
 import org.apache.openwhisk.common.TransactionId
@@ -31,8 +31,8 @@ import org.apache.openwhisk.core.entity.{
   WhiskNamespace
 }
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.duration.DurationInt
 
@@ -41,7 +41,7 @@ import scala.concurrent.duration.DurationInt
  * By default this test is disabled
  */
 @RunWith(classOf[JUnitRunner])
-class CosmosDBLeakTests extends FlatSpec with CosmosDBStoreBehaviorBase {
+class CosmosDBLeakTests extends AnyFlatSpec with CosmosDBStoreBehaviorBase {
 
   behavior of s"CosmosDB leak"
 

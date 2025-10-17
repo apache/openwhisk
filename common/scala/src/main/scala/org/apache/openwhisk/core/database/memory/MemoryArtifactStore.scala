@@ -19,10 +19,10 @@ package org.apache.openwhisk.core.database.memory
 
 import java.nio.charset.StandardCharsets.UTF_8
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.{ContentType, Uri}
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.{ContentType, Uri}
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.ByteString
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.database.StoreUtils._

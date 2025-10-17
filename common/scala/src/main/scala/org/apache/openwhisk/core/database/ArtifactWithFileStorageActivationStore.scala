@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database
 
 import java.nio.file.Paths
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.{DocInfo, _}

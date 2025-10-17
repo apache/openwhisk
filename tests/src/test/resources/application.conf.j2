@@ -8,15 +8,15 @@ whisk.spi {
 }
 
 # Blocking requests fall back to non-blocking after ~60s
-akka.http.client.idle-timeout = 90 s
-akka.http.host-connection-pool.idle-timeout = 90 s
-akka.http.host-connection-pool.client.idle-timeout = 90 s
+pekko.http.client.idle-timeout = 90 s
+pekko.http.host-connection-pool.idle-timeout = 90 s
+pekko.http.host-connection-pool.client.idle-timeout = 90 s
 
 # Avoid system exit for test runs
-akka.jvm-exit-on-fatal-error = off
+pekko.jvm-exit-on-fatal-error = off
 
 # Each ActorSystem binds to a free port
-akka.remote.artery.canonical.port=0
+pekko.remote.artery.canonical.port=0
 
 whisk {
     feature-flags {

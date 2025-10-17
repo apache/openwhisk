@@ -20,7 +20,7 @@ package org.apache.openwhisk.standalone
 import common.{FreePortFinder, WskProps}
 import org.apache.openwhisk.common.UserEventTests
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class StandaloneUserEventTests extends UserEventTests with StandaloneServerFixture {

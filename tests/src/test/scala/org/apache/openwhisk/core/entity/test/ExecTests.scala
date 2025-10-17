@@ -17,12 +17,14 @@
 
 package org.apache.openwhisk.core.entity.test
 
-import akka.http.scaladsl.model.ContentTypes
+import org.apache.pekko.http.scaladsl.model.ContentTypes
 import common.StreamLogging
 import spray.json._
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.entity.Attachments.{Attached, Inline}
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
@@ -38,7 +40,7 @@ import org.apache.openwhisk.core.entity.{
 import scala.collection.mutable
 
 @RunWith(classOf[JUnitRunner])
-class ExecTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterAll {
+class ExecTests extends AnyFlatSpec with Matchers with StreamLogging with BeforeAndAfterAll {
   behavior of "exec deserialization"
 
   val config = new WhiskConfig(ExecManifest.requiredProperties)

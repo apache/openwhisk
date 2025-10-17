@@ -21,13 +21,14 @@ import org.apache.openwhisk.core.containerpool.ContainerPoolConfig
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size.SizeInt
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
-class ContainerPoolConfigTests extends FlatSpec with Matchers {
+class ContainerPoolConfigTests extends AnyFlatSpec with Matchers {
 
   def createPoolConfig(userMemory: ByteSize, userCpus: Option[Double] = None): ContainerPoolConfig = {
     ContainerPoolConfig(userMemory, 0.5, false, 2.second, 10.seconds, None, 1, 3, false, 1.second, 10, userCpus)

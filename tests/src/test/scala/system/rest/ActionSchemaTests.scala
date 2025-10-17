@@ -20,9 +20,9 @@ package system.rest
 import scala.util.Success
 import scala.util.Try
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import io.restassured.RestAssured
 import common._
 import common.rest.WskRestOperations
@@ -33,7 +33,7 @@ import spray.json._
  */
 @RunWith(classOf[JUnitRunner])
 class ActionSchemaTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with RestUtil
     with JsonSchema

@@ -24,9 +24,9 @@ import java.io.FileWriter
 import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
@@ -43,7 +43,7 @@ import system.rest.RestUtil
  */
 @RunWith(classOf[JUnitRunner])
 abstract class ApiGwEndToEndTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with RestUtil
     with TestHelpers

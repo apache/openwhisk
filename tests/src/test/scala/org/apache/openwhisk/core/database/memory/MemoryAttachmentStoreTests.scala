@@ -19,14 +19,14 @@ package org.apache.openwhisk.core.database.memory
 
 import common.WskActorSystem
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.core.database.AttachmentStore
 import org.apache.openwhisk.core.database.test.AttachmentStoreBehaviors
 import org.apache.openwhisk.core.entity.WhiskEntity
 
 @RunWith(classOf[JUnitRunner])
-class MemoryAttachmentStoreTests extends FlatSpec with AttachmentStoreBehaviors with WskActorSystem {
+class MemoryAttachmentStoreTests extends AnyFlatSpec with AttachmentStoreBehaviors with WskActorSystem {
 
   override val store: AttachmentStore = MemoryAttachmentStoreProvider.makeStore[WhiskEntity]()
 

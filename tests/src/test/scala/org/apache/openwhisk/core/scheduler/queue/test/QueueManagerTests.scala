@@ -19,10 +19,10 @@ package org.apache.openwhisk.core.scheduler.queue.test
 
 import java.time.{Clock, Instant}
 import java.util.concurrent.atomic.AtomicInteger
-import akka.actor.{Actor, ActorIdentity, ActorRef, ActorRefFactory, ActorSystem, Identify, Props}
-import akka.pattern.ask
-import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
-import akka.util.Timeout
+import org.apache.pekko.actor.{Actor, ActorIdentity, ActorRef, ActorRefFactory, ActorSystem, Identify, Props}
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
+import org.apache.pekko.util.Timeout
 import com.ibm.etcd.api.{KeyValue, RangeResponse}
 import common.{LoggedFunction, StreamLogging}
 import org.apache.openwhisk.common.{GracefulShutdown, TransactionId}
@@ -44,8 +44,10 @@ import org.apache.openwhisk.core.service._
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -56,7 +58,7 @@ class QueueManagerTests
     extends TestKit(ActorSystem("QueueManager"))
     with CommonVariable
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with MockFactory
@@ -189,7 +191,7 @@ class QueueManagerTests
       testQueueManagerActorName)
 
     watcher.expectMsg(watchEndpoint)
-    val testQueueManagerPath = s"akka://QueueManager/user/${testQueueManagerActorName}"
+    val testQueueManagerPath = s"pekko://QueueManager/user/${testQueueManagerActorName}"
 
     val selected = system.actorSelection(testQueueManagerPath)
 

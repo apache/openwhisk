@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.service
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import org.apache.pekko.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.client.kv.KvClient
 import org.apache.openwhisk.common.{GracefulShutdown, Logging}

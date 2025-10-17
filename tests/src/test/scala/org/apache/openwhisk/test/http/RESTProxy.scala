@@ -21,15 +21,15 @@ import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
-import akka.stream.scaladsl._
-import akka.pattern.ask
-import akka.pattern.pipe
-import akka.util.Timeout
+import org.apache.pekko.actor.Actor
+import org.apache.pekko.actor.ActorLogging
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.pattern.pipe
+import org.apache.pekko.util.Timeout
 
 object RESTProxy {
   // Orders the proxy to immediately unbind and rebind after the duration has passed.
@@ -115,7 +115,7 @@ class RESTProxy(val host: String, val port: Int)(val serviceAuthority: Uri.Autho
         Http().outgoingConnection(destHost, destPort)
       }
 
-      // akka-http doesn't like us to set those headers ourselves.
+      // pekko-http doesn't like us to set those headers ourselves.
       val upstreamRequest = request.withHeaders(headers = request.headers.filter(_ match {
         case `Timeout-Access`(_) => false
         case _                   => true

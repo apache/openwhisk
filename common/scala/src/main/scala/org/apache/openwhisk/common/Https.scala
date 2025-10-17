@@ -20,8 +20,8 @@ package org.apache.openwhisk.common
 import java.io.{FileInputStream, InputStream}
 import java.security.{KeyStore, SecureRandom}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
-import akka.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
-import akka.stream.TLSClientAuth
+import org.apache.pekko.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
+import org.apache.pekko.stream.TLSClientAuth
 
 object Https {
   case class HttpsConfig(keystorePassword: String, keystoreFlavor: String, keystorePath: String, clientAuth: String)
@@ -62,7 +62,7 @@ object Https {
 
     // Currently, we are using the keystore as truststore as well, because the clients use the same keys as the
     // server for client authentication (if enabled).
-    // So this code is guided by https://doc.akka.io/docs/akka-http/10.0.9/scala/http/server-side-https-support.html
+    // So this code is guided by https://pekko.apache.org/docs/pekko-http/current/server-side/server-https-support.html
     // This needs to be reworked, when we fix the keys and certificates.
     val trustManagerFactory: TrustManagerFactory = TrustManagerFactory.getInstance(keyFactoryType)
     trustManagerFactory.init(keyStore)

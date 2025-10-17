@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.containerpool.v2.test
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
+import org.apache.pekko.testkit.{ImplicitSender, TestActor, TestActorRef, TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.common.{Enable, GracefulShutdown, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
@@ -50,8 +50,10 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.utils.{retry => utilRetry}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.Eventually
 
 import scala.collection.mutable
@@ -69,7 +71,7 @@ import scala.language.postfixOps
 class FunctionPullingContainerPoolTests
     extends TestKit(ActorSystem("FunctionPullingContainerPool"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach

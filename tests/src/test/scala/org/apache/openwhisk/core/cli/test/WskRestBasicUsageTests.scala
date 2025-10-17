@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.cli.test
 
-import akka.http.scaladsl.model.StatusCodes.NotFound
-import akka.http.scaladsl.model.StatusCodes.OK
-import akka.http.scaladsl.model.StatusCodes.BadRequest
-import akka.http.scaladsl.model.StatusCodes.Conflict
+import org.apache.pekko.http.scaladsl.model.StatusCodes.NotFound
+import org.apache.pekko.http.scaladsl.model.StatusCodes.OK
+import org.apache.pekko.http.scaladsl.model.StatusCodes.BadRequest
+import org.apache.pekko.http.scaladsl.model.StatusCodes.Conflict
 
 import java.time.Instant
 import java.time.Clock
@@ -28,7 +28,7 @@ import scala.language.postfixOps
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
@@ -42,12 +42,20 @@ import spray.json._
 import org.apache.openwhisk.core.entity._
 import org.apache.openwhisk.core.entity.size.SizeInt
 import TestJsonArgs._
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpMethods.POST
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader, HttpMethod, HttpRequest, HttpResponse, Uri}
-import akka.http.scaladsl.model.Uri.{Path, Query}
-import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, RawHeader}
-import akka.util.ByteString
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.HttpMethods.POST
+import org.apache.pekko.http.scaladsl.model.{
+  ContentTypes,
+  HttpEntity,
+  HttpHeader,
+  HttpMethod,
+  HttpRequest,
+  HttpResponse,
+  Uri
+}
+import org.apache.pekko.http.scaladsl.model.Uri.{Path, Query}
+import org.apache.pekko.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, RawHeader}
+import org.apache.pekko.util.ByteString
 import org.apache.openwhisk.http.Messages
 
 /**

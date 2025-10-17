@@ -19,12 +19,12 @@ package org.apache.openwhisk.standalone
 
 import java.nio.charset.StandardCharsets.UTF_8
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.directives.FileAndResourceDirectives.ResourceFile
-import akka.stream.scaladsl.{Sink, Source}
-import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.server.directives.FileAndResourceDirectives.ResourceFile
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.http.cors.scaladsl.CorsDirectives._
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}

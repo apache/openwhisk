@@ -16,9 +16,9 @@
  */
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
-import akka.Done
-import akka.actor.{ActorSystem, CoordinatedShutdown}
-import akka.kafka.ProducerSettings
+import org.apache.pekko.Done
+import org.apache.pekko.actor.{ActorSystem, CoordinatedShutdown}
+import org.apache.pekko.kafka.ProducerSettings
 import com.typesafe.config.Config
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.openwhisk.common.Logging
@@ -107,6 +107,6 @@ object CacheInvalidator {
   def kafkaProducerSettings(config: Config): ProducerSettings[String, String] =
     ProducerSettings(config, new StringSerializer, new StringSerializer)
 
-  def defaultProducerConfig(globalConfig: Config): Config = globalConfig.getConfig("akka.kafka.producer")
+  def defaultProducerConfig(globalConfig: Config): Config = globalConfig.getConfig("pekko.kafka.producer")
 
 }

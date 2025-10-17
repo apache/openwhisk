@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.controller.test
 import scala.concurrent.Await
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
-import akka.http.scaladsl.model.headers.BasicHttpCredentials
+import org.apache.pekko.http.scaladsl.model.headers.BasicHttpCredentials
 
 import org.apache.openwhisk.core.controller.BasicAuthenticationDirective
 import org.apache.openwhisk.core.entity._

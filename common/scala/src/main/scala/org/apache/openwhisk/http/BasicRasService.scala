@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.http
 
-import akka.event.Logging
+import org.apache.pekko.event.Logging
 import org.apache.openwhisk.common.{MetricsRoute, TransactionId}
 
 /**

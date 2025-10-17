@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import java.io.Closeable
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import com.typesafe.config.ConfigFactory
 import org.apache.openwhisk.common.Logging

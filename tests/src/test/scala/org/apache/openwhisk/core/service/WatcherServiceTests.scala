@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.service
 import java.{lang, util}
 import java.util.concurrent.Executor
 
-import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
-import akka.util.Timeout
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import org.apache.pekko.util.Timeout
 import com.google.protobuf.ByteString
 import com.ibm.etcd.api.{Event, KeyValue, ResponseHeader}
 import com.ibm.etcd.api.Event.EventType
@@ -35,8 +35,10 @@ import org.apache.openwhisk.core.etcd.EtcdClient
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -45,7 +47,7 @@ import scala.concurrent.duration._
 class WatcherServiceTests
     extends TestKit(ActorSystem("WatcherService"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with MockFactory

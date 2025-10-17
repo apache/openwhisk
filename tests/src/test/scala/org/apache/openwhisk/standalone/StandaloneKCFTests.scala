@@ -24,7 +24,7 @@ import common.WskProps
 import org.apache.commons.io.FileUtils
 import org.apache.openwhisk.core.containerpool.kubernetes.test.KubeClientSupport
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import system.basic.WskRestBasicTests
 
 @RunWith(classOf[JUnitRunner])

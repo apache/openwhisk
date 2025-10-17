@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.service
 
-import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorRef, ActorSystem, Cancellable, FSM, Props, Stash}
-import akka.pattern.pipe
+import org.apache.pekko.actor.Status.{Failure => FailureMessage}
+import org.apache.pekko.actor.{ActorRef, ActorSystem, Cancellable, FSM, Props, Stash}
+import org.apache.pekko.pattern.pipe
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, MetricEmitter}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.entity.InstanceId

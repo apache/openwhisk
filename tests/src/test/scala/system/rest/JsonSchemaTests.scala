@@ -18,15 +18,15 @@
 package system.rest
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 /**
  * Basic tests of API calls for actions
  */
 @RunWith(classOf[JUnitRunner])
-class JsonSchemaTests extends FlatSpec with Matchers with JsonSchema with RestUtil {
+class JsonSchemaTests extends AnyFlatSpec with Matchers with JsonSchema with RestUtil {
 
   def TEST_SCHEMA = """{
       "type" : "object",

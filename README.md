@@ -45,6 +45,11 @@ Learn more at [http://openwhisk.apache.org](http://openwhisk.apache.org).
 * [OpenWhisk Community and Support](#openwhisk-community-and-support)
 * [Project Repository Structure](#project-repository-structure)
 
+### Notice of Breaking Upgrade 10/17/2025
+
+Apache Openwhisk has migrated to the Apache Pekko framework. The master branch as of 10/17/2025 uses Apache Pekko. This change results in a breaking change such that you must re-deploy new clusters and cutover traffic to the new cluster. All other changes should be transient to you other than instead of using Akka configuration overrides in your deployments, you would now need to update those to use the Pekko equivalent. A 3.x release branch will eventually follow this
+change.
+
 ### Quick Start
 
 The easiest way to start using OpenWhisk is to install the "Standalone" OpenWhisk stack.

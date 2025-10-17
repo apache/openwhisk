@@ -16,8 +16,8 @@
  */
 
 package org.apache.openwhisk.core.scheduler.container
-import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
-import akka.event.Logging.InfoLevel
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
+import org.apache.pekko.event.Logging.InfoLevel
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector.ContainerCreationError.{

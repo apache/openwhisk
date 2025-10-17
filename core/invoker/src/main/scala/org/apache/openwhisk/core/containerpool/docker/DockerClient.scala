@@ -22,7 +22,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.Semaphore
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.blocking
@@ -31,7 +31,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import akka.event.Logging.{ErrorLevel, InfoLevel}
+import org.apache.pekko.event.Logging.{ErrorLevel, InfoLevel}
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.common.{Logging, LoggingMarkers, TransactionId}

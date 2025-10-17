@@ -21,7 +21,7 @@ import java.io.File
 
 import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common.{ConcurrencyHelpers, TestHelpers, TestUtils, WskActorSystem, WskProps, WskTestHelpers}
 import common.rest.WskRestOperations
 import org.apache.openwhisk.core.entity._

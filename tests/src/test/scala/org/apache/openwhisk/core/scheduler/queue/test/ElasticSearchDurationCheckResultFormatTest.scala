@@ -20,12 +20,13 @@ package org.apache.openwhisk.core.scheduler.queue.test
 import org.apache.openwhisk.core.scheduler.queue.{DurationCheckResult, ElasticSearchDurationCheckResultFormat}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import spray.json._
 
 @RunWith(classOf[JUnitRunner])
-class ElasticSearchDurationCheckResultFormatTest extends FlatSpec with Matchers with ScalaFutures {
+class ElasticSearchDurationCheckResultFormatTest extends AnyFlatSpec with Matchers with ScalaFutures {
   behavior of "ElasticSearchDurationCheckResultFormatTest"
 
   val serde = new ElasticSearchDurationCheckResultFormat()

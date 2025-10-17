@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.containerpool.v2
 
-import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{ActorSystem, FSM, Props, Stash}
-import akka.grpc.internal.ClientClosedException
-import akka.pattern.pipe
+import org.apache.pekko.actor.Status.{Failure => FailureMessage}
+import org.apache.pekko.actor.{ActorSystem, FSM, Props, Stash}
+import org.apache.pekko.grpc.internal.ClientClosedException
+import org.apache.pekko.pattern.pipe
 import io.grpc.StatusRuntimeException
 import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ActivationMessage
@@ -198,14 +198,14 @@ class ActivationClientProxy(
         // In such situation, it is better to stop the activationClientProxy, otherwise, in short time,
         // it would print huge log due to create another grpcClient to fetch activation again.
         case t: StatusRuntimeException if t.getMessage.contains(ActivationClientProxy.hostResolveError) =>
-          logging.error(this, s"[${containerId.asString}] akka grpc server connection failed: $t")
+          logging.error(this, s"[${containerId.asString}] pekko grpc server connection failed: $t")
           context.parent ! FailureMessage(t)
           self ! ClientClosed
 
           goto(ClientProxyRemoving)
 
         case t: StatusRuntimeException =>
-          logging.error(this, s"[${containerId.asString}] akka grpc server connection failed: $t")
+          logging.error(this, s"[${containerId.asString}] pekko grpc server connection failed: $t")
           c.activationClient
             .close()
             .flatMap(_ =>

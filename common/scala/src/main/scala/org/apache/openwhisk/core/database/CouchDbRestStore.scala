@@ -17,11 +17,11 @@
 
 package org.apache.openwhisk.core.database
 
-import akka.actor.ActorSystem
-import akka.event.Logging.ErrorLevel
-import akka.http.scaladsl.model._
-import akka.stream.scaladsl._
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging.ErrorLevel
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.ByteString
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -74,7 +74,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
   // This the the amount of allowed parallel requests for each entity, before batching starts. If there are already maxOpenDbRequests
   // and more documents need to be stored, then all arriving documents will be put into batches (if enabled) to avoid a long queue.
-  private val maxOpenDbRequests = system.settings.config.getInt("akka.http.host-connection-pool.max-connections") / 2
+  private val maxOpenDbRequests = system.settings.config.getInt("pekko.http.host-connection-pool.max-connections") / 2
 
   private val maxRetry = loadConfigOrThrow[Int]("whisk.activation-store.retry-config.max-tries")
   private val batcher: Batcher[JsObject, Either[ArtifactStoreException, DocInfo]] =

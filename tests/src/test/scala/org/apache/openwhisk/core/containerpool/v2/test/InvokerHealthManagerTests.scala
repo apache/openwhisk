@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.containerpool.v2.test
 
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
+import org.apache.pekko.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem}
+import org.apache.pekko.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common.{Enable, GracefulShutdown, RingBuffer}
@@ -34,8 +34,10 @@ import org.apache.openwhisk.core.service.UpdateDataOnChange
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -43,7 +45,7 @@ import scala.concurrent.duration._
 class InvokerHealthManagerTests
     extends TestKit(ActorSystem("InvokerHealthManager"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach
@@ -330,11 +332,6 @@ class InvokerHealthManagerTests
           instanceId.dedicatedNamespaces).serialize))
 
     val mockHealthActionProxy = TestProbe()
-    fsm.underlyingActor.healthActionProxy = Some(mockHealthActionProxy.ref)
-
-    fsm ! Enable
-
-    probe.expectMsg(Transition(fsm, Offline, Unhealthy))
 
     mockHealthActionProxy.setAutoPilot((sender, msg) =>
       msg match {
@@ -342,13 +339,17 @@ class InvokerHealthManagerTests
           (1 to InvokerHealthManager.bufferSize - InvokerHealthManager.bufferErrorTolerance) foreach { _ =>
             sender ! HealthMessage(true)
           }
-
           TestActor.KeepRunning
 
         case GracefulShutdown =>
           TestActor.KeepRunning
-
     })
+
+    fsm.underlyingActor.healthActionProxy = Some(mockHealthActionProxy.ref)
+
+    fsm ! Enable
+
+    probe.expectMsg(Transition(fsm, Offline, Unhealthy))
     probe.expectMsg(10.seconds, Transition(fsm, Unhealthy, Healthy))
 
     dataManagementService.expectMsg(

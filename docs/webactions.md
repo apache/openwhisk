@@ -345,7 +345,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X POST -H 
 }
 ```
 
-OpenWhisk uses the [Akka Http](http://doc.akka.io/docs/akka-http/current/scala/http/) framework to [determine](http://doc.akka.io/api/akka-http/10.0.4/akka/http/scaladsl/model/MediaTypes$.html) which content types are binary and which are plain text.
+OpenWhisk uses the [Pekko Http](https://pekko.apache.org/docs/pekko-http/current) framework to [determine](https://pekko.apache.org/api/pekko-http/snapshot/org/apache/pekko/http/scaladsl/model/MediaTypes$.html) which content types are binary and which are plain text.
 
 
 ### Enabling raw HTTP handling

@@ -19,25 +19,26 @@ package org.apache.openwhisk.core.database.mongodb
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, InputStream}
 
-import akka.stream.scaladsl.{Keep, Sink, StreamConverters}
-import akka.stream.testkit.TestSubscriber
-import akka.util.ByteString
+import org.apache.pekko.stream.scaladsl.{Keep, Sink, StreamConverters}
+import org.apache.pekko.stream.testkit.TestSubscriber
+import org.apache.pekko.util.ByteString
 import common.WskActorSystem
 import org.apache.commons.io.IOUtils
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.mongodb.scala.gridfs.helpers.AsyncStreamHelper
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.Random
 
 @RunWith(classOf[JUnitRunner])
 class MongoDBAsyncStreamGraphTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaFutures
     with WskActorSystem

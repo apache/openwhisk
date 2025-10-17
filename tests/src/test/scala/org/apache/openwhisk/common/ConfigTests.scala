@@ -18,14 +18,14 @@
 package org.apache.openwhisk.common
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import common.StreamLogging
 
 @RunWith(classOf[JUnitRunner])
-class ConfigTests extends FlatSpec with Matchers with StreamLogging {
+class ConfigTests extends AnyFlatSpec with Matchers with StreamLogging {
 
   "Config" should "gets default value" in {
     val config = new Config(Map("a" -> "A"))(Map.empty)

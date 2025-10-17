@@ -20,8 +20,8 @@ package org.apache.openwhisk.core.scheduler
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{TestKit, TestProbe}
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.client.kv.WatchUpdate
 import common.rest.WskRestOperations
@@ -42,8 +42,9 @@ import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -60,7 +61,7 @@ import scala.util.control.Breaks._
 @RunWith(classOf[JUnitRunner])
 class FPCSchedulerFlowTests
     extends TestKit(ActorSystem("SchedulerFlow"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with BeforeAndAfterAll
     with WskTestHelpers
     with ScalaFutures {

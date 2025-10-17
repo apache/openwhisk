@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database.azblob
 
 import org.apache.openwhisk.core.entity.WhiskEntity
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class AzureBlobAttachmentStoreCDNTests extends AzureBlobAttachmentStoreBehaviorBase with AzureBlob {

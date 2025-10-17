@@ -22,14 +22,14 @@ import java.io.File
 import java.io.FileWriter
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import common.StreamLogging
 
 @RunWith(classOf[JUnitRunner])
-class WhiskConfigTests extends FlatSpec with Matchers with StreamLogging {
+class WhiskConfigTests extends AnyFlatSpec with Matchers with StreamLogging {
 
   behavior of "WhiskConfig"
 

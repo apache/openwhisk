@@ -22,8 +22,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import common.WskActorSystem
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers, OptionValues}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.OptionValues
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
@@ -35,7 +37,7 @@ import org.apache.openwhisk.core.entity._
 import scala.concurrent.Future
 
 @RunWith(classOf[JUnitRunner])
-class DocumentHandlerTests extends FlatSpec with Matchers with ScalaFutures with OptionValues with WskActorSystem {
+class DocumentHandlerTests extends AnyFlatSpec with Matchers with ScalaFutures with OptionValues with WskActorSystem {
 
   val cnt = new AtomicInteger(0)
   def transid() = TransactionId(cnt.incrementAndGet().toString)

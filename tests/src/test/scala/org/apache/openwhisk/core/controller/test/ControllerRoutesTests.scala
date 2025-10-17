@@ -17,17 +17,17 @@
 
 package org.apache.openwhisk.core.controller.test
 
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.server.Route
-import org.apache.openwhisk.common.AkkaLogging
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.server.Route
+import org.apache.openwhisk.common.PekkoLogging
 import org.apache.openwhisk.core.controller.Controller
 import org.apache.openwhisk.core.entity.ExecManifest.Runtimes
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import system.rest.RestUtil
 import spray.json._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 
 /**
@@ -39,7 +39,7 @@ import spray.json.DefaultJsonProtocol._
 @RunWith(classOf[JUnitRunner])
 class ControllerRoutesTests extends ControllerTestCommon with BeforeAndAfterEach with RestUtil {
 
-  implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+  implicit val logger = new PekkoLogging(org.apache.pekko.event.Logging.getLogger(actorSystem, this))
 
   behavior of "Controller"
 

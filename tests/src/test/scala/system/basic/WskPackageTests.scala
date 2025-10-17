@@ -23,7 +23,7 @@ import scala.language.postfixOps
 import scala.collection.mutable.HashMap
 import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common._
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat

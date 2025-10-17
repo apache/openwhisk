@@ -17,12 +17,12 @@
 
 package org.apache.openwhisk.core.containerpool.v2.test
 
-import akka.Done
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
-import akka.actor.Status.Failure
-import akka.actor.{ActorRef, ActorSystem}
-import akka.grpc.internal.ClientClosedException
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import org.apache.pekko.Done
+import org.apache.pekko.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import org.apache.pekko.actor.Status.Failure
+import org.apache.pekko.actor.{ActorRef, ActorSystem}
+import org.apache.pekko.grpc.internal.ClientClosedException
+import org.apache.pekko.testkit.{ImplicitSender, TestKit, TestProbe}
 import common.StreamLogging
 import io.grpc.StatusRuntimeException
 import org.apache.openwhisk.common.{GracefulShutdown, TransactionId}
@@ -39,8 +39,10 @@ import org.apache.openwhisk.grpc.{ActivationServiceClient, FetchRequest, Resched
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
@@ -50,7 +52,7 @@ import scala.concurrent.duration._
 class ActivationClientProxyTests
     extends TestKit(ActorSystem("ActivationClientProxy"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with MockFactory
     with BeforeAndAfterAll
@@ -293,7 +295,7 @@ class ActivationClientProxyTests
     probe.expectMsg(RetryRequestActivation)
   }
 
-  it should "be recreated when akka grpc server connection failed" in within(timeout) {
+  it should "be recreated when pekko grpc server connection failed" in within(timeout) {
     var creationCount = 0
     val fetch = (_: FetchRequest) =>
       Future {

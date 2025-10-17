@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.entity.test
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.Suite
 import common.StreamLogging
 import common.WskActorSystem

@@ -22,8 +22,9 @@ import io.restassured.RestAssured
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.entity.{ExecManifest, LogLimit, MemoryLimit, TimeLimit}
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import system.rest.RestUtil
@@ -32,7 +33,7 @@ import system.rest.RestUtil
  * Integration tests for Controller routes
  */
 @RunWith(classOf[JUnitRunner])
-class ControllerApiTests extends FlatSpec with RestUtil with Matchers with StreamLogging {
+class ControllerApiTests extends AnyFlatSpec with RestUtil with Matchers with StreamLogging {
 
   it should "ensure controller returns info" in {
     val response = RestAssured.given.config(sslconfig).get(getServiceURL)

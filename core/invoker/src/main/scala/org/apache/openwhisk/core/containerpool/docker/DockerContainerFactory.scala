@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.docker
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext

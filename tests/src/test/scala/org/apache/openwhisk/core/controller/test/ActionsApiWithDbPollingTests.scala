@@ -18,16 +18,16 @@
 package org.apache.openwhisk.core.controller.test
 
 import java.time.Instant
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.http.scaladsl.server.Route
 import org.apache.openwhisk.core.controller.WhiskActionsApi
 import org.apache.openwhisk.core.controller.actions.ControllerActivationConfig
 import org.apache.openwhisk.core.database.{ActivationStoreLevel, UserContext}
 import org.apache.openwhisk.core.entity._
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 

@@ -25,14 +25,14 @@ import scala.concurrent.duration.DurationInt
 import scala.util._
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import akka.actor.Props
-import akka.http.scaladsl.model._
-import akka.stream.scaladsl._
-import akka.util.ByteString
+import org.scalatestplus.junit.JUnitRunner
+import org.apache.pekko.actor.Props
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.ByteString
 import common.StreamLogging
 import common.WskActorSystem
 import pureconfig._
@@ -45,7 +45,7 @@ import org.apache.openwhisk.test.http.RESTProxy
 
 @RunWith(classOf[JUnitRunner])
 class CouchDbRestClientTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaFutures
     with BeforeAndAfterAll

@@ -24,14 +24,14 @@ import java.security.cert.X509Certificate
 import java.time.Instant
 import java.util.Base64
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.{Http, HttpsConnectionContext}
-import akka.http.scaladsl.model.HttpMethods.{DELETE, GET, POST, PUT}
-import akka.http.scaladsl.model.StatusCodes.{Accepted, NotFound, OK}
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.Uri.{Path, Query}
-import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, OAuth2BearerToken}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.{Http, HttpsConnectionContext}
+import org.apache.pekko.http.scaladsl.model.HttpMethods.{DELETE, GET, POST, PUT}
+import org.apache.pekko.http.scaladsl.model.StatusCodes.{Accepted, NotFound, OK}
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.Uri.{Path, Query}
+import org.apache.pekko.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials, OAuth2BearerToken}
+import org.apache.pekko.util.ByteString
 import common.TestUtils.{ANY_ERROR_EXIT, DONTCARE_EXIT, RunResult, SUCCESS_EXIT}
 import common.rest.SSL.httpsConfig
 import common.{
@@ -46,10 +46,10 @@ import common.{
 import javax.net.ssl._
 import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.apache.openwhisk.common.Https.HttpsConfig
-import org.apache.openwhisk.common.{AkkaLogging, Https, TransactionId}
+import org.apache.openwhisk.common.{Https, PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.utils.retry
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
 import pureconfig._
@@ -1137,7 +1137,7 @@ trait RunRestCmd extends Matchers with ScalaFutures with SwaggerValidator {
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
   val systemNamespace = "whisk.system"
-  val logger = new AkkaLogging(actorSystem.log)
+  val logger = new PekkoLogging(actorSystem.log)
 
   implicit val config: PatienceConfig = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val actorSystem: ActorSystem

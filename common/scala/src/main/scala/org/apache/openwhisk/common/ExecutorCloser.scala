@@ -19,7 +19,7 @@ package org.apache.openwhisk.common
 import java.io.Closeable
 import java.util.concurrent.{ExecutorService, TimeUnit}
 
-import akka.event.slf4j.SLF4JLogging
+import org.apache.pekko.event.slf4j.SLF4JLogging
 
 import scala.concurrent.duration._
 

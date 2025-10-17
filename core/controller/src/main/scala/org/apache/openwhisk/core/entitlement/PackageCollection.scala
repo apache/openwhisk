@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.entitlement
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import akka.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
 
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId

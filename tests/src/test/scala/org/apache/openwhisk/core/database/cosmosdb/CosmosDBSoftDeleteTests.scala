@@ -20,15 +20,15 @@ import org.apache.openwhisk.core.database.DocumentSerializer
 import org.apache.openwhisk.core.database.memory.MemoryAttachmentStoreProvider
 import org.apache.openwhisk.core.database.test.behavior.{ArtifactStoreCRUDBehaviors, ArtifactStoreQueryBehaviors}
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.reflect.ClassTag
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class CosmosDBSoftDeleteTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with CosmosDBStoreBehaviorBase
     with ArtifactStoreCRUDBehaviors
     with ArtifactStoreQueryBehaviors {

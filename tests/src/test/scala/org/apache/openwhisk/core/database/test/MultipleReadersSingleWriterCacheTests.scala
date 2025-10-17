@@ -24,9 +24,9 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import common.StreamLogging
 import common.WskActorSystem
@@ -37,7 +37,7 @@ import org.apache.openwhisk.core.entity.CacheKey
 
 @RunWith(classOf[JUnitRunner])
 class MultipleReadersSingleWriterCacheTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MultipleReadersSingleWriterCache[String, String]
     with WskActorSystem

@@ -20,13 +20,14 @@ package org.apache.openwhisk.core.database.azblob
 import com.azure.storage.common.policy.RetryPolicyType
 import org.apache.openwhisk.core.ConfigKeys
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import pureconfig._
 import pureconfig.generic.auto._
 
 @RunWith(classOf[JUnitRunner])
-class AzureBlobConfigTest extends FlatSpec with Matchers {
+class AzureBlobConfigTest extends AnyFlatSpec with Matchers {
 
   behavior of "AzureBlobConfig"
   it should "use valid defaults for retry option" in {

@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.standalone
 
-import akka.actor.{ActorSystem, Scheduler}
-import akka.http.scaladsl.model.Uri
-import akka.pattern.RetrySupport
+import org.apache.pekko.actor.{ActorSystem, Scheduler}
+import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.pattern.RetrySupport
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.standalone.StandaloneDockerSupport.{containerName, createRunCmd}
 import pureconfig._

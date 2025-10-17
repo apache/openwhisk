@@ -22,8 +22,8 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 
 import common.StreamLogging
 import common.TestUtils
@@ -37,7 +37,7 @@ import org.apache.openwhisk.core.entity.WhiskActivation
 import org.apache.openwhisk.core.entity.ActivationLogs
 
 @RunWith(classOf[JUnitRunner])
-class RemoveLogsTests extends FlatSpec with DatabaseScriptTestUtils with StreamLogging with WskActorSystem {
+class RemoveLogsTests extends AnyFlatSpec with DatabaseScriptTestUtils with StreamLogging with WskActorSystem {
 
   val designDocPath = WhiskProperties
     .getFileRelativeToWhiskHome("ansible/files/logCleanup_design_document_for_activations_db.json")

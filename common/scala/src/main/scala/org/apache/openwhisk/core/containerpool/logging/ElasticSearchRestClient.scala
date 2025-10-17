@@ -19,11 +19,11 @@ package org.apache.openwhisk.core.containerpool.logging
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Either, Try}
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.HttpMethods.{GET, POST}
-import akka.http.scaladsl.model.headers.Accept
-import akka.stream.scaladsl.Flow
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.HttpMethods.{GET, POST}
+import org.apache.pekko.http.scaladsl.model.headers.Accept
+import org.apache.pekko.stream.scaladsl.Flow
 
 import scala.util.Try
 import spray.json._

@@ -23,7 +23,7 @@ import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity._
 
 import scala.concurrent.duration._
-import akka.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
 import java.util.concurrent.TimeUnit
 
 import org.apache.openwhisk.core.entity.ActivationResponse.{statusForCode, ERROR_FIELD}

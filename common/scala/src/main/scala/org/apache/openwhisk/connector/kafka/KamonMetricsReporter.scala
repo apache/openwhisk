@@ -24,7 +24,7 @@ import kamon.Kamon
 import kamon.metric.{Counter, Gauge, Metric}
 import kamon.tag.TagSet
 import org.apache.kafka.common.MetricName
-import org.apache.kafka.common.metrics.stats.Total
+import org.apache.kafka.common.metrics.stats.CumulativeSum
 import org.apache.kafka.common.metrics.{KafkaMetric, MetricsReporter}
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._
@@ -122,8 +122,8 @@ object KamonMetricsReporter {
   }
 
   def isCounterMetric(metric: KafkaMetric): Boolean = Try(metric.measurable()) match {
-    case Success(_: Total) => true
-    case _                 => false
+    case Success(_: CumulativeSum) => true
+    case _                         => false
   }
 
   def shouldIncludeMetric(m: MetricName): Boolean = {

@@ -18,7 +18,7 @@
 package system.basic
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.RunResult

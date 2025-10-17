@@ -19,16 +19,18 @@ package org.apache.openwhisk.core.containerpool.logging
 
 import spray.json._
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.Accept
-import akka.stream.scaladsl.Flow
-import akka.testkit.TestKit
-import akka.http.scaladsl.model.HttpMethods.POST
+import org.scalatestplus.junit.JUnitRunner
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.Accept
+import org.apache.pekko.stream.scaladsl.Flow
+import org.apache.pekko.testkit.TestKit
+import org.apache.pekko.http.scaladsl.model.HttpMethods.POST
 import common.StreamLogging
 import org.apache.openwhisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 
@@ -39,7 +41,7 @@ import scala.util.{Success, Try}
 @RunWith(classOf[JUnitRunner])
 class ElasticSearchRestClientTests
     extends TestKit(ActorSystem("ElasticSearchRestClient"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with ScalaFutures

@@ -19,12 +19,13 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import org.apache.openwhisk.core.database.cosmosdb.CollectionResourceUsage.{indexHeader, quotaHeader, usageHeader}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
-class CollectionResourceUsageTests extends FlatSpec with Matchers {
+class CollectionResourceUsageTests extends AnyFlatSpec with Matchers {
   behavior of "CollectionInfo"
 
   it should "populate resource usage info" in {

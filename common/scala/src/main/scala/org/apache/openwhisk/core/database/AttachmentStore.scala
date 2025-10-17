@@ -16,10 +16,10 @@
  */
 package org.apache.openwhisk.core.database
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.ContentType
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.ContentType
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.ByteString
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.entity.DocId
 import org.apache.openwhisk.spi.Spi

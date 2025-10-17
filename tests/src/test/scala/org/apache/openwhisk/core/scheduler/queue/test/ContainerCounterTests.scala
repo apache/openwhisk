@@ -20,8 +20,8 @@ package org.apache.openwhisk.core.scheduler.queue.test
 import java.{lang, util}
 import java.util.concurrent.Executor
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{TestKit, TestProbe}
 import com.google.protobuf.ByteString
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.api.{Event, KeyValue, LeaseKeepAliveResponse, ResponseHeader, TxnResponse}
@@ -46,8 +46,9 @@ import org.apache.openwhisk.utils.retry
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpecLike, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -55,7 +56,7 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 class ContainerCounterTests
     extends TestKit(ActorSystem("ContainerCounter"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with MockFactory
     with ScalaFutures

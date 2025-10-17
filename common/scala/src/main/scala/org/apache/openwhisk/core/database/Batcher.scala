@@ -17,14 +17,14 @@
 
 package org.apache.openwhisk.core.database
 
-import akka.Done
-import akka.actor.ActorSystem
+import org.apache.pekko.Done
+import org.apache.pekko.actor.ActorSystem
 
 import scala.collection.immutable.Queue
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
-import akka.stream.{CompletionStrategy, OverflowStrategy}
-import akka.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.stream.{CompletionStrategy, OverflowStrategy}
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
 
 /**
  * Enables batching of a type T.

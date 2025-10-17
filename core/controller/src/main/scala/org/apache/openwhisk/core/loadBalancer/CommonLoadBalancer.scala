@@ -17,12 +17,12 @@
 
 package org.apache.openwhisk.core.loadBalancer
 
-import akka.actor.ActorRef
+import org.apache.pekko.actor.ActorRef
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.LongAdder
 
-import akka.actor.ActorSystem
-import akka.event.Logging.InfoLevel
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging.InfoLevel
 import pureconfig._
 import pureconfig.generic.auto._
 import org.apache.openwhisk.common.LoggingMarkers._

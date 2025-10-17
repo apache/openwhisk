@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.entitlement
 
 import scala.concurrent.Future
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.StatusCodes.TooManyRequests
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.StatusCodes.TooManyRequests
 import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.connector.{EventMessage, Metric}
