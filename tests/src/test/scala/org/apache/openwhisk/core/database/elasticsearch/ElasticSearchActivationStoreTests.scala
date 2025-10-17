@@ -36,7 +36,7 @@ class ElasticSearchActivationStoreTests
     with ActivationStoreBehavior {
 
   override def checkGetActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
-    retry(super.checkGetActivation(activation), 10)
+    retry(super.checkGetActivation(activation), 10, Some(500.milliseconds))
   }
 
   override def checkDeleteActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {

@@ -111,7 +111,7 @@ dependencies {
     }
     api "com.amazonaws:aws-java-sdk-cloudfront:1.12.792" // Upgraded to remove ion-java dependency (CVE-2024-21634)
 
-    api ("com.azure:azure-storage-blob:12.7.0") {
+    api ("com.azure:azure-storage-blob:12.18.0") {
         exclude group: "com.azure", module: "azure-core-test"
     }
 
@@ -153,6 +153,15 @@ dependencies {
 
     // Constraints for transitive dependencies to address security vulnerabilities
     constraints {
+        api("com.squareup.okhttp3:okhttp:4.9.2")
+        api("com.squareup.okhttp3:mockwebserver:4.9.2")
+        api("com.squareup.okio:okio:3.9.1")
+
+        api("org.apache.commons:commons-lang3:3.18.0")
+
+        api("io.projectreactor.netty:reactor-netty-core:1.2.8")
+        api("io.projectreactor.netty:reactor-netty-http:1.2.8")
+
         api("io.grpc:grpc-api:${gradle.grpc.version}") {
             version { strictly gradle.grpc.version }
             because "Align all gRPC artifacts with Pekko gRPC runtime ${gradle.pekko_grpc.version}"

@@ -214,7 +214,7 @@ task testUnit(type: Test) {
 
 dependencies {
     implementation "org.scala-lang:scala-library:${gradle.scala.version}"
-    implementation "org.apache.commons:commons-lang3:3.3.2"
+    implementation "org.apache.commons:commons-lang3:3.18.0"
     implementation "org.apache.httpcomponents:httpclient:4.5.14:tests"
     implementation "org.apache.httpcomponents:httpmime:4.3.6"
     implementation "junit:junit:4.11"
