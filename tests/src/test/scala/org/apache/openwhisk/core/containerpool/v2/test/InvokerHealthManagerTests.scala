@@ -332,11 +332,6 @@ class InvokerHealthManagerTests
           instanceId.dedicatedNamespaces).serialize))
 
     val mockHealthActionProxy = TestProbe()
-    fsm.underlyingActor.healthActionProxy = Some(mockHealthActionProxy.ref)
-
-    fsm ! Enable
-
-    probe.expectMsg(Transition(fsm, Offline, Unhealthy))
 
     mockHealthActionProxy.setAutoPilot((sender, msg) =>
       msg match {
@@ -344,13 +339,23 @@ class InvokerHealthManagerTests
           (1 to InvokerHealthManager.bufferSize - InvokerHealthManager.bufferErrorTolerance) foreach { _ =>
             sender ! HealthMessage(true)
           }
-
           TestActor.KeepRunning
 
         case GracefulShutdown =>
           TestActor.KeepRunning
 
     })
+
+    // Set the mock proxy before Enable so startHealthAction will use it
+    fsm.underlyingActor.healthActionProxy = Some(mockHealthActionProxy.ref)
+
+    fsm ! Enable
+
+    probe.expectMsg(Transition(fsm, Offline, Unhealthy))
+
+    // Wait for Initialize message to be sent to mock and health messages to be processed
+    mockHealthActionProxy.expectMsgType[Initialize](5.seconds)
+
     probe.expectMsg(10.seconds, Transition(fsm, Unhealthy, Healthy))
 
     dataManagementService.expectMsg(
