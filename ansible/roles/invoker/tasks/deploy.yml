@@ -447,13 +447,31 @@
   when: not lean
 
 - name: wait until Invoker is up and running
-  uri:
-    url: "{{ invoker.protocol }}://{{ ansible_host }}:{{ invoker.port + (invoker_index | int) }}/ping"
-    validate_certs: "no"
-    client_key: "{{ invoker.confdir }}/{{ invoker_name }}/{{ invoker.ssl.key }}"
-    client_cert: "{{ invoker.confdir }}/{{ invoker_name }}/{{ invoker.ssl.cert }}"
-  register: result
-  until: result.status == 200
-  retries: 12
-  delay: 5
+  block:
+    - uri:
+        url: "{{ invoker.protocol }}://{{ ansible_host }}:{{ invoker.port + (invoker_index | int) }}/ping"
+        validate_certs: "no"
+        client_key: "{{ invoker.confdir }}/{{ invoker_name }}/{{ invoker.ssl.key }}"
+        client_cert: "{{ invoker.confdir }}/{{ invoker_name }}/{{ invoker.ssl.cert }}"
+      register: result
+      until: result.status == 200
+      retries: 12
+      delay: 5
+  rescue:
+    - name: dump invoker docker logs for debugging
+      shell: "docker logs {{ invoker_name }}"
+      register: invoker_logs
+      failed_when: false
+    - name: output invoker docker logs for debugging
+      debug:
+        var: invoker_logs.stdout_lines
+    - name: dump invoker file logs from /var/tmp/wsklogs
+      shell: "cat /var/tmp/wsklogs/{{ invoker_name }}/{{ invoker_name }}_logs.log"
+      register: invoker_file_logs
+      failed_when: false
+    - name: output invoker file logs for debugging
+      debug:
+        var: invoker_file_logs.stdout_lines
+    - fail:
+        msg: "Invoker failed to start; logs emitted above"
   when: not lean

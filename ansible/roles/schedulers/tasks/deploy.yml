@@ -376,13 +376,6 @@
     - name: output scheduler file logs for debugging
       debug:
         var: scheduler_file_logs.stdout_lines
-    - name: inspect scheduler container configuration
-      shell: "docker inspect {{ scheduler_name }}"
-      register: scheduler_inspect
-      failed_when: false
-    - name: output scheduler inspect for debugging
-      debug:
-        var: scheduler_inspect.stdout_lines
     - fail:
         msg: "Scheduler failed to start; logs emitted above"
 

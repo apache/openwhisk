@@ -477,13 +477,6 @@
     - name: output controller file logs for debugging
       debug:
         var: controller_file_logs.stdout_lines
-    - name: inspect controller container configuration
-      shell: "docker inspect {{ controller_name }}"
-      register: controller_inspect
-      failed_when: false
-    - name: output controller inspect for debugging
-      debug:
-        var: controller_inspect.stdout_lines
     - fail:
         msg: "Controller failed to start; logs emitted above"
 
