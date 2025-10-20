@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.controller.actions
 import java.time.{Clock, Instant}
 import java.util.concurrent.atomic.AtomicReference
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.common.{Logging, TransactionId, UserEvents}

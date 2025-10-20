@@ -23,12 +23,13 @@ import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.etcd.EtcdKV.InvokerKeys
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import pureconfig.loadConfigOrThrow
 
 @RunWith(classOf[JUnitRunner])
-class EtcdKvTests extends FlatSpec with ScalaFutures with Matchers {
+class EtcdKvTests extends AnyFlatSpec with ScalaFutures with Matchers {
 
   behavior of "InvokerKeys"
 

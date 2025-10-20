@@ -30,25 +30,25 @@ import org.apache.http.protocol.HttpRequestHandler
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import scala.concurrent.Await
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import spray.json.JsObject
 import org.apache.openwhisk.common.TransactionId
-import org.apache.openwhisk.core.containerpool.AkkaContainerClient
+import org.apache.openwhisk.core.containerpool.PekkoContainerClient
 import org.apache.openwhisk.core.containerpool.ContainerHealthError
 import org.apache.openwhisk.core.entity.ActivationResponse._
 import org.apache.openwhisk.core.entity.size._
 
 /**
- * Unit tests for AkkaContainerClientTests which communicate with containers.
+ * Unit tests for PekkoContainerClientTests which communicate with containers.
  */
 @RunWith(classOf[JUnitRunner])
-class AkkaContainerClientTests
-    extends FlatSpec
+class PekkoContainerClientTests
+    extends AnyFlatSpec
     with Matchers
     with BeforeAndAfter
     with BeforeAndAfterAll
@@ -105,11 +105,11 @@ class AkkaContainerClientTests
     mockServer.shutDown()
   }
 
-  behavior of "AkkaContainerClient"
+  behavior of "PekkoContainerClient"
 
   it should "not wait longer than set timeout" in {
     val timeout = 5.seconds
-    val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 100)
+    val connection = new PekkoContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 100)
     testHang = timeout * 2
     val start = Instant.now()
     val result = Await.result(connection.post("/init", JsObject.empty, 1.B, 1.B, retry = true), 10.seconds)
@@ -123,7 +123,7 @@ class AkkaContainerClientTests
 
   it should "handle empty entity response" in {
     val timeout = 5.seconds
-    val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 100)
+    val connection = new PekkoContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 100)
     testStatusCode = 204
     val result = Await.result(connection.post("/init", JsObject.empty, 1.B, 1.B, retry = true), 10.seconds)
     result shouldBe Left(NoResponseReceived())
@@ -131,7 +131,7 @@ class AkkaContainerClientTests
 
   it should "retry till timeout on StreamTcpException" in {
     val timeout = 5.seconds
-    val connection = new AkkaContainerClient("0.0.0.0", 12345, timeout, 100)
+    val connection = new PekkoContainerClient("0.0.0.0", 12345, timeout, 100)
     val start = Instant.now()
     val result = Await.result(connection.post("/init", JsObject.empty, 1.B, 1.B, retry = true), 10.seconds)
     val end = Instant.now()
@@ -146,7 +146,7 @@ class AkkaContainerClientTests
 
   it should "throw ContainerHealthError on HttpHostConnectException if reschedule==true" in {
     val timeout = 5.seconds
-    val connection = new AkkaContainerClient("0.0.0.0", 12345, timeout, 100)
+    val connection = new PekkoContainerClient("0.0.0.0", 12345, timeout, 100)
     assertThrows[ContainerHealthError] {
       Await.result(connection.post("/run", JsObject.empty, 1.B, 1.B, retry = false, reschedule = true), 10.seconds)
     }
@@ -156,7 +156,7 @@ class AkkaContainerClientTests
     val timeout = 5.seconds
     val retryInterval = 500.milliseconds
     val connection =
-      new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 100, retryInterval)
+      new PekkoContainerClient(httpHost.getHostName, httpHost.getPort, timeout, 100, retryInterval)
     val start = Instant.now()
     testConnectionFailCount = 5
     testResponse = ""
@@ -173,7 +173,7 @@ class AkkaContainerClientTests
 
   it should "not truncate responses within limit" in {
     val timeout = 1.minute.toMillis
-    val connection = new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 100)
+    val connection = new PekkoContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 100)
     Seq(true, false).foreach { success =>
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
@@ -191,7 +191,7 @@ class AkkaContainerClientTests
     val limit = 2.B
     val truncationLimit = 1.B
     val connection =
-      new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 100)
+      new PekkoContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 100)
     Seq(true, false).foreach { success =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
         testStatusCode = if (success) 200 else 500
@@ -212,7 +212,7 @@ class AkkaContainerClientTests
     val limit = 300.KB
     val truncationLimit = 299.B
     val connection =
-      new AkkaContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 100)
+      new PekkoContainerClient(httpHost.getHostName, httpHost.getPort, timeout.millis, 100)
     Seq(true, false).foreach { success =>
       // Generate a response that's 1MB
       val response = "0" * 1024 * 1024

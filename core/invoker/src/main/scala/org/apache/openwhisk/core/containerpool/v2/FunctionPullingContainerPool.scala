@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.containerpool.v2
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, Cancellable, Props}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector.ContainerCreationError._
 import org.apache.openwhisk.core.connector.{

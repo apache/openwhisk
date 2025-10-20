@@ -21,8 +21,8 @@ import java.io.FileNotFoundException
 import java.net.{ServerSocket, Socket}
 import java.nio.file.{Files, Paths}
 
-import akka.Done
-import akka.actor.{ActorSystem, CoordinatedShutdown}
+import org.apache.pekko.Done
+import org.apache.pekko.actor.{ActorSystem, CoordinatedShutdown}
 import org.apache.commons.lang3.SystemUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys

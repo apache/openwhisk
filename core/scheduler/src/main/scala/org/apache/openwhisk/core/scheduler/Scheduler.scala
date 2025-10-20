@@ -17,17 +17,17 @@
 
 package org.apache.openwhisk.core.scheduler
 
-import akka.Done
-import akka.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown, Props}
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
-import akka.management.scaladsl.AkkaManagement
-import akka.management.cluster.bootstrap.ClusterBootstrap
-import akka.pattern.ask
-import akka.util.Timeout
+import org.apache.pekko.Done
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSelection, ActorSystem, CoordinatedShutdown, Props}
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.{HttpRequest, HttpResponse}
+import org.apache.pekko.management.scaladsl.PekkoManagement
+import org.apache.pekko.management.cluster.bootstrap.ClusterBootstrap
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.Timeout
 import com.typesafe.config.ConfigValueFactory
-import io.altoo.akka.serialization.kryo.DefaultKryoInitializer
-import io.altoo.akka.serialization.kryo.serializer.scala.ScalaKryo
+import io.altoo.serialization.kryo.pekko.DefaultKryoInitializer
+import io.altoo.serialization.kryo.scala.serializer.ScalaKryo
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
 import org.apache.openwhisk.common._
@@ -267,13 +267,13 @@ object Scheduler {
   val topicPrefix = loadConfigOrThrow[String](ConfigKeys.kafkaTopicsPrefix)
 
   /**
-   * The scheduler has two ports, one for akka-remote and the other for akka-grpc.
+   * The scheduler has two ports, one for pekko-remote and the other for pekko-grpc.
    */
   def requiredProperties =
     Map(
       servicePort -> 8080.toString,
       schedulerHost -> null,
-      schedulerAkkaPort -> null,
+      schedulerPekkoPort -> null,
       schedulerRpcPort -> null,
       WhiskConfig.actionInvokeConcurrentLimit -> null) ++
       kafkaHosts ++
@@ -291,10 +291,10 @@ object Scheduler {
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "scheduler-actor-system", defaultExecutionContext = Some(ec))
 
-    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    implicit val logger = new PekkoLogging(org.apache.pekko.event.Logging.getLogger(actorSystem, this))
 
     if (useClusterBootstrap) {
-      AkkaManagement(actorSystem).start()
+      PekkoManagement(actorSystem).start()
       ClusterBootstrap(actorSystem).start()
     }
 
@@ -320,7 +320,7 @@ object Scheduler {
     val port = config.servicePort.toInt
     val host = config.schedulerHost
     val rpcPort = config.schedulerRpcPort.toInt
-    val akkaPort = config.schedulerAkkaPort.toInt
+    val pekkoPort = config.schedulerPekkoPort.toInt
 
     // if deploying multiple instances (scale out), must pass the instance number as they need to be uniquely identified.
     require(args.length >= 1, "scheduler instance required")
@@ -345,7 +345,7 @@ object Scheduler {
 
     ExecManifest.initialize(config) match {
       case Success(_) =>
-        val schedulerEndpoints = SchedulerEndpoints(host, rpcPort, akkaPort)
+        val schedulerEndpoints = SchedulerEndpoints(host, rpcPort, pekkoPort)
         // Create scheduler
         val scheduler = new Scheduler(instanceId, schedulerEndpoints)
 
@@ -365,15 +365,15 @@ object Scheduler {
     }
   }
 }
-case class SchedulerEndpoints(host: String, rpcPort: Int, akkaPort: Int) {
-  require(rpcPort != 0 || akkaPort != 0)
+case class SchedulerEndpoints(host: String, rpcPort: Int, pekkoPort: Int) {
+  require(rpcPort != 0 || pekkoPort != 0)
   def asRpcEndpoint: String = s"$host:$rpcPort"
-  def asAkkaEndpoint: String = s"$host:$akkaPort"
+  def asPekkoEndpoint: String = s"$host:$pekkoPort"
 
   def getRemoteRef(name: String)(implicit context: ActorRefFactory): ActorSelection = {
     implicit val ec = context.dispatcher
 
-    val path = s"akka://scheduler-actor-system@${asAkkaEndpoint}/user/${name}"
+    val path = s"pekko://scheduler-actor-system@${asPekkoEndpoint}/user/${name}"
     context.actorSelection(path)
   }
 
@@ -381,7 +381,7 @@ case class SchedulerEndpoints(host: String, rpcPort: Int, akkaPort: Int) {
 }
 
 object SchedulerEndpoints extends DefaultJsonProtocol {
-  implicit val serdes = jsonFormat(SchedulerEndpoints.apply, "host", "rpcPort", "akkaPort")
+  implicit val serdes = jsonFormat(SchedulerEndpoints.apply, "host", "rpcPort", "pekkoPort")
   def parse(endpoints: String) = Try(serdes.read(endpoints.parseJson))
 }
 
@@ -391,7 +391,7 @@ case class SchedulerStates(sid: SchedulerInstanceId, queueSize: Int, endpoints: 
   def getRemoteRef(name: String)(implicit context: ActorRefFactory): ActorSelection = {
     implicit val ec = context.dispatcher
 
-    val path = s"akka://scheduler-actor-system@${endpoints.asAkkaEndpoint}/user/${name}"
+    val path = s"pekko://scheduler-actor-system@${endpoints.asPekkoEndpoint}/user/${name}"
     context.actorSelection(path)
   }
 
@@ -430,6 +430,8 @@ case class SchedulingConfig(staleThreshold: FiniteDuration,
 
 class CompatibleKryoInitializer extends DefaultKryoInitializer {
   override def preInit(kryo: ScalaKryo): Unit = {
-    kryo.setDefaultSerializer(classOf[com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer[_]])
+    super.preInit(kryo)
+    // Use CompatibleFieldSerializer for schema evolution support
+    kryo.setDefaultSerializer(classOf[com.esotericsoftware.kryo.kryo5.serializers.CompatibleFieldSerializer[_]])
   }
 }

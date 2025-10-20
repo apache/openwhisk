@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.database.s3
 import org.apache.openwhisk.core.entity.WhiskEntity
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class S3AttachmentStoreCloudFrontTests extends S3AttachmentStoreBehaviorBase with S3Aws {

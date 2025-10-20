@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.scheduler.container.test
 
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack}
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import org.apache.pekko.actor.FSM.{CurrentState, SubscribeTransitionCallBack}
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem}
+import org.apache.pekko.testkit.{ImplicitSender, TestKit, TestProbe}
 import com.ibm.etcd.api.{KeyValue, RangeResponse}
 import common.{StreamLogging, WskActorSystem}
 import org.apache.openwhisk.common.InvokerState.{Healthy, Unhealthy}
@@ -55,8 +55,10 @@ import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import pureconfig.loadConfigOrThrow
 import spray.json.{JsArray, JsBoolean, JsString}
 import pureconfig.generic.auto._
@@ -70,7 +72,7 @@ import scala.concurrent.duration.{FiniteDuration, _}
 class ContainerManagerTests
     extends TestKit(ActorSystem("ContainerManager"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with MockFactory
@@ -1069,6 +1071,13 @@ class ContainerManagerTests
       system.actorOf(ContainerManager
         .props(factory(mockJobManager), mockMessaging(Some(receiver.ref)), testsid, mockEtcd, config, mockWatcher.ref))
 
+    // Consume warmUp messages for all invokers
+    (0 to 2).foreach { i =>
+      receiver.expectMsgPF() {
+        case msg: String if msg.contains("warmUp") && msg.contains(s"invoker$i") => true
+      }
+    }
+
     val msg = ContainerDeletionMessage(
       TransactionId.containerDeletion,
       testInvocationNamespace,
@@ -1081,12 +1090,11 @@ class ContainerManagerTests
 
     val expectedMsgs = invokers.map(i => s"invoker${i.id.instance}-$msg")
 
-    receiver.expectMsgPF() {
-      case msg: String if msg.contains("warmUp") => true
-      case msg: String                           => expectedMsgs.contains(msg)
-      case msg =>
-        println(s"unexpected message: $msg")
-        fail()
+    // Expect all 3 deletion messages
+    expectedMsgs.foreach { expectedMsg =>
+      receiver.expectMsgPF() {
+        case msg: String if msg == expectedMsg => true
+      }
     }
   }
 
@@ -1489,7 +1497,7 @@ class ContainerManagerTests
 
 @RunWith(classOf[JUnitRunner])
 class ContainerManager2Tests
-    extends FlatSpecLike
+    extends AnyFlatSpecLike
     with Matchers
     with StreamLogging
     with ExecHelpers

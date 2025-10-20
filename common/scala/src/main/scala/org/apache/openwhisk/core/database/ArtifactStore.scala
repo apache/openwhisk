@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.database
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import akka.http.scaladsl.model._
-import akka.stream.scaladsl._
-import akka.util.ByteString
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.ByteString
 import spray.json.JsObject
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId

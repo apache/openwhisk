@@ -17,11 +17,11 @@
 
 package org.apache.openwhisk.core.invoker
 
-import akka.Done
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
-import akka.grpc.GrpcClientSettings
-import akka.pattern.ask
-import akka.util.Timeout
+import org.apache.pekko.Done
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem, CoordinatedShutdown, Props}
+import org.apache.pekko.grpc.GrpcClientSettings
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.Timeout
 import com.ibm.etcd.api.Event.EventType
 import com.ibm.etcd.client.kv.KvClient.Watch
 import com.ibm.etcd.client.kv.WatchUpdate

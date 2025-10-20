@@ -21,11 +21,19 @@ import java.io.File
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8
 
-import akka.Done
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.headers.{Accept, Authorization, BasicHttpCredentials}
-import akka.http.scaladsl.model.{HttpHeader, HttpMethods, HttpRequest, MediaTypes, StatusCode, StatusCodes, Uri}
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.Done
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.headers.{Accept, Authorization, BasicHttpCredentials}
+import org.apache.pekko.http.scaladsl.model.{
+  HttpHeader,
+  HttpMethods,
+  HttpRequest,
+  MediaTypes,
+  StatusCode,
+  StatusCodes,
+  Uri
+}
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.IOUtils
 import org.apache.openwhisk.common.{Logging, TransactionId}

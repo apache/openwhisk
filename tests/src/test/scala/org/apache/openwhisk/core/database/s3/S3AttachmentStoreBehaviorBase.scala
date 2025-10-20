@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.database.s3
 
-import akka.actor.ActorSystem
-import org.scalatest.FlatSpec
+import org.apache.pekko.actor.ActorSystem
+import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.database.{AttachmentStore, DocumentSerializer}
 import org.apache.openwhisk.core.database.memory.{MemoryArtifactStoreBehaviorBase, MemoryArtifactStoreProvider}
@@ -30,7 +30,7 @@ import scala.reflect.ClassTag
 import scala.util.Random
 
 trait S3AttachmentStoreBehaviorBase
-    extends FlatSpec
+    extends AnyFlatSpec
     with MemoryArtifactStoreBehaviorBase
     with ArtifactStoreAttachmentBehaviors
     with AttachmentStoreBehaviors {

@@ -56,7 +56,7 @@ protected[containerpool] case class RetryableConnectionError(t: Throwable) exten
  * It allows to POST a JSON object and receive JSON object back; that is the
  * content type and the accept headers are both 'application/json.
  * The reason we still use this class for the action container is a mysterious hang
- * in the Akka http client where a future fails to properly timeout and we have not
+ * in the Pekko http client where a future fails to properly timeout and we have not
  * determined why that is.
  *
  * @param hostname the host name

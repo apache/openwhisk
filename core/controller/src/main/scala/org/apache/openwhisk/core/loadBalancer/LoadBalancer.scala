@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.loadBalancer
 
-import akka.actor.{ActorRefFactory, ActorSystem, Props}
+import org.apache.pekko.actor.{ActorRefFactory, ActorSystem, Props}
 import org.apache.openwhisk.common.{InvokerHealth, Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector._

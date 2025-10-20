@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.entity.{ByteSize, ExecManifest, ExecutableWhiskAction, InvokerInstanceId}
@@ -46,7 +46,7 @@ case class ContainerArgsConfig(network: String,
 
 case class ContainerPoolConfig(userMemory: ByteSize,
                                concurrentPeekFactor: Double,
-                               akkaClient: Boolean,
+                               pekkoClient: Boolean,
                                prewarmExpirationCheckInitDelay: FiniteDuration,
                                prewarmExpirationCheckInterval: FiniteDuration,
                                prewarmExpirationCheckIntervalVariance: Option[FiniteDuration],

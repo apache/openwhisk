@@ -20,10 +20,10 @@ package org.apache.openwhisk.core.database.test.behavior
 import java.io.ByteArrayOutputStream
 import java.util.Base64
 
-import akka.http.scaladsl.model.{ContentTypes, Uri}
-import akka.stream.IOResult
-import akka.stream.scaladsl.{Sink, StreamConverters}
-import akka.util.{ByteString, ByteStringBuilder}
+import org.apache.pekko.http.scaladsl.model.{ContentTypes, Uri}
+import org.apache.pekko.stream.IOResult
+import org.apache.pekko.stream.scaladsl.{Sink, StreamConverters}
+import org.apache.pekko.util.{ByteString, ByteStringBuilder}
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.{AttachmentSupport, CacheChangeNotification, NoDocumentException}
 import org.apache.openwhisk.core.entity.Attachments.{Attached, Attachment, Inline}

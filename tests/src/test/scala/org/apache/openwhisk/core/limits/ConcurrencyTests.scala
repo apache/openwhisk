@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.limits
 
-import akka.http.scaladsl.model.StatusCodes
+import org.apache.pekko.http.scaladsl.model.StatusCodes
 import common._
 import common.rest.WskRestOperations
 import org.apache.openwhisk.core.ConfigKeys
@@ -25,7 +25,7 @@ import org.apache.openwhisk.core.containerpool.ContainerPoolConfig
 import org.apache.openwhisk.core.entity.MemoryLimit
 import org.apache.openwhisk.core.entity.size._
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import pureconfig._
 import pureconfig.generic.auto._
 
@@ -47,7 +47,7 @@ class ConcurrencyTests extends TestHelpers with WskTestHelpers with WskActorSyst
   val concurrentAction = TestUtils.getTestActionFilename("concurrent.js")
 
   //NOTE: this test will only succeed if:
-  // whisk.container-pool.akka-client = "true" (only the akka client properly handles concurrent requests to action containers)
+  // whisk.container-pool.pekko-client = "true" (only the pekko client properly handles concurrent requests to action containers)
   // whisk.container-factory.container-args.extra-args.env.0 = "__OW_ALLOW_CONCURRENT=true" (only action containers that tolerate concurrency can be tested - this enables concurrency in nodejs runtime)
 
   behavior of "Action concurrency limits"

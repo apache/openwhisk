@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.containerpool.kubernetes.test
 
 import java.time.Instant
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Concat, Sink, Source}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.{Concat, Sink, Source}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -29,9 +29,9 @@ import scala.concurrent.duration._
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
 import common.{StreamLogging, WskActorSystem}
 import okio.Buffer
@@ -47,7 +47,7 @@ import scala.collection.immutable.Queue
 
 @RunWith(classOf[JUnitRunner])
 class KubernetesClientTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with StreamLogging
     with BeforeAndAfterEach

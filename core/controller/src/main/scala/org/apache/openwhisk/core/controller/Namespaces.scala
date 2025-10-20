@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.controller
 
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.server.Directives
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.server.Directives
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entitlement.Collection

@@ -16,8 +16,8 @@
  */
 
 package org.apache.openwhisk.core.loadBalancer
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.ActorRefFactory
 import org.apache.openwhisk.core.connector.{ActivationMessage, MessageProducer, MessagingProvider, ResultMetadata}
 import org.apache.openwhisk.core.entity.InvokerInstanceId
 

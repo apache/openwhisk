@@ -21,9 +21,9 @@ import java.util.Base64
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.http.scaladsl.model.ContentType
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
+import org.apache.pekko.http.scaladsl.model.ContentType
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.ByteString
 import org.scalatest.Assertions
 import spray.json.DefaultJsonProtocol._
 import spray.json._

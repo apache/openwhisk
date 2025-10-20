@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.database.elasticsearch
 
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.openwhisk.core.controller.test.WhiskAuthHelpers
 import org.apache.openwhisk.core.database.UserContext
 import org.apache.openwhisk.core.database.test.behavior.ActivationStoreBehaviorBase
@@ -26,7 +26,7 @@ import org.testcontainers.elasticsearch.ElasticsearchContainer
 import pureconfig.loadConfigOrThrow
 import spray.json.{JsObject, JsString}
 
-trait ElasticSearchActivationStoreBehaviorBase extends FlatSpec with ActivationStoreBehaviorBase {
+trait ElasticSearchActivationStoreBehaviorBase extends AnyFlatSpec with ActivationStoreBehaviorBase {
   val imageName = loadConfigOrThrow[String]("whisk.elasticsearch.docker-image")
   val container = new ElasticsearchContainer(imageName)
   container.start()

@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.database.memory
 
 import java.time.Instant
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.openwhisk.common.{Logging, PrintStreamLogging, TransactionId, WhiskInstants}
 import org.apache.openwhisk.core.database.{
   ActivationStore,

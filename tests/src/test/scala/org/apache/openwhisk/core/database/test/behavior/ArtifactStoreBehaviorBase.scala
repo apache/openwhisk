@@ -21,7 +21,9 @@ import java.time.Instant
 
 import common.{StreamLogging, WskActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.{JsObject, JsValue}
 import org.apache.openwhisk.common.{TransactionId, WhiskInstants}
 import org.apache.openwhisk.core.database.memory.MemoryAttachmentStore
@@ -35,7 +37,7 @@ import org.apache.openwhisk.utils.JsHelpers
 import scala.util.{Random, Try}
 
 trait ArtifactStoreBehaviorBase
-    extends FlatSpec
+    extends AnyFlatSpec
     with ScalaFutures
     with Matchers
     with StreamLogging

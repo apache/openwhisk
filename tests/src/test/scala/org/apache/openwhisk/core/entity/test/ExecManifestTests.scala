@@ -21,8 +21,9 @@ import java.util.concurrent.TimeUnit
 
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.entity.ExecManifest
@@ -34,7 +35,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 
 @RunWith(classOf[JUnitRunner])
-class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging with Matchers {
+class ExecManifestTests extends AnyFlatSpec with WskActorSystem with StreamLogging with Matchers {
 
   behavior of "ExecManifest"
 

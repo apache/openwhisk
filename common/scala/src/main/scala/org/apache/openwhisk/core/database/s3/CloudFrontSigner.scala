@@ -22,7 +22,7 @@ import java.security.PrivateKey
 import java.time.Instant
 import java.util.Date
 
-import akka.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.model.Uri
 import com.amazonaws.auth.PEM
 import com.amazonaws.services.cloudfront.CloudFrontUrlSigner
 import com.amazonaws.services.cloudfront.util.SignerUtils

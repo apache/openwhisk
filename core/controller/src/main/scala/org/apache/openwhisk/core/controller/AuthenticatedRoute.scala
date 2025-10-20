@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.controller
 
-import akka.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.server.Route
 
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.entity.Identity

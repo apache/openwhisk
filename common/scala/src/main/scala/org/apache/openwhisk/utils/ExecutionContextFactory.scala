@@ -25,16 +25,16 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
-import akka.actor.ActorSystem
-import akka.actor.Cancellable
-import akka.actor.Scheduler
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.Cancellable
+import org.apache.pekko.actor.Scheduler
 
 object ExecutionContextFactory {
 
   private type CancellableFuture[T] = (Cancellable, Future[T])
 
   /**
-   * akka.pattern.after has a memory drag issue: it opaquely
+   * org.apache.pekko.pattern.after has a memory drag issue: it opaquely
    * schedules an actor which consequently results in drag for the
    * timeout duration
    *

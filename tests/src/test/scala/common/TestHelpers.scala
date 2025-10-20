@@ -18,10 +18,10 @@
 package common
 
 import org.scalatest.BeforeAndAfterEachTestData
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.TestData
 
-trait TestHelpers extends FlatSpec with BeforeAndAfterEachTestData {
+trait TestHelpers extends AnyFlatSpec with BeforeAndAfterEachTestData {
 
   override def beforeEach(td: TestData): Unit = {
     println(s"\nStarting test ${td.name} at ${TestUtils.getDateTime()}")

@@ -19,10 +19,10 @@ package org.apache.openwhisk.core.containerpool
 
 import java.time.Instant
 
-import akka.actor.ActorSystem
-import akka.event.Logging.InfoLevel
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging.InfoLevel
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.ByteString
 import pureconfig._
 import pureconfig.generic.auto._
 import spray.json.DefaultJsonProtocol._
@@ -246,8 +246,8 @@ trait Container {
       }
   }
   private def openConnections(timeout: FiniteDuration, maxConcurrent: Int) = {
-    if (Container.config.akkaClient) {
-      new AkkaContainerClient(addr.host, addr.port, timeout, 1024)
+    if (Container.config.pekkoClient) {
+      new PekkoContainerClient(addr.host, addr.port, timeout, 1024)
     } else {
       new ApacheBlockingContainerClient(s"${addr.host}:${addr.port}", timeout, maxConcurrent)
     }

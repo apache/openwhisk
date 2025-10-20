@@ -17,18 +17,18 @@
 
 package org.apache.openwhisk.core.database.s3
 
-import akka.actor.ActorSystem
-import akka.event.Logging
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.headers.CacheDirectives._
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, Uri}
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.alpakka.s3.headers.CannedAcl
-import akka.stream.alpakka.s3.scaladsl.S3
-import akka.stream.alpakka.s3.{S3Attributes, S3Exception, S3Headers, S3Settings}
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.headers.CacheDirectives._
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, Uri}
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.stream.connectors.s3.headers.CannedAcl
+import org.apache.pekko.stream.connectors.s3.scaladsl.S3
+import org.apache.pekko.stream.connectors.s3.{S3Attributes, S3Exception, S3Headers, S3Settings}
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.ByteString
 import com.typesafe.config.Config
 import org.apache.openwhisk.common.LoggingMarkers.{
   DATABASE_ATTS_DELETE,
@@ -49,7 +49,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 
 object S3AttachmentStoreProvider extends AttachmentStoreProvider {
-  val alpakkaConfigKey = s"${ConfigKeys.s3}.alpakka"
+  val pekkoConnectorsConfigKey = s"${ConfigKeys.s3}.pekko-connectors"
   case class S3Config(bucket: String, prefix: Option[String], cloudFrontConfig: Option[CloudFrontConfig] = None) {
     def prefixFor[D](implicit tag: ClassTag[D]): String = {
       val className = tag.runtimeClass.getSimpleName.toLowerCase
@@ -71,7 +71,7 @@ object S3AttachmentStoreProvider extends AttachmentStoreProvider {
     new S3AttachmentStore(s3Settings(config), s3config.bucket, s3config.prefixFor[D], s3config.signer)
   }
 
-  private def s3Settings(config: Config) = S3Settings(config.getConfig(alpakkaConfigKey))
+  private def s3Settings(config: Config) = S3Settings(config.getConfig(pekkoConnectorsConfigKey))
 
 }
 
@@ -181,10 +181,10 @@ class S3AttachmentStore(s3Settings: S3Settings, bucket: String, prefix: String, 
     future.flatMap {
       case HttpResponse(status, _, entity, _) if status.isSuccess() && !status.isRedirection() =>
         Future.successful(Some(entity.dataBytes))
-      case HttpResponse(_, _, entity, _) =>
+      case HttpResponse(status, _, entity, _) =>
         Unmarshal(entity).to[String].map { err =>
           //With CloudFront also the error message confirms to same S3 exception format
-          val exp = new S3Exception(err)
+          val exp = S3Exception(err, status)
           if (isMissingKeyException(exp)) None else throw exp
         }
     }

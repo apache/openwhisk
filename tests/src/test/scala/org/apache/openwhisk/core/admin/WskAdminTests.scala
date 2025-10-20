@@ -21,8 +21,9 @@ import common.WskAdmin.wskadmin
 import common._
 import common.rest.WskRestOperations
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.core.entity.{BasicAuthenticationAuthKey, Subject}
 import common.TestHelpers
 

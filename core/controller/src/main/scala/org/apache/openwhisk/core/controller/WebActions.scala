@@ -20,29 +20,29 @@ package org.apache.openwhisk.core.controller
 import java.util.Base64
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
-import akka.http.scaladsl.model.HttpEntity.Empty
-import akka.http.scaladsl.server.Directives
-import akka.http.scaladsl.model.HttpMethod
-import akka.http.scaladsl.model.HttpHeader
-import akka.http.scaladsl.model.MediaType
-import akka.http.scaladsl.model.MediaTypes
-import akka.http.scaladsl.model.MediaTypes._
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.StatusCode
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.Uri.Query
-import akka.http.scaladsl.model.HttpEntity
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.model.headers.`Content-Type`
-import akka.http.scaladsl.model.headers.`Timeout-Access`
-import akka.http.scaladsl.model.ContentType
-import akka.http.scaladsl.model.ContentTypes
-import akka.http.scaladsl.model.FormData
-import akka.http.scaladsl.model.HttpMethods.OPTIONS
-import akka.http.scaladsl.model.HttpCharsets
-import akka.http.scaladsl.model.HttpResponse
+import org.apache.pekko.http.scaladsl.model.HttpEntity.Empty
+import org.apache.pekko.http.scaladsl.server.Directives
+import org.apache.pekko.http.scaladsl.model.HttpMethod
+import org.apache.pekko.http.scaladsl.model.HttpHeader
+import org.apache.pekko.http.scaladsl.model.MediaType
+import org.apache.pekko.http.scaladsl.model.MediaTypes
+import org.apache.pekko.http.scaladsl.model.MediaTypes._
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.model.StatusCodes
+import org.apache.pekko.http.scaladsl.model.StatusCode
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.model.Uri.Query
+import org.apache.pekko.http.scaladsl.model.HttpEntity
+import org.apache.pekko.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.model.headers.`Content-Type`
+import org.apache.pekko.http.scaladsl.model.headers.`Timeout-Access`
+import org.apache.pekko.http.scaladsl.model.ContentType
+import org.apache.pekko.http.scaladsl.model.ContentTypes
+import org.apache.pekko.http.scaladsl.model.FormData
+import org.apache.pekko.http.scaladsl.model.HttpMethods.OPTIONS
+import org.apache.pekko.http.scaladsl.model.HttpCharsets
+import org.apache.pekko.http.scaladsl.model.HttpResponse
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import WhiskWebActionsApi.MediaExtension
@@ -317,7 +317,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
                                           js: JsValue,
                                           transid: TransactionId) = {
     findContentTypeInHeader(headers, transid, `application/json`) match {
-      // use the default akka-http response marshaler for standard application/json
+      // use the default pekko-http response marshaler for standard application/json
       case Success(mediaType) if mediaType == `application/json` =>
         respondWithHeaders(removeContentTypeHeader(headers)) {
           complete(code, js)

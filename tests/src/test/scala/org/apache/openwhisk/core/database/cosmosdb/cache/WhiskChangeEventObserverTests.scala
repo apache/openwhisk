@@ -21,14 +21,15 @@ import common.StreamLogging
 import org.apache.openwhisk.core.database.CacheInvalidationMessage
 import org.apache.openwhisk.core.entity.CacheKey
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol
 
 import scala.collection.immutable.Seq
 
 @RunWith(classOf[JUnitRunner])
-class WhiskChangeEventObserverTests extends FlatSpec with Matchers with StreamLogging {
+class WhiskChangeEventObserverTests extends AnyFlatSpec with Matchers with StreamLogging {
   import WhiskChangeEventObserver.instanceId
 
   behavior of "CosmosDB extract LSN from Session token"

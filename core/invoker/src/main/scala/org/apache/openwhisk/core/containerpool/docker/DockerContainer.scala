@@ -20,9 +20,9 @@ package org.apache.openwhisk.core.containerpool.docker
 import java.time.Instant
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicLong
-import akka.actor.ActorSystem
-import akka.stream._
-import akka.stream.scaladsl.Framing.FramingException
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream._
+import org.apache.pekko.stream.scaladsl.Framing.FramingException
 import spray.json._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -32,9 +32,9 @@ import org.apache.openwhisk.core.containerpool._
 import org.apache.openwhisk.core.entity.ActivationResponse.{ConnectionError, MemoryExhausted}
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.size._
-import akka.stream.scaladsl.{Framing, Source}
-import akka.stream.stage._
-import akka.util.ByteString
+import org.apache.pekko.stream.scaladsl.{Framing, Source}
+import org.apache.pekko.stream.stage._
+import org.apache.pekko.util.ByteString
 import spray.json._
 import org.apache.openwhisk.core.containerpool.logging.LogLine
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
@@ -210,7 +210,7 @@ class DockerContainer(protected val id: ContainerId,
     implicit transid: TransactionId): Future[Boolean] = {
     docker.isOomKilled(id)(TransactionId.invoker).flatMap { killed =>
       if (killed) Future.successful(true)
-      else if (retries > 0) akka.pattern.after(filePollInterval, as.scheduler)(isOomKilled(retries - 1))
+      else if (retries > 0) org.apache.pekko.pattern.after(filePollInterval, as.scheduler)(isOomKilled(retries - 1))
       else Future.successful(false)
     }
   }
@@ -226,8 +226,8 @@ class DockerContainer(protected val id: ContainerId,
     reschedule: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
-      val conn = if (Container.config.akkaClient) {
-        new AkkaContainerClient(addr.host, addr.port, timeout, 1024)
+      val conn = if (Container.config.pekkoClient) {
+        new PekkoContainerClient(addr.host, addr.port, timeout, 1024)
       } else {
         new ApacheBlockingContainerClient(s"${addr.host}:${addr.port}", timeout, maxConcurrent)
       }

@@ -18,11 +18,12 @@
 package org.apache.openwhisk.standalone
 
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class DockerVersionTests extends FlatSpec with Matchers {
+class DockerVersionTests extends AnyFlatSpec with Matchers {
   behavior of "DockerVersion"
 
   it should "parse docker version" in {

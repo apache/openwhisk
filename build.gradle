@@ -38,26 +38,27 @@ subprojects {
     version '1.0.1-SNAPSHOT'
 
     pluginManager.withPlugin('scala') {
-        // Constraint all transitive akka-* dependencies to the one we want to use to avoid issues.
-        // List generated via
-        // ./gradlew :test:dependencies | grep -o 'akka-.*_' | cut -c 6- | rev | cut -c 2- | rev | sort -u
+        // Constraint all transitive pekko-* dependencies to the one we want to use to avoid issues.
         def cons = project.getDependencies().getConstraints()
-        def akka = ['akka-actor', 'akka-cluster', 'akka-cluster-metrics', 'akka-cluster-tools', 'akka-coordination',
-                    'akka-discovery', 'discovery-kubernetes-api', 'discovery-marathon-api', 'akka-distributed-data','grpc-runtime','akka-protobuf', 'akka-remote', 'akka-slf4j',
-                    'akka-stream', 'akka-stream-testkit', 'akka-testkit', 'akka-persistence', 'akka-cluster-sharding','akka-protobuf-v3','akka-pki','akka-parsing','akka-management-cluster-bootstrap','akka-management',
-                    'akka-kryo-serialization']
-        def akkaHttp = ['akka-http', 'akka-http-core', 'akka-http-spray-json', 'akka-http-testkit', 'akka-http-xml',
-                        'akka-parsing', 'akka-http2-support']
-        def akkaKafka = ['akka-stream-kafka-testkit','akka-stream-kafka','akka-stream-alpakka-s3','akka-stream-alpakka-file']
+        def pekko = ['pekko-actor', 'pekko-actor-typed', 'pekko-cluster', 'pekko-cluster-metrics', 'pekko-cluster-tools', 'pekko-coordination',
+                    'pekko-discovery', 'discovery-kubernetes-api', 'discovery-marathon-api', 'pekko-distributed-data','grpc-runtime','pekko-protobuf', 'pekko-remote', 'pekko-slf4j',
+                    'pekko-stream', 'pekko-stream-testkit', 'pekko-testkit', 'pekko-persistence', 'pekko-cluster-sharding','pekko-protobuf-v3','pekko-pki','pekko-serialization-jackson']
+        def pekkoHttp = ['pekko-http', 'pekko-http-core', 'pekko-http-spray-json', 'pekko-http-testkit', 'pekko-http-xml',
+                        'pekko-http2-support']
+        def pekkoKafka = ['pekko-stream-kafka-testkit','pekko-connectors-kafka','pekko-connectors-s3','pekko-connectors-file']
+        def pekkoManagement = ['pekko-management-cluster-bootstrap','pekko-management','pekko-discovery-kubernetes-api','pekko-discovery-marathon-api']
 
-        akka.forEach {
-            cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka.version}")
+        pekko.forEach {
+            cons.add('implementation', "org.apache.pekko:${it}_${gradle.scala.depVersion}:${gradle.pekko.version}")
         }
-        akkaHttp.forEach {
-            cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka_http.version}")
+        pekkoHttp.forEach {
+            cons.add('implementation', "org.apache.pekko:${it}_${gradle.scala.depVersion}:${gradle.pekko_http.version}")
         }
-        akkaKafka.forEach{
-            cons.add('implementation', "com.typesafe.akka:${it}_${gradle.scala.depVersion}:${gradle.akka_kafka.version}")
+        pekkoKafka.forEach{
+            cons.add('implementation', "org.apache.pekko:${it}_${gradle.scala.depVersion}:${gradle.pekko_kafka.version}")
+        }
+        pekkoManagement.forEach{
+            cons.add('implementation', "org.apache.pekko:${it}_${gradle.scala.depVersion}:${gradle.pekko_management.version}")
         }
     }
 

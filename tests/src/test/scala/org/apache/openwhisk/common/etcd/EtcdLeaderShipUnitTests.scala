@@ -33,14 +33,20 @@ import org.apache.openwhisk.core.service.Lease
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 @RunWith(classOf[JUnitRunner])
-class EtcdLeaderShipUnitTests extends FlatSpec with ScalaFutures with Matchers with WskActorSystem with StreamLogging {
+class EtcdLeaderShipUnitTests
+    extends AnyFlatSpec
+    with ScalaFutures
+    with Matchers
+    with WskActorSystem
+    with StreamLogging {
 
   implicit val timeout = Timeout(2.seconds)
   private val leaderKey = "openwhiskleader"

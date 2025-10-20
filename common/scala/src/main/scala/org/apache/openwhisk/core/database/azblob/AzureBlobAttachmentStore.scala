@@ -19,15 +19,15 @@ package org.apache.openwhisk.core.database.azblob
 
 import java.time.OffsetDateTime
 
-import akka.actor.ActorSystem
-import akka.event.Logging
-import akka.event.Logging.InfoLevel
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.StatusCodes.NotFound
-import akka.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, Uri}
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.{ByteString, ByteStringBuilder}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging
+import org.apache.pekko.event.Logging.InfoLevel
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.StatusCodes.NotFound
+import org.apache.pekko.http.scaladsl.model.{ContentType, HttpRequest, HttpResponse, Uri}
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.{ByteString, ByteStringBuilder}
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.azure.storage.blob.{BlobContainerAsyncClient, BlobContainerClientBuilder, BlobUrlParts}
 import com.azure.storage.common.StorageSharedKeyCredential

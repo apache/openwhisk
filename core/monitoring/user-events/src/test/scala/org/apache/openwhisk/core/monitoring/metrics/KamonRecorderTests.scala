@@ -28,7 +28,7 @@ import org.apache.openwhisk.core.connector.{Activation, EventMessage}
 import org.apache.openwhisk.core.entity.{ActivationId, ActivationResponse, Subject, UUID}
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.duration._
 
@@ -68,7 +68,7 @@ class KamonRecorderTests extends KafkaSpecBase with BeforeAndAfterEach with Kamo
   it should "push user events to kamon" in {
     createCustomTopic(EventConsumer.userEventTopic)
 
-    val consumer = createConsumer(kafkaPort, system.settings.config, KamonRecorder)
+    val consumer = createConsumer(embeddedKafkaConfig.kafkaPort, system.settings.config, KamonRecorder)
 
     publishStringMessageToKafka(
       EventConsumer.userEventTopic,

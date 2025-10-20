@@ -24,12 +24,12 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
-import akka.actor.{Actor, ActorRef, ActorRefFactory, FSM, Props}
-import akka.actor.FSM.CurrentState
-import akka.actor.FSM.SubscribeTransitionCallBack
-import akka.actor.FSM.Transition
-import akka.pattern.pipe
-import akka.util.Timeout
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, FSM, Props}
+import org.apache.pekko.actor.FSM.CurrentState
+import org.apache.pekko.actor.FSM.SubscribeTransitionCallBack
+import org.apache.pekko.actor.FSM.Transition
+import org.apache.pekko.pattern.pipe
+import org.apache.pekko.util.Timeout
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.database.NoDocumentException
@@ -83,7 +83,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef
   import InvokerState._
 
   implicit val transid: TransactionId = TransactionId.invokerHealth
-  implicit val logging: Logging = new AkkaLogging(context.system.log)
+  implicit val logging: Logging = new PekkoLogging(context.system.log)
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -265,7 +265,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
   import InvokerState._
 
   implicit val transid: TransactionId = TransactionId.invokerHealth
-  implicit val logging: Logging = new AkkaLogging(context.system.log)
+  implicit val logging: Logging = new PekkoLogging(context.system.log)
   val name = s"invoker${invokerInstance.toInt}"
 
   val healthyTimeout: FiniteDuration = 10.seconds
@@ -329,7 +329,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
         this,
         LoggingMarkers.LOADBALANCER_INVOKER_STATUS_CHANGE(newState.asString),
         s"$name is ${newState.asString}",
-        akka.event.Logging.WarningLevel)
+        org.apache.pekko.event.Logging.WarningLevel)
     case _ -> newState if newState.isUsable => logging.info(this, s"$name is ${newState.asString}")
   }
 

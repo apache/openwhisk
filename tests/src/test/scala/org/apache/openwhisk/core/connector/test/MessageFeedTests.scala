@@ -26,19 +26,19 @@ import scala.concurrent.duration._
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.FlatSpecLike
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.actor.FSM
-import akka.actor.FSM.CurrentState
-import akka.actor.FSM.SubscribeTransitionCallBack
-import akka.actor.FSM.Transition
-import akka.actor.PoisonPill
-import akka.actor.Props
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.FSM
+import org.apache.pekko.actor.FSM.CurrentState
+import org.apache.pekko.actor.FSM.SubscribeTransitionCallBack
+import org.apache.pekko.actor.FSM.Transition
+import org.apache.pekko.actor.PoisonPill
+import org.apache.pekko.actor.Props
+import org.apache.pekko.testkit.TestKit
 import common.StreamLogging
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.connector.MessageFeed._
@@ -46,7 +46,7 @@ import org.apache.openwhisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class MessageFeedTests
-    extends FlatSpecLike
+    extends AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterEach
     with BeforeAndAfterAll

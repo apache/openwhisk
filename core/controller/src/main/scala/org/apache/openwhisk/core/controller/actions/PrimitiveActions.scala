@@ -19,8 +19,8 @@ package org.apache.openwhisk.core.controller.actions
 
 import java.time.{Clock, Instant}
 
-import akka.actor.ActorSystem
-import akka.event.Logging.InfoLevel
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.event.Logging.InfoLevel
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.tracing.WhiskTracerProvider

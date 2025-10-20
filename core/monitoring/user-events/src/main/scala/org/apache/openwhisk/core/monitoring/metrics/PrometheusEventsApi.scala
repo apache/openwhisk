@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.http.scaladsl.model.StatusCodes.ServiceUnavailable
-import akka.http.scaladsl.model.{ContentType, HttpCharsets, MediaType, MessageEntity}
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.model.StatusCodes.ServiceUnavailable
+import org.apache.pekko.http.scaladsl.model.{ContentType, HttpCharsets, MediaType, MessageEntity}
+import org.apache.pekko.http.scaladsl.server.Directives._
+import org.apache.pekko.http.scaladsl.server.Route
 import org.apache.openwhisk.connector.kafka.KafkaMetricRoute
 
 import scala.concurrent.ExecutionContext

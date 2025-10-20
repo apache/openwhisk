@@ -17,18 +17,20 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.kafka.testkit.scaladsl.ScalatestKafkaSpec
+import org.apache.pekko.kafka.testkit.scaladsl.ScalatestKafkaSpec
 import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
-import org.scalatest._
+import org.scalatest.Suite
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 abstract class KafkaSpecBase
-    extends ScalatestKafkaSpec(6065)
+    extends ScalatestKafkaSpec(0)
     with Matchers
     with ScalaFutures
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with EmbeddedKafka
     with IntegrationPatience
     with Eventually
@@ -38,7 +40,8 @@ abstract class KafkaSpecBase
   override protected val topicCreationTimeout = 60.seconds
   override protected val producerPublishTimeout: FiniteDuration = 60.seconds
 
-  lazy implicit val embeddedKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(kafkaPort, zooKeeperPort)
+  implicit val embeddedKafkaConfig: EmbeddedKafkaConfig =
+    EmbeddedKafkaConfig(kafkaPort = freePort(), zooKeeperPort = freePort())
 
   override def bootstrapServers = s"localhost:${embeddedKafkaConfig.kafkaPort}"
 

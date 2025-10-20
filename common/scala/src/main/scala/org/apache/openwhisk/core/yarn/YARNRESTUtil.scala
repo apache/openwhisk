@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.yarn
 import java.nio.charset.StandardCharsets
 import java.security.Principal
 
-import akka.http.scaladsl.model.{HttpMethod, HttpMethods, StatusCode, StatusCodes}
+import org.apache.pekko.http.scaladsl.model.{HttpMethod, HttpMethods, StatusCode, StatusCodes}
 import javax.security.sasl.AuthenticationException
 import org.apache.commons.io.IOUtils
 import org.apache.http.auth.{AuthSchemeProvider, AuthScope, Credentials}

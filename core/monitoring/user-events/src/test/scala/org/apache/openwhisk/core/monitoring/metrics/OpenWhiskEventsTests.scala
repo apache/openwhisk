@@ -17,14 +17,14 @@
 
 package org.apache.openwhisk.core.monitoring.metrics
 
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.{HttpRequest, StatusCodes}
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.config.ConfigFactory
 import io.prometheus.client.CollectorRegistry
 import kamon.Kamon
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.duration._
 import scala.util.Try
@@ -37,8 +37,8 @@ class OpenWhiskEventsTests extends KafkaSpecBase {
     val httpPort = freePort()
     val globalConfig = system.settings.config
     val config = ConfigFactory.parseString(s"""
-           | akka.kafka.consumer.kafka-clients {
-           |  bootstrap.servers = "localhost:$kafkaPort"
+           | pekko.kafka.consumer.kafka-clients {
+           |  bootstrap.servers = "localhost:${embeddedKafkaConfig.kafkaPort}"
            | }
            | kamon {
            |  metric {

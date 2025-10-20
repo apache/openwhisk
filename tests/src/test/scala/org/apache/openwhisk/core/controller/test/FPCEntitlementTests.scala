@@ -26,7 +26,7 @@ import org.apache.openwhisk.core.loadBalancer.LoadBalancer
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class FPCEntitlementProviderTests extends ControllerTestCommon with ScalaFutures with MockFactory {

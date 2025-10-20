@@ -20,16 +20,16 @@ package ha
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.Authorization
-import akka.http.scaladsl.model.headers.BasicHttpCredentials
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.marshalling.Marshal
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.Authorization
+import org.apache.pekko.http.scaladsl.model.headers.BasicHttpCredentials
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
 import common.WhiskProperties
 import common.WskActorSystem
 import common.WskTestHelpers
@@ -39,7 +39,7 @@ import spray.json.DefaultJsonProtocol._
 import pureconfig._
 
 @RunWith(classOf[JUnitRunner])
-class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers with WskActorSystem {
+class CacheInvalidationTests extends AnyFlatSpec with Matchers with WskTestHelpers with WskActorSystem {
 
   val hosts = WhiskProperties.getProperty("controller.hosts").split(",")
 

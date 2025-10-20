@@ -20,11 +20,11 @@ package org.apache.openwhisk.core.database
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
-import akka.stream.scaladsl._
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.ByteString
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.Logging

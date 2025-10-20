@@ -18,7 +18,7 @@
 package org.apache.openwhisk.core.cli.test
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import spray.json._
 import common.rest.WskRestOperations
 import common.rest.RestResult

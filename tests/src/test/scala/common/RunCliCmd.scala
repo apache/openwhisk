@@ -21,7 +21,7 @@ import java.io.File
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.Buffer
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import TestUtils._
 import scala.concurrent.duration._
 import scala.collection.mutable

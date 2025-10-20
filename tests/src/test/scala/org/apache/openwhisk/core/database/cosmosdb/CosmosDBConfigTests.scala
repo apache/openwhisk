@@ -18,14 +18,15 @@
 package org.apache.openwhisk.core.database.cosmosdb
 import com.typesafe.config.ConfigFactory
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import com.microsoft.azure.cosmosdb.{ConnectionMode, ConnectionPolicy => JConnectionPolicy}
 
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])
-class CosmosDBConfigTests extends FlatSpec with Matchers {
+class CosmosDBConfigTests extends AnyFlatSpec with Matchers {
   val globalConfig = ConfigFactory.defaultApplication()
   behavior of "CosmosDB Config"
 

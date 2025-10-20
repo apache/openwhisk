@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.invoker
 
-import akka.Done
-import akka.actor.{ActorSystem, CoordinatedShutdown}
+import org.apache.pekko.Done
+import org.apache.pekko.actor.{ActorSystem, CoordinatedShutdown}
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import org.apache.openwhisk.common.Https.HttpsConfig
@@ -107,7 +107,7 @@ object Invoker {
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
-    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    implicit val logger = new PekkoLogging(org.apache.pekko.event.Logging.getLogger(actorSystem, this))
     val poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
     val limitConfig: IntraConcurrencyLimitConfig =
       loadConfigOrThrow[IntraConcurrencyLimitConfig](ConfigKeys.concurrencyLimit)

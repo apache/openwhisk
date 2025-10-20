@@ -94,7 +94,7 @@ In an abstract view, schedulers provide queueing, container scheduling, and acti
 * `QueueManager`: The main entry point for queue creation request. It has references to all queues.
 * `MemoryQueue`: Dynamically created/deleted for each action. It watches the incoming/outgoing requests and triggers container creation.
 * `ContainerManager`: Schedule container creation requests to appropriate invokers.
-* `ActivationServiceImpl`: Provide API for containers to fetch activations via Akka-grpc. It works in a long-poll way to avoid busy-waiting.
+* `ActivationServiceImpl`: Provide API for containers to fetch activations via Pekko-grpc. It works in a long-poll way to avoid busy-waiting.
 
 #### Controller components
 * `FPCPoolBalancer`: Create queues if not exist, and forward messages to them.
@@ -104,7 +104,7 @@ In an abstract view, schedulers provide queueing, container scheduling, and acti
 
 * `FunctionPullingContainerPool`: A container pool for function pulling container. It handles the container creation requests.
 * `FunctionPullingContainerProxy`: A proxy for a container. It repeatedly fetches activations and invokes them.
-* `ActivationClientProxy`: The Akka-grpc client. It communicates with `ActivationServiceImpl` in schedulers.
+* `ActivationClientProxy`: The Pekko-grpc client. It communicates with `ActivationServiceImpl` in schedulers.
 * `InvokerHealthManager`: Manages the health and resources information of invokers. The data is stored in ETCD. If an invoker becomes unhealthy, it invokes health activations.
 
 ## Future work

@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.containerpool.v2
 
-import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
-import akka.util.Timeout
+import org.apache.pekko.actor.Status.{Failure => FailureMessage}
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
+import org.apache.pekko.util.Timeout
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common._
 import org.apache.openwhisk.core.connector._
@@ -129,7 +129,7 @@ class InvokerHealthManager(instanceId: InvokerInstanceId,
         this,
         LoggingMarkers.LOADBALANCER_INVOKER_STATUS_CHANGE(Unhealthy.asString),
         s"invoker${instanceId.toInt} is unhealthy",
-        akka.event.Logging.WarningLevel)
+        org.apache.pekko.event.Logging.WarningLevel)
       startTestAction(self)
       publishHealthStatusAndStay(Unhealthy, nextStateData)
 

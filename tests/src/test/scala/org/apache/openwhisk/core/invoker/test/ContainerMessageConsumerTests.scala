@@ -17,8 +17,8 @@
 
 package org.apache.openwhisk.core.invoker.test
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.connector.ContainerCreationError._
@@ -36,8 +36,10 @@ import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.utils.{retry => utilRetry}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import scala.concurrent.Future
@@ -47,7 +49,7 @@ import scala.util.Try
 @RunWith(classOf[JUnitRunner])
 class ContainerMessageConsumerTests
     extends TestKit(ActorSystem("ContainerMessageConsumer"))
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterEach
     with BeforeAndAfterAll

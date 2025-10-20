@@ -17,11 +17,11 @@
 
 package org.apache.openwhisk.standalone
 
-import akka.Done
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.Uri.Query
-import akka.http.scaladsl.model.headers.{Accept, Authorization, BasicHttpCredentials}
-import akka.http.scaladsl.model.{HttpHeader, HttpMethods, MediaTypes, Uri}
+import org.apache.pekko.Done
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.Uri.Query
+import org.apache.pekko.http.scaladsl.model.headers.{Accept, Authorization, BasicHttpCredentials}
+import org.apache.pekko.http.scaladsl.model.{HttpHeader, HttpMethods, MediaTypes, Uri}
 import org.apache.openwhisk.core.database.PutException
 import org.apache.openwhisk.http.PoolingRestClient
 import spray.json._

@@ -20,27 +20,27 @@ This page documents configuration options that should be considered when deployi
 
 # Controller Clustering
 
-The system can be configured to use Akka clustering to manage the distributed state of the Controller's load balancing algorithm.  This imposes the following constraints on a deployment
+The system can be configured to use Apache Pekko clustering to manage the distributed state of the Controller's load balancing algorithm.  This imposes the following constraints on a deployment
 
 ## Cluster setup
 
 To setup a cluster, the controllers need to be able to discover each other. There are 2 basic ways to achieve this:
 
-1. Provide the so called **seed-nodes** explicitly on deployment. Essentially you have a static list of possible seed nodes which are used to build a cluster. In an Ansible based deployment, they are determined for you from the `hosts` file. On any other deployment model, the `CONFIG_akka_cluster_seedNodes.$i` variables will need to be provided according to the [Akka cluster documentation](https://doc.akka.io/docs/akka/2.5/cluster-usage.html#joining-to-seed-nodes).
-2. Discover the nodes from an external service. This is built upon [akka-management](https://developer.lightbend.com/docs/akka-management/current/) and by default [Kubernetes](https://developer.lightbend.com/docs/akka-management/current/discovery.html#discovery-method-kubernetes-api) and [Mesos (Marathon)](https://developer.lightbend.com/docs/akka-management/current/discovery.html#discovery-method-marathon-api) are supported. You can refer to the respective documentation above to configure discovery accordingly.
+1. Provide the so called **seed-nodes** explicitly on deployment. Essentially you have a static list of possible seed nodes which are used to build a cluster. In an Ansible based deployment, they are determined for you from the `hosts` file. On any other deployment model, the `CONFIG_pekko_cluster_seedNodes.$i` variables will need to be provided according to the [Pekko cluster documentation](https://pekko.apache.org/docs/pekko/current/typed/cluster.html).
+2. Discover the nodes from an external service. This is built upon [pekko-management](https://pekko.apache.org/docs/pekko-management/current/) and by default [Kubernetes](https://pekko.apache.org/docs/pekko-management/current/discovery/kubernetes.html) and [Mesos (Marathon)](https://pekko.apache.org/docs/pekko-management/current/discovery/marathon.html) are supported. You can refer to the respective documentation above to configure discovery accordingly.
 
 
 ## Controller nodes must have static IPs/Port combination.
 
 It guarantees that failed nodes are able to join the cluster again.
-This limitation refers to the fact that Akka clustering doesn't allow to add new nodes when one of the existing members is unreachable (e.g. JVM failure). If each container receives a its ip and port dynamically upon the restart, in case of controller failure, it could come back online under a new ip/port combination which makes cluster consider it as a new member and it won't be added to the cluster (in certain cases it could join as a weeklyUp member). However, the cluster will still replicate the state across the online nodes, it will have trouble to get back to the previous state with desired number of members until the old member is explicitly "downed".
+This limitation refers to the fact that Pekko clustering doesn't allow to add new nodes when one of the existing members is unreachable (e.g. JVM failure). If each container receives a its ip and port dynamically upon the restart, in case of controller failure, it could come back online under a new ip/port combination which makes cluster consider it as a new member and it won't be added to the cluster (in certain cases it could join as a weeklyUp member). However, the cluster will still replicate the state across the online nodes, it will have trouble to get back to the previous state with desired number of members until the old member is explicitly "downed".
 
 How to down the members.
 1. manually (sending an HTTP or JMX request to the controller). For this case an external supervisor for the cluster is required, which will down the nodes and provide an up-to-date list of seed nodes.
 2. automatically by setting the "auto-down-property" in controller that will allow the leader to down the node after a certain timeout. In order to mitigate brain split one could define a list of seed nodes which are reachable under static IPs or have static DNS entries.
 
-Link to Akka clustering documentation:
-https://doc.akka.io/docs/akka/2.5.4/scala/cluster-usage.html
+Link to Pekko clustering documentation:
+https://pekko.apache.org/docs/pekko/current/typed/cluster.html
 
 ## Shared state vs. Sharding
 

@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.controller.actions
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-import akka.http.scaladsl.model.StatusCodes.BadRequest
+import org.apache.pekko.http.scaladsl.model.StatusCodes.BadRequest
 
 import spray.json._
 

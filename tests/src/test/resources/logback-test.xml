@@ -18,7 +18,7 @@
     <logger name="org.apache.zookeeper" level="ERROR" />
     <logger name="org.apache.curator" level="ERROR" />
 
-    <logger name="akka.event.slf4j.Slf4jLogger" level="WARN" />
+    <logger name="org.apache.pekko.event.slf4j.Slf4jLogger" level="WARN" />
 
     <!-- Disable verbose info logging from processor library-->
     <logger name="com.microsoft.azure.documentdb.changefeedprocessor.services" level="WARN" />

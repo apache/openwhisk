@@ -17,36 +17,37 @@
 ---
 #
 #  Scheduler 'plugin' that will add the items necessary to the scheduler
-#  environment to cause the scheduler to join a specified akka cluster
+#  environment to cause the scheduler to join a specified pekko cluster
 #
 
-- name: add akka port to ports_to_expose
+- name: add pekko port to ports_to_expose
   set_fact:
     ports_to_expose: >-
       {{ ports_to_expose }} +
-      [ "{{ (scheduler.akka.cluster.basePort + (scheduler_index | int)) }}:"
-      + "{{ scheduler.akka.cluster.bindPort }}" ]
+      [ "{{ (scheduler.pekko.cluster.basePort + (scheduler_index | int)) }}:"
+      + "{{ scheduler.pekko.cluster.bindPort }}" ]
 
 - name: add seed nodes to scheduler environment
   set_fact:
     env: >-
       {{ env | combine({
-        'CONFIG_akka_cluster_seedNodes_' ~ seedNode.0:
-          'akka://scheduler-actor-system@'~seedNode.1~':'~(scheduler.akka.cluster.basePort+seedNode.0)
+        'CONFIG_pekko_cluster_seedNodes_' ~ seedNode.0:
+          'pekko://scheduler-actor-system@'~seedNode.1~':'~(scheduler.pekko.cluster.basePort+seedNode.0)
       }) }}
-  with_indexed_items: "{{ scheduler.akka.cluster.seedNodes }}"
+  with_indexed_items: "{{ scheduler.pekko.cluster.seedNodes }}"
   loop_control:
     loop_var: seedNode
 
-- name: Add akka environment to scheduler environment
+- name: Add pekko environment to scheduler environment
   vars:
-    akka_env:
-      "CONFIG_akka_actor_provider": "{{ scheduler.akka.provider }}"
-      "CONFIG_akka_remote_artery_canonical_hostname":
-        "{{ scheduler.akka.cluster.host[(scheduler_index | int)] }}"
-      "CONFIG_akka_remote_artery_canonical_port":
-        "{{ scheduler.akka.cluster.basePort + (scheduler_index | int) }}"
-      "CONFIG_akka_remote_artery_bind_port":
-        "{{ scheduler.akka.cluster.bindPort }}"
+    pekko_env:
+      "CONFIG_pekko_actor_provider": "{{ scheduler.pekko.provider }}"
+      "CONFIG_pekko_remote_artery_canonical_hostname":
+        "{{ scheduler.pekko.cluster.host[(scheduler_index | int)] }}"
+      "CONFIG_pekko_remote_artery_canonical_port":
+        "{{ scheduler.pekko.cluster.basePort + (scheduler_index | int) }}"
+      "CONFIG_pekko_remote_artery_bind_hostname": "0.0.0.0"
+      "CONFIG_pekko_remote_artery_bind_port":
+        "{{ scheduler.pekko.cluster.bindPort }}"
   set_fact:
-    env: "{{ env | combine(akka_env) }}"
+    env: "{{ env | combine(pekko_env) }}"

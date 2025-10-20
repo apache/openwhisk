@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.database.cosmosdb.cache
 
-import akka.Done
+import org.apache.pekko.Done
 import com.azure.data.cosmos.CosmosItemProperties
 import com.azure.data.cosmos.internal.changefeed.ChangeFeedObserverContext
 import com.google.common.base.Throwables

@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.scheduler.queue
 
-import akka.actor.{Actor, ActorSystem, Props}
+import org.apache.pekko.actor.{Actor, ActorSystem, Props}
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.entity.FullyQualifiedEntityName
 import org.apache.openwhisk.core.scheduler.SchedulingConfig

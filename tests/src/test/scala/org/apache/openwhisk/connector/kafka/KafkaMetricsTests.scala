@@ -17,14 +17,15 @@
 
 package org.apache.openwhisk.connector.kafka
 
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import org.apache.pekko.http.scaladsl.testkit.ScalatestRouteTest
+import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import org.apache.kafka.common.MetricName
 import org.apache.kafka.common.metrics.{KafkaMetric, Measurable, MetricConfig}
 import org.apache.kafka.common.utils.Time
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -32,7 +33,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Future
 
 @RunWith(classOf[JUnitRunner])
-class KafkaMetricsTests extends FlatSpec with Matchers with ScalatestRouteTest {
+class KafkaMetricsTests extends AnyFlatSpec with Matchers with ScalatestRouteTest {
   behavior of "KafkaMetrics"
 
   it should "render metrics as json" in {

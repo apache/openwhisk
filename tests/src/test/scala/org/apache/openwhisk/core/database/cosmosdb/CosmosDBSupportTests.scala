@@ -32,15 +32,16 @@ import org.apache.openwhisk.core.entity.{
 }
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
 class CosmosDBSupportTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with CosmosDBTestSupport
     with MockFactory
     with Matchers

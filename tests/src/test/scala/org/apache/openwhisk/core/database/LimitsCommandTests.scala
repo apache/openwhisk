@@ -18,8 +18,8 @@
 package org.apache.openwhisk.core.database
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.cli.CommandMessages
 import org.apache.openwhisk.core.database.LimitsCommand.LimitEntity
@@ -30,7 +30,7 @@ import scala.concurrent.duration.Duration
 import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
-class LimitsCommandTests extends FlatSpec with WhiskAdminCliTestBase {
+class LimitsCommandTests extends AnyFlatSpec with WhiskAdminCliTestBase {
   private val limitsToDelete = ListBuffer[String]()
 
   protected val limitsStore = LimitsCommand.createDataStore()

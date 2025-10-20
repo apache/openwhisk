@@ -17,21 +17,22 @@
 
 package org.apache.openwhisk.core.database.test
 
-import akka.http.scaladsl.model.Uri
-import akka.stream.scaladsl.Source
-import akka.util.CompactByteString
+import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.CompactByteString
 import common.WskActorSystem
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.{AttachmentSupport, InliningConfig}
 import org.apache.openwhisk.core.entity.WhiskEntity
 import org.apache.openwhisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
-class AttachmentSupportTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem {
+class AttachmentSupportTests extends AnyFlatSpec with Matchers with ScalaFutures with WskActorSystem {
 
   behavior of "Attachment inlining"
 

@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.service
 
-import akka.actor.ActorSystem
-import akka.pattern.ask
-import akka.testkit.{ImplicitSender, TestFSMRef, TestKit, TestProbe}
-import akka.util.Timeout
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.testkit.{ImplicitSender, TestFSMRef, TestKit, TestProbe}
+import org.apache.pekko.util.Timeout
 import com.ibm.etcd.api.{LeaseGrantResponse, LeaseKeepAliveResponse, LeaseRevokeResponse, PutResponse}
 import common.StreamLogging
 import org.apache.openwhisk.core.WhiskConfig
@@ -29,8 +29,10 @@ import org.apache.openwhisk.core.etcd.{EtcdClient, EtcdKV}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,7 +41,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class LeaseKeepAliveServiceTests
     extends TestKit(ActorSystem("LeaseKeepAliveService"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with MockFactory

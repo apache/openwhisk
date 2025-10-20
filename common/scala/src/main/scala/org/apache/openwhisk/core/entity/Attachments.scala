@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.entity
 
-import akka.http.scaladsl.model.ContentType
+import org.apache.pekko.http.scaladsl.model.ContentType
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.core.entity.size._

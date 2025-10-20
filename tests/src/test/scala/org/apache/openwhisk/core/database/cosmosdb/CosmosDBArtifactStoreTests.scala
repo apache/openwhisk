@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.database.cosmosdb
 
 import java.util.concurrent.CountDownLatch
 
-import akka.stream.scaladsl.Source
+import org.apache.pekko.stream.scaladsl.Source
 import com.typesafe.config.ConfigFactory
 import io.netty.util.ResourceLeakDetector
 import io.netty.util.ResourceLeakDetector.Level
@@ -40,15 +40,15 @@ import org.apache.openwhisk.core.entity.{
   WhiskPackage
 }
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.JsString
 
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
 @RunWith(classOf[JUnitRunner])
-class CosmosDBArtifactStoreTests extends FlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {
+class CosmosDBArtifactStoreTests extends AnyFlatSpec with CosmosDBStoreBehaviorBase with ArtifactStoreBehavior {
   override protected def maxAttachmentSizeWithoutAttachmentStore = 1.MB
 
   private var initialLevel: Level = _

@@ -24,9 +24,9 @@ import scala.util.Failure
 import scala.util.Try
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.common.TransactionId
@@ -39,7 +39,7 @@ import org.apache.openwhisk.http.Messages
 import org.apache.openwhisk.utils.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
-class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Matchers {
+class SchemaTests extends AnyFlatSpec with BeforeAndAfter with ExecHelpers with Matchers {
 
   behavior of "Privilege"
 

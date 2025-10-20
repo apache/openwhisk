@@ -25,7 +25,7 @@
 #
 # Examples:
 # CONFIG_whisk_loadbalancer_invokerBusyThreshold -> -Dwhisk.loadbalancer.invoker-busy-threshold
-# CONFIG_akka_remote_netty_tcp_bindPort          -> -Dakka.remote.netty.tcp.bind-port
+# CONFIG_pekko_remote_netty_tcp_bindPort          -> -Dpekko.remote.netty.tcp.bind-port
 # CONFIG_whisk_spi_LogStoreProvider              -> -Dwhisk.spi.LogStoreProvider
 #
 

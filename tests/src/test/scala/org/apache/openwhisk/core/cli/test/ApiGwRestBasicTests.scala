@@ -22,7 +22,7 @@ import java.io.BufferedWriter
 import java.io.FileWriter
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.commons.io.FileUtils
 import common.TestUtils._
 import common.TestUtils

@@ -19,9 +19,9 @@ package org.apache.openwhisk.core.yarn
 
 import java.time.Instant
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.stream.scaladsl.Source
-import akka.util.{ByteString, Timeout}
+import org.apache.pekko.actor.{ActorRef, ActorSystem}
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.{ByteString, Timeout}
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.containerpool.{Container, ContainerAddress, ContainerId}
@@ -29,7 +29,7 @@ import org.apache.openwhisk.core.containerpool.logging.LogLine
 import org.apache.openwhisk.core.entity.ByteSize
 import org.apache.openwhisk.core.entity.ExecManifest.ImageName
 import org.apache.openwhisk.core.yarn.YARNComponentActor.RemoveContainer
-import akka.pattern.ask
+import org.apache.pekko.pattern.ask
 import scala.concurrent.duration._
 
 import scala.concurrent.{ExecutionContext, Future}

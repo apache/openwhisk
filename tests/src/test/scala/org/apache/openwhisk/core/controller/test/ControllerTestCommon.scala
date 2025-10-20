@@ -23,11 +23,11 @@ import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.language.postfixOps
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import common.StreamLogging
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.http.scaladsl.testkit.RouteTestTimeout
+import org.apache.pekko.http.scaladsl.testkit.ScalatestRouteTest
+import org.apache.pekko.http.scaladsl.testkit.RouteTestTimeout
 import spray.json._
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.{FeatureFlags, WhiskConfig}
@@ -49,7 +49,7 @@ import org.apache.openwhisk.core.loadBalancer.LoadBalancer
 import org.apache.openwhisk.spi.SpiLoader
 
 protected trait ControllerTestCommon
-    extends FlatSpec
+    extends AnyFlatSpec
     with BeforeAndAfterEach
     with BeforeAndAfterAll
     with ScalatestRouteTest

@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.invoker
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import org.apache.pekko.actor.{ActorRef, ActorSystem, Props}
 import org.apache.openwhisk.common.{GracefulShutdown, Logging, TransactionId}
 import org.apache.openwhisk.core.WarmUp.isWarmUpAction
 import org.apache.openwhisk.core.WhiskConfig

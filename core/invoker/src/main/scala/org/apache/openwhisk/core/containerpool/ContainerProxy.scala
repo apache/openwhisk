@@ -17,21 +17,21 @@
 
 package org.apache.openwhisk.core.containerpool
 
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Actor
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.Cancellable
 import java.time.Instant
 
-import akka.actor.Status.{Failure => FailureMessage}
-import akka.actor.{FSM, Props, Stash}
-import akka.event.Logging.InfoLevel
-import akka.io.IO
-import akka.io.Tcp
-import akka.io.Tcp.Close
-import akka.io.Tcp.CommandFailed
-import akka.io.Tcp.Connect
-import akka.io.Tcp.Connected
-import akka.pattern.pipe
+import org.apache.pekko.actor.Status.{Failure => FailureMessage}
+import org.apache.pekko.actor.{FSM, Props, Stash}
+import org.apache.pekko.event.Logging.InfoLevel
+import org.apache.pekko.io.IO
+import org.apache.pekko.io.Tcp
+import org.apache.pekko.io.Tcp.Close
+import org.apache.pekko.io.Tcp.CommandFailed
+import org.apache.pekko.io.Tcp.Connect
+import org.apache.pekko.io.Tcp.Connected
+import org.apache.pekko.pattern.pipe
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
 import java.net.InetSocketAddress
@@ -43,7 +43,7 @@ import org.apache.openwhisk.common.TransactionId.systemPrefix
 import scala.collection.immutable
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import org.apache.openwhisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
+import org.apache.openwhisk.common.{Counter, LoggingMarkers, PekkoLogging, TransactionId}
 import org.apache.openwhisk.core.ConfigKeys
 import org.apache.openwhisk.core.ack.ActiveAck
 import org.apache.openwhisk.core.connector.{
@@ -265,7 +265,7 @@ class ContainerProxy(factory: (TransactionId,
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
-  implicit val logging = new AkkaLogging(context.system.log)
+  implicit val logging = new PekkoLogging(context.system.log)
   implicit val ac = context.system
   var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
   var runBuffer = immutable.Queue.empty[Run] //does not retain order, but does manage jobs that would have pushed past action concurrency limit
@@ -1124,7 +1124,7 @@ class TCPPingClient(tcp: ActorRef,
                     remote: InetSocketAddress,
                     config: ContainerProxyHealthCheckConfig)
     extends Actor {
-  implicit val logging = new AkkaLogging(context.system.log)
+  implicit val logging = new PekkoLogging(context.system.log)
   implicit val ec = context.system.dispatcher
   implicit var healthPingTx = TransactionId.actionHealthPing
   case object HealthPingSend

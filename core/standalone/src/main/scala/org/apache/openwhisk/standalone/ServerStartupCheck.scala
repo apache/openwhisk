@@ -19,7 +19,7 @@ package org.apache.openwhisk.standalone
 
 import java.net.{HttpURLConnection, URL}
 
-import akka.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.model.Uri
 import com.google.common.base.Stopwatch
 import org.apache.openwhisk.utils.retry
 

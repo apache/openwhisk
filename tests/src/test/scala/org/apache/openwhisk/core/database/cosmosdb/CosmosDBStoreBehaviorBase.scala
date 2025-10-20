@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehaviorBase
 import org.apache.openwhisk.core.database.{ArtifactStore, AttachmentStore, DocumentSerializer}
 import org.apache.openwhisk.core.entity.{
@@ -32,7 +32,7 @@ import org.apache.openwhisk.core.entity.{
 import scala.reflect.{classTag, ClassTag}
 import scala.util.Try
 
-trait CosmosDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase with CosmosDBTestSupport {
+trait CosmosDBStoreBehaviorBase extends AnyFlatSpec with ArtifactStoreBehaviorBase with CosmosDBTestSupport {
   override def storeType = "CosmosDB"
 
   override lazy val storeAvailableCheck: Try[Any] = storeConfigTry

@@ -20,14 +20,14 @@ package org.apache.openwhisk.common
 import common.ConcurrencyHelpers
 import org.apache.openwhisk.utils.ExecutionContextFactory
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
-class NestedSemaphoreTests extends FlatSpec with Matchers with ConcurrencyHelpers {
+class NestedSemaphoreTests extends AnyFlatSpec with Matchers with ConcurrencyHelpers {
   // use an infinite thread pool to allow for maximum concurrency
   implicit val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
   val acquireTimeout = 1.minute

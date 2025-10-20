@@ -26,7 +26,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 import scala.util.Try
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.connector.MessageConsumer

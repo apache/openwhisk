@@ -19,8 +19,8 @@ package org.apache.openwhisk.common
 
 import java.time.{Clock, Duration, Instant}
 
-import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
-import akka.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
 import spray.json._
 import org.apache.openwhisk.core.ConfigKeys
 import pureconfig._

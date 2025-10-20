@@ -21,10 +21,10 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 
-import akka.http.scaladsl.model.StatusCodes.OK
+import org.apache.pekko.http.scaladsl.model.StatusCodes.OK
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import common.TestUtils._
 import common.rest.WskRestOperations

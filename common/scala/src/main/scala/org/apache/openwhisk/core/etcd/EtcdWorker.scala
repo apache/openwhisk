@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.etcd
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props, Timers}
+import org.apache.pekko.actor.{Actor, ActorRef, ActorSystem, Props, Timers}
 import io.grpc.StatusRuntimeException
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.etcd.EtcdWorker.GetLeaseAndRetry

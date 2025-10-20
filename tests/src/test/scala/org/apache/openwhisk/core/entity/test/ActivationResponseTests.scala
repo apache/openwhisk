@@ -19,9 +19,9 @@ package org.apache.openwhisk.core.entity.test
 
 import scala.Vector
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import spray.json._
 import org.apache.openwhisk.common.PrintStreamLogging
 import org.apache.openwhisk.core.entity.ActivationResponse._
@@ -31,7 +31,7 @@ import scala.Left
 import scala.Right
 
 @RunWith(classOf[JUnitRunner])
-class ActivationResponseTests extends FlatSpec with Matchers {
+class ActivationResponseTests extends AnyFlatSpec with Matchers {
 
   behavior of "ActivationResponse"
 

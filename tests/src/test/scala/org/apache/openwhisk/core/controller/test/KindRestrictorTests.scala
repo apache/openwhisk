@@ -19,8 +19,9 @@ package org.apache.openwhisk.core.controller.test
 
 import common.StreamLogging
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.core.entitlement.KindRestrictor
 import org.apache.openwhisk.core.entity._
 
@@ -35,7 +36,7 @@ import org.apache.openwhisk.core.entity._
  * "using Specification DSL to write unit tests, as in should, must, not, be"
  */
 @RunWith(classOf[JUnitRunner])
-class KindRestrictorTests extends FlatSpec with Matchers with StreamLogging {
+class KindRestrictorTests extends AnyFlatSpec with Matchers with StreamLogging {
 
   behavior of "Kind Restrictor"
 

@@ -17,20 +17,20 @@
 
 package org.apache.openwhisk.core.database.azblob
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.database.{AttachmentStore, DocumentSerializer}
 import org.apache.openwhisk.core.database.memory.{MemoryArtifactStoreBehaviorBase, MemoryArtifactStoreProvider}
 import org.apache.openwhisk.core.database.test.AttachmentStoreBehaviors
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreAttachmentBehaviors
 import org.apache.openwhisk.core.entity.WhiskEntity
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.reflect.ClassTag
 import scala.util.Random
 
 trait AzureBlobAttachmentStoreBehaviorBase
-    extends FlatSpec
+    extends AnyFlatSpec
     with MemoryArtifactStoreBehaviorBase
     with ArtifactStoreAttachmentBehaviors
     with AttachmentStoreBehaviors {

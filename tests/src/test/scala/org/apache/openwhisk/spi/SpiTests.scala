@@ -21,12 +21,12 @@ import com.typesafe.config.ConfigException
 import common.StreamLogging
 import common.WskActorSystem
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class SpiTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
+class SpiTests extends AnyFlatSpec with Matchers with WskActorSystem with StreamLogging {
 
   behavior of "SpiProvider"
 

@@ -20,14 +20,14 @@ package org.apache.openwhisk.core.database.mongodb
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehaviorBase
 import org.apache.openwhisk.core.database.{ArtifactStore, AttachmentStore, DocumentSerializer}
 import org.apache.openwhisk.core.entity._
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.testcontainers.containers.MongoDBContainer
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
 
 import scala.reflect.{classTag, ClassTag}
 
-trait MongoDBStoreBehaviorBase extends FlatSpec with ArtifactStoreBehaviorBase {
+trait MongoDBStoreBehaviorBase extends AnyFlatSpec with ArtifactStoreBehaviorBase {
   val imageName = loadConfigOrThrow[String]("whisk.mongodb.docker-image")
   val container = new MongoDBContainer(imageName)
   container.start()

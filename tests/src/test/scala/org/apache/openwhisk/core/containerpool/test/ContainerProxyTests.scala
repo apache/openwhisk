@@ -20,19 +20,21 @@ package org.apache.openwhisk.core.containerpool.test
 import java.net.InetSocketAddress
 import java.time.Instant
 
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
-import akka.actor.{ActorRef, ActorSystem, FSM}
-import akka.stream.scaladsl.Source
-import akka.testkit.{CallingThreadDispatcher, ImplicitSender, TestKit, TestProbe}
-import akka.util.ByteString
+import org.apache.pekko.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import org.apache.pekko.actor.{ActorRef, ActorSystem, FSM}
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.testkit.{CallingThreadDispatcher, ImplicitSender, TestKit, TestProbe}
+import org.apache.pekko.util.ByteString
 import common.{LoggedFunction, StreamLogging, SynchronizedLoggedFunction, WhiskProperties}
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.io.Tcp.{Close, CommandFailed, Connect, Connected}
+import org.apache.pekko.io.Tcp.{Close, CommandFailed, Connect, Connected}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.openwhisk.common.{Logging, TransactionId}
@@ -64,7 +66,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 class ContainerProxyTests
     extends TestKit(ActorSystem("ContainerProxys"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with StreamLogging {
@@ -2219,7 +2221,7 @@ class ContainerProxyTests
   }
 }
 @RunWith(classOf[JUnitRunner])
-class TCPPingClientTests extends TestKit(ActorSystem("TCPPingClient")) with Matchers with FlatSpecLike {
+class TCPPingClientTests extends TestKit(ActorSystem("TCPPingClient")) with Matchers with AnyFlatSpecLike {
   val config = ContainerProxyHealthCheckConfig(true, 200.milliseconds, 2)
   val addr = new InetSocketAddress("1.2.3.4", 12345)
   val localAddr = new InetSocketAddress("localhost", 5432)

@@ -17,10 +17,10 @@
 
 package org.apache.openwhisk.core.controller
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.directives.{AuthenticationDirective, AuthenticationResult}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.server.Directives._
+import org.apache.pekko.http.scaladsl.server.directives.{AuthenticationDirective, AuthenticationResult}
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.database.NoDocumentException
 import org.apache.openwhisk.core.entity._

@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.containerpool.docker
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.containerpool._

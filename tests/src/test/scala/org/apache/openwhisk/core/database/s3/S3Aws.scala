@@ -17,15 +17,15 @@
 
 package org.apache.openwhisk.core.database.s3
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.core.database.{AttachmentStore, DocumentSerializer}
 
 import scala.reflect.ClassTag
 
-trait S3Aws extends FlatSpec {
+trait S3Aws extends AnyFlatSpec {
 
   def cloudFrontConfig: String = ""
 
@@ -34,7 +34,7 @@ trait S3Aws extends FlatSpec {
     val config = ConfigFactory.parseString(s"""
        |whisk {
        |   s3 {
-       |      alpakka {
+       |      pekko-connectors {
        |         aws {
        |           credentials {
        |             provider = static

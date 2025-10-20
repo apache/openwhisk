@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.scheduler.container
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
-import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Cancellable, Props}
+import org.apache.pekko.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Cancellable, Props}
 import org.apache.openwhisk.common.{GracefulShutdown, Logging}
 import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.entity._

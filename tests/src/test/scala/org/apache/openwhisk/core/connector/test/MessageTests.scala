@@ -17,18 +17,19 @@
 
 package org.apache.openwhisk.core.connector.test
 
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.TestKit
 import org.apache.openwhisk.common.InvokerState.{Healthy, Unhealthy}
 import org.apache.openwhisk.core.connector.InvokerResourceMessage
 import org.apache.openwhisk.core.entity.SchedulerInstanceId
 import org.apache.openwhisk.core.scheduler.{SchedulerEndpoints, SchedulerStates}
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 @RunWith(classOf[JUnitRunner])
-class MessageTests extends TestKit(ActorSystem("Message")) with FlatSpecLike with Matchers {
+class MessageTests extends TestKit(ActorSystem("Message")) with AnyFlatSpecLike with Matchers {
   behavior of "Message"
 
   it should "be able to compare the InvokerResourceMessage" in {

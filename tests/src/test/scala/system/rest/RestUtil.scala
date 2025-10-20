@@ -17,7 +17,7 @@
 
 package system.rest
 
-import akka.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.model.Uri
 
 import scala.util.Try
 import io.restassured.RestAssured

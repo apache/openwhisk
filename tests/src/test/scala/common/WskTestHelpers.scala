@@ -19,7 +19,7 @@ package common
 
 import java.time.Instant
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Failure
@@ -33,7 +33,7 @@ import spray.json.DefaultJsonProtocol._
 import TestUtils.RunResult
 import TestUtils.SUCCESS_EXIT
 import TestUtils.CONFLICT
-import akka.http.scaladsl.model.StatusCodes
+import org.apache.pekko.http.scaladsl.model.StatusCodes
 
 object FullyQualifiedNames {
 

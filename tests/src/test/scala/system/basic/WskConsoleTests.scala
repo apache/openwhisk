@@ -25,7 +25,7 @@ import scala.concurrent.duration.MILLISECONDS
 import scala.language.postfixOps
 
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils

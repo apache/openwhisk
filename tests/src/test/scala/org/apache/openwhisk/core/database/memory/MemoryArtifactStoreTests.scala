@@ -18,9 +18,9 @@
 package org.apache.openwhisk.core.database.memory
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.junit.JUnitRunner
 import org.apache.openwhisk.core.database.test.behavior.ArtifactStoreBehavior
 
 @RunWith(classOf[JUnitRunner])
-class MemoryArtifactStoreTests extends FlatSpec with MemoryArtifactStoreBehaviorBase with ArtifactStoreBehavior
+class MemoryArtifactStoreTests extends AnyFlatSpec with MemoryArtifactStoreBehaviorBase with ArtifactStoreBehavior

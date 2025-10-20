@@ -17,9 +17,9 @@
 
 package org.apache.openwhisk.core.scheduler.queue.test
 
-import akka.actor.ActorRef
-import akka.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
-import akka.testkit.{TestActor, TestFSMRef, TestProbe}
+import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.FSM.{CurrentState, StateTimeout, SubscribeTransitionCallBack, Transition}
+import org.apache.pekko.testkit.{TestActor, TestFSMRef, TestProbe}
 import com.sksamuel.elastic4s.http.{search => _}
 import org.apache.openwhisk.common.GracefulShutdown
 import org.apache.openwhisk.common.time.{Clock, SystemClock}
@@ -40,9 +40,12 @@ import org.apache.openwhisk.core.service._
 import org.apache.openwhisk.http.Messages.{namespaceLimitUnderZero, tooManyConcurrentRequests}
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import org.scalatest._
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
 import spray.json.{JsObject, JsString}
 
 import java.time.Instant
@@ -66,7 +69,7 @@ class FakeClock extends Clock {
 @RunWith(classOf[JUnitRunner])
 class MemoryQueueFlowTests
     extends MemoryQueueTestsFixture
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with ScalaFutures
     with Matchers
     with MockFactory
@@ -721,6 +724,8 @@ class MemoryQueueFlowTests
     fsm ! messages(0)
 
     expectInitialData(watcher, dataMgmtService)
+    fsm ! testInitialDataStorageResult
+
     probe.expectMsg(Transition(fsm, Uninitialized, Running))
 
     clock.plusSeconds(FiniteDuration(retentionTimeout, MILLISECONDS).toSeconds)

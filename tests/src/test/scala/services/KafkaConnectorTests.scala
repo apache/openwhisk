@@ -25,8 +25,10 @@ import common.{StreamLogging, TestUtils, WhiskProperties, WskActorSystem}
 import ha.ShootComponentUtils
 import org.apache.kafka.clients.consumer.CommitFailedException
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.connector.kafka.{KafkaConsumerConnector, KafkaMessagingProvider, KafkaProducerConnector}
 import org.apache.openwhisk.core.WhiskConfig
@@ -40,7 +42,7 @@ import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
 class KafkaConnectorTests
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with WskActorSystem
     with BeforeAndAfterAll

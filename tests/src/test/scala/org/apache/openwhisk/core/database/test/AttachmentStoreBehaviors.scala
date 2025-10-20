@@ -19,12 +19,14 @@ package org.apache.openwhisk.core.database.test
 
 import java.io.ByteArrayInputStream
 
-import akka.http.scaladsl.model.ContentTypes
-import akka.stream.scaladsl.{Sink, Source, StreamConverters}
-import akka.util.{ByteString, ByteStringBuilder}
+import org.apache.pekko.http.scaladsl.model.ContentTypes
+import org.apache.pekko.stream.scaladsl.{Sink, Source, StreamConverters}
+import org.apache.pekko.util.{ByteString, ByteStringBuilder}
 import common.{StreamLogging, WskActorSystem}
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.database.{AttachmentStore, NoDocumentException}
 import org.apache.openwhisk.core.entity.DocId
@@ -41,7 +43,7 @@ trait AttachmentStoreBehaviors
     with StreamLogging
     with WskActorSystem
     with BeforeAndAfterAll {
-  this: FlatSpec =>
+  this: AnyFlatSpec =>
 
   //Bring in sync the timeout used by ScalaFutures and DBUtils
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)

@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.database.cosmosdb
 
-import akka.event.slf4j.SLF4JLogging
+import org.apache.pekko.event.slf4j.SLF4JLogging
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.AppenderBase

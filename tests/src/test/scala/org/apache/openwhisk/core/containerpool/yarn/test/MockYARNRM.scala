@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 import java.util
 import java.util.concurrent.atomic.AtomicLong
 
-import akka.http.scaladsl.model.DateTime
+import org.apache.pekko.http.scaladsl.model.DateTime
 import com.sun.net.httpserver.{HttpExchange, HttpServer}
 import org.apache.openwhisk.core.yarn.YARNJsonProtocol._
 import org.apache.openwhisk.core.yarn.{YARNResponseDefinition, _}
