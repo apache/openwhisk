@@ -526,7 +526,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       val t = get(entityStore, trigger.docid, WhiskTrigger)
       deleteTrigger(t.docid)
 
-      status should be(PayloadTooLarge)
+      status should be(ContentTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
       }
@@ -556,7 +556,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       val t = get(entityStore, trigger.docid, WhiskTrigger)
       deleteTrigger(t.docid)
 
-      status should be(PayloadTooLarge)
+      status should be(ContentTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
       }

@@ -591,7 +591,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     } reduce (_ ++ _)
     val content = s"""{"annotations":$annotations}""".parseJson.asJsObject
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(PayloadTooLarge)
+      status should be(ContentTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
       }
@@ -607,7 +607,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     } reduce (_ ++ _)
     val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(PayloadTooLarge)
+      status should be(ContentTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
       }
@@ -625,7 +625,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
     put(entityStore, provider)
     Put(s"$collectionPath/${aname()}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(PayloadTooLarge)
+      status should be(ContentTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
       }

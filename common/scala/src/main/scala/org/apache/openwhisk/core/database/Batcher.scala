@@ -64,7 +64,7 @@ class Batcher[T, R](batchSize: Int, concurrency: Int, retry: Int)(operation: (Se
       completionMatcher = cm,
       failureMatcher = PartialFunction.empty[Any, Throwable],
       bufferSize = Int.MaxValue,
-      overflowStrategy = OverflowStrategy.dropNew)
+      overflowStrategy = OverflowStrategy.dropBuffer)
     .batch(batchSize, Queue(_))((queue, element) => queue :+ element)
     .mapAsyncUnordered(concurrency) { els =>
       val elements = els.map(_._1)

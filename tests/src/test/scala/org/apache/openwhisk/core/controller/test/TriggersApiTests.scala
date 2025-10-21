@@ -273,7 +273,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val code = "a" * (systemPayloadLimit.toBytes.toInt + 1)
     val content = s"""{"a":"$code"}""".stripMargin
     Post(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
-      status should be(PayloadTooLarge)
+      status should be(ContentTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(fieldDescriptionForSizeError, (content.length).B, systemPayloadLimit.toBytes.B))
       }
@@ -289,7 +289,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     } reduce (_ ++ _)
     val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(PayloadTooLarge)
+      status should be(ContentTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
       }
@@ -305,7 +305,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     } reduce (_ ++ _)
     val content = s"""{"annotations":$annotations}""".parseJson.asJsObject
     Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(PayloadTooLarge)
+      status should be(ContentTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
       }
@@ -323,7 +323,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(PayloadTooLarge)
+      status should be(ContentTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
       }

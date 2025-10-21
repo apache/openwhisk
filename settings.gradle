@@ -78,9 +78,7 @@ if (scalaVersion == '2.12') {
             depVersion  : '2.12',
             scoverageScalaVersion : '2.12.15',
             scoverageVersion : '1.4.11',
-            // Temporarily disabled -Xfatal-warnings during Pekko migration to allow deprecated API usage
-            // BEFORE READY: Fix deprecation warnings and re-enable -Xfatal-warnings
-            compileFlags: ['-feature', '-unchecked', '-deprecation', '-Ywarn-unused-import']
+            compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
     ]
 } else {
     println("Build using Scala 2.13")

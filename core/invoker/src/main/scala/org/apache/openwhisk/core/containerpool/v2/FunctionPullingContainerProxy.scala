@@ -20,7 +20,7 @@ package org.apache.openwhisk.core.containerpool.v2
 import java.net.InetSocketAddress
 import java.time.Instant
 import org.apache.pekko.actor.Status.{Failure => FailureMessage}
-import org.apache.pekko.actor.{actorRef2Scala, ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
+import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem, FSM, Props, Stash}
 import org.apache.pekko.event.Logging.InfoLevel
 import org.apache.pekko.io.{IO, Tcp}
 import org.apache.pekko.pattern.pipe

@@ -316,7 +316,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         }
       case Failure(t: RecordTooLargeException) =>
         logging.debug(this, s"[POST] action payload was too large")
-        terminate(PayloadTooLarge)
+        terminate(ContentTooLarge)
       case Failure(RejectRequest(code, message)) =>
         logging.debug(this, s"[POST] action rejected with code $code: $message")
         terminate(code, message)
