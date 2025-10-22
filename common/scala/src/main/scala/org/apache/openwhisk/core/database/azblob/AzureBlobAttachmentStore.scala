@@ -299,7 +299,7 @@ class AzureBlobAttachmentStore(client: BlobContainerAsyncClient, prefix: String,
       case None =>
         blobClient.exists().toFuture.toScala.map { exists =>
           if (exists) {
-            val bbFlux = blobClient.download()
+            val bbFlux = blobClient.downloadStream()
             Some(Source.fromPublisher(bbFlux).map(ByteString.fromByteBuffer))
           } else {
             throw NoDocumentException("Not found on 'readAttachment'.")

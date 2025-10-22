@@ -21,7 +21,7 @@ import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
 import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import org.apache.pekko.http.scaladsl.model.StatusCodes.PayloadTooLarge
+import org.apache.pekko.http.scaladsl.model.StatusCodes.ContentTooLarge
 import org.apache.pekko.http.scaladsl.model.headers.RawHeader
 import org.apache.pekko.http.scaladsl.server.Directive0
 import org.apache.pekko.http.scaladsl.server.Directives
@@ -45,7 +45,7 @@ protected[controller] trait ValidateRequestSize extends Directives {
     new Directive0 {
       override def tapply(f: Unit => Route) = {
         check map {
-          case e: SizeError => terminate(PayloadTooLarge, Messages.entityTooBig(e))
+          case e: SizeError => terminate(ContentTooLarge, Messages.entityTooBig(e))
         } getOrElse f(None)
       }
     }

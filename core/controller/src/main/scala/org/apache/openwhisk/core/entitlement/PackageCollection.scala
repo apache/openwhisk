@@ -102,7 +102,7 @@ class PackageCollection(entityStore: EntityStore)(implicit logging: Logging) ext
             logging.error(this, s"unexpected package binding refers to itself: $doc")
             Future.failed(
               RejectRequest(
-                UnprocessableEntity,
+                UnprocessableContent,
                 Messages.packageBindingCircularReference(binding.fullyQualifiedName.toString)))
           } else {
             checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)

@@ -17,7 +17,7 @@
 
 package org.apache.openwhisk.core.limits
 
-import org.apache.pekko.http.scaladsl.model.StatusCodes.PayloadTooLarge
+import org.apache.pekko.http.scaladsl.model.StatusCodes.ContentTooLarge
 import org.apache.pekko.http.scaladsl.model.StatusCodes.BadGateway
 import java.io.File
 import java.io.PrintWriter
@@ -368,7 +368,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers with WskActorSys
     pw.close
 
     assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
-      action.create(name, Some(actionCode.getAbsolutePath), expectedExitCode = PayloadTooLarge.intValue)
+      action.create(name, Some(actionCode.getAbsolutePath), expectedExitCode = ContentTooLarge.intValue)
     }
 
     actionCode.delete

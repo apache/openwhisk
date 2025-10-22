@@ -84,7 +84,7 @@ private[database] object StoreUtils {
 
   def combinedSink[T](dest: Sink[ByteString, Future[T]])(
     implicit ec: ExecutionContext): Sink[ByteString, Future[AttachmentUploadResult[T]]] = {
-    Sink.fromGraph(GraphDSL.create(digestSink(), lengthSink(), dest)(combineResult) {
+    Sink.fromGraph(GraphDSL.createGraph(digestSink(), lengthSink(), dest)(combineResult) {
       implicit builder => (dgs, ls, dests) =>
         import GraphDSL.Implicits._
 

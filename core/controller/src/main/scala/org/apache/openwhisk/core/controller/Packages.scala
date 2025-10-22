@@ -336,7 +336,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
         logging.debug(this, s"fetching package '$docid' for reference")
         if (docid == wp.docid) {
           logging.error(this, s"unexpected package binding refers to itself: $docid")
-          terminate(UnprocessableEntity, Messages.packageBindingCircularReference(b.fullyQualifiedName.toString))
+          terminate(UnprocessableContent, Messages.packageBindingCircularReference(b.fullyQualifiedName.toString))
         } else {
 
           /** Here's where I check package execute only case with package binding. */

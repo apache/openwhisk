@@ -135,10 +135,14 @@ class S3AttachmentStore(s3Settings: S3Settings, bucket: String, prefix: String, 
         s"[ATT_GET] '$prefix' finding attachment '$name' of document 'id: $docId'")
     val source = getAttachmentSource(objectKey(docId, name))
 
-    val f = source.flatMap {
-      case Some(x) => x.withAttributes(s3attributes).runWith(sink)
-      case None    => Future.failed(NoDocumentException("Not found on 'readAttachment'."))
-    }
+    val f = source
+      .flatMap { x =>
+        x.withAttributes(s3attributes).runWith(sink)
+      }
+      .recoverWith {
+        case e: Throwable if isMissingKeyException(e) =>
+          Future.failed(NoDocumentException("Not found on 'readAttachment'."))
+      }
 
     val g = f.transform(
       { s =>
@@ -164,16 +168,14 @@ class S3AttachmentStore(s3Settings: S3Settings, bucket: String, prefix: String, 
         s"[ATT_GET] '$prefix' internal error, name: '$name', doc: 'id: $docId', failure: '${failure.getMessage}'")
   }
 
-  private def getAttachmentSource(objectKey: String): Future[Option[Source[ByteString, Any]]] = urlSigner match {
-    case Some(signer) => getUrlContent(signer.getSignedURL(objectKey))
+  private def getAttachmentSource(objectKey: String): Future[Source[ByteString, Any]] = urlSigner match {
+    case Some(signer) =>
+      getUrlContent(signer.getSignedURL(objectKey)).map(_.get)
 
-    // When reading from S3 we get an optional source of ByteString and Metadata if the object exist
-    // For such case drop the metadata
+    // S3.getObject returns Source[ByteString, Future[ObjectMetadata]].
+    // The materialized future will fail if the object doesn't exist, which is handled by the caller.
     case None =>
-      S3.download(bucket, objectKey)
-        .withAttributes(s3attributes)
-        .runWith(Sink.head)
-        .map(x => x.map(_._1))
+      Future.successful(S3.getObject(bucket, objectKey).withAttributes(s3attributes))
   }
 
   private def getUrlContent(uri: Uri): Future[Option[Source[ByteString, Any]]] = {
@@ -182,10 +184,9 @@ class S3AttachmentStore(s3Settings: S3Settings, bucket: String, prefix: String, 
       case HttpResponse(status, _, entity, _) if status.isSuccess() && !status.isRedirection() =>
         Future.successful(Some(entity.dataBytes))
       case HttpResponse(status, _, entity, _) =>
-        Unmarshal(entity).to[String].map { err =>
+        Unmarshal(entity).to[String].flatMap { err =>
           //With CloudFront also the error message confirms to same S3 exception format
-          val exp = S3Exception(err, status)
-          if (isMissingKeyException(exp)) None else throw exp
+          Future.failed(S3Exception(err, status))
         }
     }
   }
