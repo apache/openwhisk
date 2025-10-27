@@ -33,7 +33,6 @@ import org.apache.pekko.http.scaladsl.model.Uri.Path
 import org.apache.pekko.http.scaladsl.model.headers.Authorization
 import org.apache.pekko.http.scaladsl.model.headers.BasicHttpCredentials
 import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
-import org.apache.pekko.stream.OverflowStrategy
 import org.apache.pekko.stream.QueueOfferResult
 import org.apache.pekko.stream.scaladsl.Flow
 import org.apache.pekko.stream.scaladsl.Keep
@@ -178,9 +177,10 @@ class SplunkLogStore(
       .convertTo[String]}: ${l.fields(splunkConfig.logMessageField).convertTo[String].trim}"
 
   //based on https://pekko.apache.org/docs/pekko-http/current/client-side/host-level.html
+  // BoundedSourceQueue automatically drops new elements when full, maintaining dropNew behavior
   val queue =
     Source
-      .queue[(HttpRequest, Promise[HttpResponse])](maxPendingRequests, OverflowStrategy.dropNew)
+      .queue[(HttpRequest, Promise[HttpResponse])](maxPendingRequests)
       .via(httpFlow.getOrElse(defaultHttpFlow))
       .toMat(Sink.foreach({
         case ((Success(resp), p)) => p.success(resp)
@@ -190,7 +190,7 @@ class SplunkLogStore(
 
   def queueRequest(request: HttpRequest): Future[HttpResponse] = {
     val responsePromise = Promise[HttpResponse]()
-    queue.offer(request -> responsePromise).flatMap {
+    queue.offer(request -> responsePromise) match {
       case QueueOfferResult.Enqueued => responsePromise.future
       case QueueOfferResult.Dropped =>
         Future.failed(new RuntimeException("Splunk API Client Queue overflowed. Try again later."))
