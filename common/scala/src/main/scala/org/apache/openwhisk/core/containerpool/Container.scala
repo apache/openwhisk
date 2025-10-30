@@ -217,6 +217,7 @@ trait Container {
       .post(path, body, retry, reschedule)
       .map { response =>
         val finished = Instant.now()
+        println("Path:"+ path + ", time taken at nanosecond: " + (finished.getNano - started.getNano))
         RunResult(Interval(started, finished), response)
       }
   }
