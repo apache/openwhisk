@@ -95,7 +95,7 @@ dependencies {
     }
     compile "com.amazonaws:aws-java-sdk-cloudfront:1.11.517"
 
-    compile ("com.azure:azure-storage-blob:12.6.0") {
+    compile ("com.azure:azure-storage-blob:12.7.0") {
         exclude group: "com.azure", module: "azure-core-test"
     }
 }
