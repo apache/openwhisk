@@ -215,11 +215,29 @@ trait Container {
     }
     http
       .post(path, body, retry, reschedule)
-      .map { response =>
+      // .map { response =>
+      //   val finished = Instant.now()
+      //   // println("time taken at nanosecond:" + Interval(started, finished).duration.toNanos)
+      //   println("Path:"+ path + ", time taken at nanosecond: " + response)
+      //   RunResult(Interval(started, finished), response)
+      // }
+      .map { response =>        
         val finished = Instant.now()
-        // println("time taken at nanosecond:" + Interval(started, finished).duration.toNanos)
-        println("Path:"+ path + ", time taken at nanosecond: " + response)
-        RunResult(Interval(started, finished), response)
+        val result = RunResult(Interval(started, finished), response)
+        
+        // Afficher selon le type de response
+        result.response match {
+          case Right(containerResponse) =>
+            println(s"✓ Status: ${containerResponse.statusCode}")
+            println(s"  Entity: ${containerResponse.entity}")
+            println(s"  Duration: ${result.interval.duration.toMillis}ms")
+            
+          case Left(error) =>
+            println(s"✗ Error: $error")
+            println(s"  Duration: ${result.interval.duration.toMillis}ms")
+        }
+        
+        result
       }
   }
   private def openConnections(timeout: FiniteDuration, maxConcurrent: Int) = {
