@@ -228,13 +228,14 @@ trait Container {
         // Afficher selon le type de response
         result.response match {
           case Right(containerResponse) =>
-            println(s"✓ Status: ${containerResponse.statusCode}")
             println(s"  Entity: ${containerResponse.entity}")
             println(s"  Duration: ${result.interval.duration.toMillis}ms")
-            
+            result = RunResult(Interval.fromDuration(containerResponse.entity.duration_ns), response)
+
           case Left(error) =>
             println(s"✗ Error: $error")
             println(s"  Duration: ${result.interval.duration.toMillis}ms")
+            result = RunResult(Interval.fromDuration(error.entity.duration_ns), response)
         }
         
         result
@@ -300,5 +301,13 @@ object Interval {
   def zero = {
     val now = Instant.now
     Interval(now, now)
+  }
+
+  // Méthode qui accepte une durée en nanosecondes et crée un Interval avec des instants fictifs
+  def fromDuration(durationNs: Long): Interval = {
+    // Calcul de start et end en fonction de la durée
+    val start = Instant.now() // Prendre l'instant actuel comme "start"
+    val end = start.plusNanos(durationNs) // Ajouter la durée en nanosecondes à l'instant start
+    Interval(start, end)
   }
 }
