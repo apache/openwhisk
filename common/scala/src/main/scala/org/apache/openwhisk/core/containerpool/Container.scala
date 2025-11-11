@@ -230,12 +230,10 @@ trait Container {
           case Right(containerResponse) =>
             println(s"  Entity: ${containerResponse.entity}")
             println(s"  Duration: ${result.interval.duration.toMillis}ms")
-            result = RunResult(Interval.fromDuration(containerResponse.entity.duration_ns), response)
 
           case Left(error) =>
             println(s"✗ Error: $error")
             println(s"  Duration: ${result.interval.duration.toMillis}ms")
-            result = RunResult(Interval.fromDuration(error.entity.duration_ns), response)
         }
         
         result

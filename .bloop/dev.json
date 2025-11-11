@@ -1,0 +1,836 @@
+{
+    "version": "1.4.0",
+    "project": {
+        "name": "dev",
+        "directory": "/home/c24guima/Documents/project/openwhiskNew/openwhisk/tools/dev",
+        "workspaceDir": "/home/c24guima/Documents/project/openwhiskNew/openwhisk",
+        "sources": [
+            "/home/c24guima/Documents/project/openwhiskNew/openwhisk/tools/dev/src/main/groovy",
+            "/home/c24guima/Documents/project/openwhiskNew/openwhisk/tools/dev/src/main/java"
+        ],
+        "dependencies": [
+            
+        ],
+        "classpath": [
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/commons-io/commons-io/2.11.0/a2503f302b11ebde7ebc3df41daebe0e4eea3689/commons-io-2.11.0.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.8.1/6505a72a097d9270f7a9e7bf42c4238283247755/commons-lang3-3.8.1.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-ant/3.0.17/4d9da686976ac4dd13a744815271143c259e3d45/groovy-ant-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-astbuilder/3.0.17/705f7ec2f71b4e93cdc6d80a82b34d7334192cc0/groovy-astbuilder-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-cli-picocli/3.0.17/a1290930331ce1dfa1cbb8d97c86413b3c9add46/groovy-cli-picocli-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-console/3.0.17/12327efd413b6f30e185731a4316544d2c095feb/groovy-console-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-datetime/3.0.17/8fd38f63f651fe611cf51cc8538e878e16af556b/groovy-datetime-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-groovydoc/3.0.17/24fd3673a58b46dbce0cddd715927271740125/groovy-groovydoc-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-jmx/3.0.17/f66471150910516765fd82c72e23c141330443d8/groovy-jmx-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-json/3.0.17/ba5599b4f39bb3251904341824f7fb629fc76f7f/groovy-json-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-jsr223/3.0.17/a296f5e8d846edbfe53a29000f26a978bac84a15/groovy-jsr223-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-macro/3.0.17/9ad0f2a78f4a34c496e04b47128246496b21f270/groovy-macro-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-nio/3.0.17/52b06a7c0a391852bd40a48ebd7b68298abeacb2/groovy-nio-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-servlet/3.0.17/7e4e8992d0461d13bc632c169e2ad46a867f1dfc/groovy-servlet-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-sql/3.0.17/7739b3975aae93e2719ed7c9be74af35cb9dae47/groovy-sql-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-swing/3.0.17/8937a42f3b4186def8d5bdbc62b8cc4ce503ad2b/groovy-swing-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-templates/3.0.17/7b49fb0567936885e293455ca8ba37b911952d68/groovy-templates-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-test/3.0.17/191975fcd48af66ae273c44f02def10e1fa252d3/groovy-test-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-test-junit5/3.0.17/d02db74c19f2051526c80e6bf30e93d84db5bcbb/groovy-test-junit5-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-testng/3.0.17/d690770ad24413ec5c7f23f202efe6db5e691bac/groovy-testng-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-xml/3.0.17/a2d033d00d2bc62406c2be1c391dda1898348474/groovy-xml-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy/3.0.17/23a103e379f90f9271209c97129d5568676b2cda/groovy-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-docgenerator/3.0.17/5eec5e04a23a4a6db53e4f00d49f249cec35c58d/groovy-docgenerator-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-groovysh/3.0.17/aa9edefcbd85f7f0d1316b552ebdabf2594a6166/groovy-groovysh-3.0.17.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant/1.10.12/be08c4f63e92e03bac761404cf77bc270928b6c5/ant-1.10.12.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.github.javaparser/javaparser-core/3.25.1/277a540e2b8d0ed205a8e8d31a7759a769d979be/javaparser-core-3.25.1.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.jupiter/junit-jupiter-api/5.9.2/fed843581520eac594bc36bb4b0f55e7b947dda9/junit-jupiter-api-5.9.2.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar",
+            "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.opentest4j/opentest4j/1.2.0/28c11eb91f9b6d8e200631d46e20a7f407f2a046/opentest4j-1.2.0.jar"
+        ],
+        "out": "/home/c24guima/Documents/project/openwhiskNew/openwhisk/.bloop/dev/build",
+        "classesDir": "/home/c24guima/Documents/project/openwhiskNew/openwhisk/.bloop/dev/build/classes",
+        "resources": [
+            "/home/c24guima/Documents/project/openwhiskNew/openwhisk/tools/dev/src/main/resources"
+        ],
+        "java": {
+            "options": [
+                "-target",
+                "17",
+                "-source",
+                "17",
+                "-h",
+                "/home/c24guima/Documents/project/openwhiskNew/openwhisk/tools/dev/build/generated/sources/headers/java/main",
+                "-g",
+                "-sourcepath",
+                "",
+                "-proc:none",
+                "-XDuseUnsharedTable=true"
+            ]
+        },
+        "platform": {
+            "name": "jvm",
+            "config": {
+                "home": "/usr/lib/jvm/java-17-openjdk-amd64",
+                "options": [
+                    
+                ]
+            },
+            "mainClass": [
+                
+            ],
+            "classpath": [
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/commons-io/commons-io/2.11.0/a2503f302b11ebde7ebc3df41daebe0e4eea3689/commons-io-2.11.0.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.8.1/6505a72a097d9270f7a9e7bf42c4238283247755/commons-lang3-3.8.1.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-ant/3.0.17/4d9da686976ac4dd13a744815271143c259e3d45/groovy-ant-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-astbuilder/3.0.17/705f7ec2f71b4e93cdc6d80a82b34d7334192cc0/groovy-astbuilder-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-cli-picocli/3.0.17/a1290930331ce1dfa1cbb8d97c86413b3c9add46/groovy-cli-picocli-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-groovysh/3.0.17/aa9edefcbd85f7f0d1316b552ebdabf2594a6166/groovy-groovysh-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-console/3.0.17/12327efd413b6f30e185731a4316544d2c095feb/groovy-console-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-datetime/3.0.17/8fd38f63f651fe611cf51cc8538e878e16af556b/groovy-datetime-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-groovydoc/3.0.17/24fd3673a58b46dbce0cddd715927271740125/groovy-groovydoc-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-docgenerator/3.0.17/5eec5e04a23a4a6db53e4f00d49f249cec35c58d/groovy-docgenerator-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-jmx/3.0.17/f66471150910516765fd82c72e23c141330443d8/groovy-jmx-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-json/3.0.17/ba5599b4f39bb3251904341824f7fb629fc76f7f/groovy-json-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-jsr223/3.0.17/a296f5e8d846edbfe53a29000f26a978bac84a15/groovy-jsr223-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-macro/3.0.17/9ad0f2a78f4a34c496e04b47128246496b21f270/groovy-macro-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-nio/3.0.17/52b06a7c0a391852bd40a48ebd7b68298abeacb2/groovy-nio-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-servlet/3.0.17/7e4e8992d0461d13bc632c169e2ad46a867f1dfc/groovy-servlet-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-sql/3.0.17/7739b3975aae93e2719ed7c9be74af35cb9dae47/groovy-sql-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-swing/3.0.17/8937a42f3b4186def8d5bdbc62b8cc4ce503ad2b/groovy-swing-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-templates/3.0.17/7b49fb0567936885e293455ca8ba37b911952d68/groovy-templates-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-test/3.0.17/191975fcd48af66ae273c44f02def10e1fa252d3/groovy-test-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-test-junit5/3.0.17/d02db74c19f2051526c80e6bf30e93d84db5bcbb/groovy-test-junit5-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-testng/3.0.17/d690770ad24413ec5c7f23f202efe6db5e691bac/groovy-testng-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-xml/3.0.17/a2d033d00d2bc62406c2be1c391dda1898348474/groovy-xml-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy/3.0.17/23a103e379f90f9271209c97129d5568676b2cda/groovy-3.0.17.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant-junit/1.10.12/81bde3486c2ed79cb6f699c2a5a77b0340d1f2e8/ant-junit-1.10.12.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant/1.10.12/be08c4f63e92e03bac761404cf77bc270928b6c5/ant-1.10.12.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant-launcher/1.10.12/e090b4f9d3ecf45491cc16e759f1e843a1a224c0/ant-launcher-1.10.12.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant-antlr/1.10.12/74b17ef7229f3d7c0d55d42486889cc553ab04d6/ant-antlr-1.10.12.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/info.picocli/picocli/4.6.3/18177f4c3d65cc94e6d4039775ec5aed8089f8d0/picocli-4.6.3.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.thoughtworks.qdox/qdox/1.12.1/f7122f6ab1f64bdf9f5970b0e89bfb355e036897/qdox-1.12.1.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.github.javaparser/javaparser-core/3.25.1/277a540e2b8d0ed205a8e8d31a7759a769d979be/javaparser-core-3.25.1.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/jline/jline/2.14.6/c3aeac59c022bdc497c8c48ed86fa50450e4896a/jline-2.14.6.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-launcher/1.9.2/38e0bfad8c57d4cd1a8f27926c25ffe9543068d6/junit-platform-launcher-1.9.2.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-engine/1.9.2/40aeef2be7b04f96bb91e8b054affc28b7c7c935/junit-platform-engine-1.9.2.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-commons/1.9.2/6f9f8621d8230cd38aa42e58ccbc0c00569131ce/junit-platform-commons-1.9.2.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.jupiter/junit-jupiter-engine/5.9.2/572f7a553b53f83ee59cc045ce1c3772864ab76c/junit-jupiter-engine-5.9.2.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.jupiter/junit-jupiter-api/5.9.2/fed843581520eac594bc36bb4b0f55e7b947dda9/junit-jupiter-api-5.9.2.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.testng/testng/7.5/1416a607fae667c14e390b484e8d02b5824c0674/testng-7.5.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.opentest4j/opentest4j/1.2.0/28c11eb91f9b6d8e200631d46e20a7f407f2a046/opentest4j-1.2.0.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.32/cdcff33940d9f2de763bc41ea05a0be5941176c3/slf4j-api-1.7.32.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.beust/jcommander/1.78/a3927de9bd6f351429bcf763712c9890629d8f51/jcommander-1.78.jar",
+                "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.webjars/jquery/3.5.1/2392938e374f561c27c53872bdc9b6b351b6ba34/jquery-3.5.1.jar"
+            ]
+        },
+        "resolution": {
+            "modules": [
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-cli-picocli",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-cli-picocli",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-cli-picocli/3.0.17/1989a1fc6218ac5335b9690d91ab8fc6811d692d/groovy-cli-picocli-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-cli-picocli",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-cli-picocli/3.0.17/a1290930331ce1dfa1cbb8d97c86413b3c9add46/groovy-cli-picocli-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-templates",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-templates",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-templates/3.0.17/6ccad0be8c02e03fed8135856bc1ceb533849aeb/groovy-templates-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-templates",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-templates/3.0.17/7b49fb0567936885e293455ca8ba37b911952d68/groovy-templates-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-jmx",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-jmx",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-jmx/3.0.17/f66471150910516765fd82c72e23c141330443d8/groovy-jmx-3.0.17.jar"
+                        },
+                        {
+                            "name": "groovy-jmx",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-jmx/3.0.17/1f487801a5888b5b818004352fe3ef51dade8be9/groovy-jmx-3.0.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-testng",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-testng",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-testng/3.0.17/d690770ad24413ec5c7f23f202efe6db5e691bac/groovy-testng-3.0.17.jar"
+                        },
+                        {
+                            "name": "groovy-testng",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-testng/3.0.17/1d07214040d4026d7926df5c836bbbd052a15bc1/groovy-testng-3.0.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-astbuilder",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-astbuilder",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-astbuilder/3.0.17/2e0e177e5d49345346567d1ba83bcea72696b3d0/groovy-astbuilder-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-astbuilder",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-astbuilder/3.0.17/705f7ec2f71b4e93cdc6d80a82b34d7334192cc0/groovy-astbuilder-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.github.javaparser",
+                    "name": "javaparser-core",
+                    "version": "3.25.1",
+                    "artifacts": [
+                        {
+                            "name": "javaparser-core",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.github.javaparser/javaparser-core/3.25.1/bf7970eee6514a2c5936549781e659381ee89680/javaparser-core-3.25.1-sources.jar"
+                        },
+                        {
+                            "name": "javaparser-core",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.github.javaparser/javaparser-core/3.25.1/277a540e2b8d0ed205a8e8d31a7759a769d979be/javaparser-core-3.25.1.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.junit.platform",
+                    "name": "junit-platform-commons",
+                    "version": "1.9.2",
+                    "artifacts": [
+                        {
+                            "name": "junit-platform-commons",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-commons/1.9.2/44bff8441bcb66b817b5a9d5c1a6717cdf26dbde/junit-platform-commons-1.9.2-sources.jar"
+                        },
+                        {
+                            "name": "junit-platform-commons",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-commons/1.9.2/6f9f8621d8230cd38aa42e58ccbc0c00569131ce/junit-platform-commons-1.9.2.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "junit",
+                    "name": "junit",
+                    "version": "4.13.2",
+                    "artifacts": [
+                        {
+                            "name": "junit",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/33987872a811fe4d4001ed494b07854822257f42/junit-4.13.2-sources.jar"
+                        },
+                        {
+                            "name": "junit",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.junit.platform",
+                    "name": "junit-platform-engine",
+                    "version": "1.9.2",
+                    "artifacts": [
+                        {
+                            "name": "junit-platform-engine",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-engine/1.9.2/40aeef2be7b04f96bb91e8b054affc28b7c7c935/junit-platform-engine-1.9.2.jar"
+                        },
+                        {
+                            "name": "junit-platform-engine",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-engine/1.9.2/819f0849cf19b1f46718c36a4fc8406c87bced45/junit-platform-engine-1.9.2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-docgenerator",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-docgenerator",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-docgenerator/3.0.17/177428c40d52a324ae387980db51487428c06985/groovy-docgenerator-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-docgenerator",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-docgenerator/3.0.17/5eec5e04a23a4a6db53e4f00d49f249cec35c58d/groovy-docgenerator-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-sql",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-sql",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-sql/3.0.17/7739b3975aae93e2719ed7c9be74af35cb9dae47/groovy-sql-3.0.17.jar"
+                        },
+                        {
+                            "name": "groovy-sql",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-sql/3.0.17/84a9eb52a0aa20c0d78e61cfda1c6a39f58ac7d7/groovy-sql-3.0.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.junit.platform",
+                    "name": "junit-platform-launcher",
+                    "version": "1.9.2",
+                    "artifacts": [
+                        {
+                            "name": "junit-platform-launcher",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-launcher/1.9.2/127cb253e495382cf9683a9acfaf7633bf27b2a7/junit-platform-launcher-1.9.2-sources.jar"
+                        },
+                        {
+                            "name": "junit-platform-launcher",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-launcher/1.9.2/38e0bfad8c57d4cd1a8f27926c25ffe9543068d6/junit-platform-launcher-1.9.2.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.webjars",
+                    "name": "jquery",
+                    "version": "3.5.1",
+                    "artifacts": [
+                        {
+                            "name": "jquery",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.webjars/jquery/3.5.1/67e674e2c5c16e92e66971c2bee2739f0b833723/jquery-3.5.1-sources.jar"
+                        },
+                        {
+                            "name": "jquery",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.webjars/jquery/3.5.1/2392938e374f561c27c53872bdc9b6b351b6ba34/jquery-3.5.1.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.thoughtworks.qdox",
+                    "name": "qdox",
+                    "version": "1.12.1",
+                    "artifacts": [
+                        {
+                            "name": "qdox",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.thoughtworks.qdox/qdox/1.12.1/f7122f6ab1f64bdf9f5970b0e89bfb355e036897/qdox-1.12.1.jar"
+                        },
+                        {
+                            "name": "qdox",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.thoughtworks.qdox/qdox/1.12.1/a284148a118e10bb84598dfb83f19d1ff128afad/qdox-1.12.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-jsr223",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-jsr223",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-jsr223/3.0.17/2fbe8dda63c04e4a656d6f61de36224c9ed6bd1a/groovy-jsr223-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-jsr223",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-jsr223/3.0.17/a296f5e8d846edbfe53a29000f26a978bac84a15/groovy-jsr223-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.commons",
+                    "name": "commons-lang3",
+                    "version": "3.8.1",
+                    "artifacts": [
+                        {
+                            "name": "commons-lang3",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.8.1/e9748d7783594da3735ad9724390a10e7cebc01d/commons-lang3-3.8.1-sources.jar"
+                        },
+                        {
+                            "name": "commons-lang3",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.commons/commons-lang3/3.8.1/6505a72a097d9270f7a9e7bf42c4238283247755/commons-lang3-3.8.1.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-test-junit5",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-test-junit5",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-test-junit5/3.0.17/d02db74c19f2051526c80e6bf30e93d84db5bcbb/groovy-test-junit5-3.0.17.jar"
+                        },
+                        {
+                            "name": "groovy-test-junit5",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-test-junit5/3.0.17/d3f7a7a28756300ba0de06d0faa9fa6484091e13/groovy-test-junit5-3.0.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-test",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-test",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-test/3.0.17/af79b15e8a9e6488aa744ba6812abaadf2bbb395/groovy-test-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-test",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-test/3.0.17/191975fcd48af66ae273c44f02def10e1fa252d3/groovy-test-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.hamcrest",
+                    "name": "hamcrest-core",
+                    "version": "1.3",
+                    "artifacts": [
+                        {
+                            "name": "hamcrest-core",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar"
+                        },
+                        {
+                            "name": "hamcrest-core",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/1dc37250fbc78e23a65a67fbbaf71d2e9cbc3c0b/hamcrest-core-1.3-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.slf4j",
+                    "name": "slf4j-api",
+                    "version": "1.7.32",
+                    "artifacts": [
+                        {
+                            "name": "slf4j-api",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.32/4381b152f738580aef4e436b2692a3db30609b26/slf4j-api-1.7.32-sources.jar"
+                        },
+                        {
+                            "name": "slf4j-api",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.32/cdcff33940d9f2de763bc41ea05a0be5941176c3/slf4j-api-1.7.32.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "info.picocli",
+                    "name": "picocli",
+                    "version": "4.6.3",
+                    "artifacts": [
+                        {
+                            "name": "picocli",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/info.picocli/picocli/4.6.3/18177f4c3d65cc94e6d4039775ec5aed8089f8d0/picocli-4.6.3.jar"
+                        },
+                        {
+                            "name": "picocli",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/info.picocli/picocli/4.6.3/c2cf5e857500c2e8429621856f7e86add62adda5/picocli-4.6.3-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-xml",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-xml",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-xml/3.0.17/a2d033d00d2bc62406c2be1c391dda1898348474/groovy-xml-3.0.17.jar"
+                        },
+                        {
+                            "name": "groovy-xml",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-xml/3.0.17/6bbae50790fc5aafe6e3f457499bca6c342099b1/groovy-xml-3.0.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy/3.0.17/23a103e379f90f9271209c97129d5568676b2cda/groovy-3.0.17.jar"
+                        },
+                        {
+                            "name": "groovy",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy/3.0.17/b8f3d505c9815935684f0bf141537403ea098b2a/groovy-3.0.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.ant",
+                    "name": "ant-antlr",
+                    "version": "1.10.12",
+                    "artifacts": [
+                        {
+                            "name": "ant-antlr",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant-antlr/1.10.12/92cae619d533640dce608d072a1df734d591cbb0/ant-antlr-1.10.12-sources.jar"
+                        },
+                        {
+                            "name": "ant-antlr",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant-antlr/1.10.12/74b17ef7229f3d7c0d55d42486889cc553ab04d6/ant-antlr-1.10.12.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-json",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-json",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-json/3.0.17/64d883be87a3f8440bc730e160d280addec10ae4/groovy-json-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-json",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-json/3.0.17/ba5599b4f39bb3251904341824f7fb629fc76f7f/groovy-json-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-ant",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-ant",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-ant/3.0.17/a85b5baf32a5f5b63ef151dd3345ebd47ed243a4/groovy-ant-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-ant",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-ant/3.0.17/4d9da686976ac4dd13a744815271143c259e3d45/groovy-ant-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "commons-io",
+                    "name": "commons-io",
+                    "version": "2.11.0",
+                    "artifacts": [
+                        {
+                            "name": "commons-io",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/commons-io/commons-io/2.11.0/2ef0187124bbfc7aed3038d4ffdd2241e8992937/commons-io-2.11.0-sources.jar"
+                        },
+                        {
+                            "name": "commons-io",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/commons-io/commons-io/2.11.0/a2503f302b11ebde7ebc3df41daebe0e4eea3689/commons-io-2.11.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-servlet",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-servlet",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-servlet/3.0.17/6429780fd46db9a299840fec53fcb48339770ebc/groovy-servlet-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-servlet",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-servlet/3.0.17/7e4e8992d0461d13bc632c169e2ad46a867f1dfc/groovy-servlet-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-macro",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-macro",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-macro/3.0.17/e1be69ddd201d083d86bd284464d367317bd99f/groovy-macro-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-macro",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-macro/3.0.17/9ad0f2a78f4a34c496e04b47128246496b21f270/groovy-macro-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.junit.jupiter",
+                    "name": "junit-jupiter-engine",
+                    "version": "5.9.2",
+                    "artifacts": [
+                        {
+                            "name": "junit-jupiter-engine",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.jupiter/junit-jupiter-engine/5.9.2/572f7a553b53f83ee59cc045ce1c3772864ab76c/junit-jupiter-engine-5.9.2.jar"
+                        },
+                        {
+                            "name": "junit-jupiter-engine",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.jupiter/junit-jupiter-engine/5.9.2/128d5b5b681442f6eeab0c8c17825983cc233d68/junit-jupiter-engine-5.9.2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-datetime",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-datetime",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-datetime/3.0.17/aaf56504aa7cd5ce86e83f7c22e77a030e87191a/groovy-datetime-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-datetime",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-datetime/3.0.17/8fd38f63f651fe611cf51cc8538e878e16af556b/groovy-datetime-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.opentest4j",
+                    "name": "opentest4j",
+                    "version": "1.2.0",
+                    "artifacts": [
+                        {
+                            "name": "opentest4j",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.opentest4j/opentest4j/1.2.0/41d55b3c2254de9837b4ec8923cbd371b8a7eab5/opentest4j-1.2.0-sources.jar"
+                        },
+                        {
+                            "name": "opentest4j",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.opentest4j/opentest4j/1.2.0/28c11eb91f9b6d8e200631d46e20a7f407f2a046/opentest4j-1.2.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.ant",
+                    "name": "ant-junit",
+                    "version": "1.10.12",
+                    "artifacts": [
+                        {
+                            "name": "ant-junit",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant-junit/1.10.12/1be188d9419a1f8148d1dc4f6a8308f746a66880/ant-junit-1.10.12-sources.jar"
+                        },
+                        {
+                            "name": "ant-junit",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant-junit/1.10.12/81bde3486c2ed79cb6f699c2a5a77b0340d1f2e8/ant-junit-1.10.12.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.junit.jupiter",
+                    "name": "junit-jupiter-api",
+                    "version": "5.9.2",
+                    "artifacts": [
+                        {
+                            "name": "junit-jupiter-api",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.jupiter/junit-jupiter-api/5.9.2/fed843581520eac594bc36bb4b0f55e7b947dda9/junit-jupiter-api-5.9.2.jar"
+                        },
+                        {
+                            "name": "junit-jupiter-api",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.junit.jupiter/junit-jupiter-api/5.9.2/5232572dbe6548235580494edb226fed76109643/junit-jupiter-api-5.9.2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.ant",
+                    "name": "ant",
+                    "version": "1.10.12",
+                    "artifacts": [
+                        {
+                            "name": "ant",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant/1.10.12/be08c4f63e92e03bac761404cf77bc270928b6c5/ant-1.10.12.jar"
+                        },
+                        {
+                            "name": "ant",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant/1.10.12/3efd45223b70acda49fad3c0983ad2a1468f7628/ant-1.10.12-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.ant",
+                    "name": "ant-launcher",
+                    "version": "1.10.12",
+                    "artifacts": [
+                        {
+                            "name": "ant-launcher",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant-launcher/1.10.12/e090b4f9d3ecf45491cc16e759f1e843a1a224c0/ant-launcher-1.10.12.jar"
+                        },
+                        {
+                            "name": "ant-launcher",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.apache.ant/ant-launcher/1.10.12/d8d34c474280b9dddaa47366c0c891122b2c6861/ant-launcher-1.10.12-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.beust",
+                    "name": "jcommander",
+                    "version": "1.78",
+                    "artifacts": [
+                        {
+                            "name": "jcommander",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.beust/jcommander/1.78/a3927de9bd6f351429bcf763712c9890629d8f51/jcommander-1.78.jar"
+                        },
+                        {
+                            "name": "jcommander",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/com.beust/jcommander/1.78/3b3dc3730f4d623904afc62a463ae18710a889d3/jcommander-1.78-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-console",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-console",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-console/3.0.17/3c3494bc224e8a3f2a0086f8123071430e1dc881/groovy-console-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-console",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-console/3.0.17/12327efd413b6f30e185731a4316544d2c095feb/groovy-console-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-groovysh",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-groovysh",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-groovysh/3.0.17/e6dacb27793ee9f2c68db0b25b7d0ba910dcd690/groovy-groovysh-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-groovysh",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-groovysh/3.0.17/aa9edefcbd85f7f0d1316b552ebdabf2594a6166/groovy-groovysh-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-nio",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-nio",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-nio/3.0.17/52b06a7c0a391852bd40a48ebd7b68298abeacb2/groovy-nio-3.0.17.jar"
+                        },
+                        {
+                            "name": "groovy-nio",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-nio/3.0.17/22c264a02465acca0e83cde6a260c08435b02aef/groovy-nio-3.0.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-swing",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-swing",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-swing/3.0.17/7844340ffadbfda4428c95f0e3144bba82c27f94/groovy-swing-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-swing",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-swing/3.0.17/8937a42f3b4186def8d5bdbc62b8cc4ce503ad2b/groovy-swing-3.0.17.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.testng",
+                    "name": "testng",
+                    "version": "7.5",
+                    "artifacts": [
+                        {
+                            "name": "testng",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.testng/testng/7.5/1416a607fae667c14e390b484e8d02b5824c0674/testng-7.5.jar"
+                        },
+                        {
+                            "name": "testng",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.testng/testng/7.5/1884aca4c105c5fa982f8512c2c22a873246a8de/testng-7.5-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "jline",
+                    "name": "jline",
+                    "version": "2.14.6",
+                    "artifacts": [
+                        {
+                            "name": "jline",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/jline/jline/2.14.6/e93dc55cf5b6f201e850ed339fa52e50d51105d5/jline-2.14.6-sources.jar"
+                        },
+                        {
+                            "name": "jline",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/jline/jline/2.14.6/c3aeac59c022bdc497c8c48ed86fa50450e4896a/jline-2.14.6.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.codehaus.groovy",
+                    "name": "groovy-groovydoc",
+                    "version": "3.0.17",
+                    "artifacts": [
+                        {
+                            "name": "groovy-groovydoc",
+                            "classifier": "sources",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-groovydoc/3.0.17/c459a5f4416844de1515e42646ea1407ca02ab49/groovy-groovydoc-3.0.17-sources.jar"
+                        },
+                        {
+                            "name": "groovy-groovydoc",
+                            "path": "/home/c24guima/.gradle/caches/modules-2/files-2.1/org.codehaus.groovy/groovy-groovydoc/3.0.17/24fd3673a58b46dbce0cddd715927271740125/groovy-groovydoc-3.0.17.jar"
+                        }
+                    ]
+                }
+            ]
+        },
+        "tags": [
+            "library"
+        ]
+    }
+}
