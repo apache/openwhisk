@@ -35,7 +35,7 @@ import org.apache.openwhisk.core.entitlement.Privilege
 import org.apache.openwhisk.core.entitlement.Privilege.READ
 import org.apache.openwhisk.core.entitlement.Resource
 import org.apache.openwhisk.core.entity._
-import org.apache.openwhisk.core.entity.ActivationEntityLimit
+// import org.apache.openwhisk.core.entity.ActivationEntityLimit
 import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.http.ErrorResponse.terminate
 import org.apache.openwhisk.http.Messages
@@ -53,6 +53,8 @@ protected[controller] trait ValidateRequestSize extends Directives {
 
   /** Checks if request entity is within allowed length range. */
   protected def isWhithinRange(length: Long) = {
+    // print allowedActivationEntitySize in bytes for debugging
+    println("Allowed activation entity size (bytes): " + allowedActivationEntitySize)
     if (length <= allowedActivationEntitySize) {
       None
     } else
@@ -61,7 +63,8 @@ protected[controller] trait ValidateRequestSize extends Directives {
       }
   }
 
-  protected val allowedActivationEntitySize: Long = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
+  // protected val allowedActivationEntitySize: Long = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes 
+  protected val allowedActivationEntitySize: Long = 157286400 // 150 MB in bytes
   protected val fieldDescriptionForSizeError = "Request"
 }
 

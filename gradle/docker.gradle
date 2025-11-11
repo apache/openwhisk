@@ -54,8 +54,15 @@ if(project.hasProperty('dockerHost')) {
     dockerBinary += ['--host', project.dockerHost]
 }
 
-if(project.hasProperty('dockerBuildArgs')) {
-    dockerBuildArgs.each { arg  ->
+// if(project.hasProperty('dockerBuildArgs')) {
+//     dockerBuildArgs.each { arg  ->
+//         dockerBuildArg += ['--build-arg', arg]
+//     }
+// }
+
+def dockerBuildArg = []
+if (project.hasProperty('dockerBuildArgs')) {
+    dockerBuildArgs.each { arg ->
         dockerBuildArg += ['--build-arg', arg]
     }
 }
@@ -74,7 +81,8 @@ task distDocker {
             dockerFile = dockerFileDir + "/Dockerfile"
         }
 
-        def cmd = dockerBinary + dockerBuildArg + ['-f', dockerFile] + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+        // def cmd = dockerBinary + dockerBuildArg + ['-f', dockerFile] + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+        def cmd = dockerBinary + 'build' + ['-f', dockerFile] + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
         retry(cmd, dockerRetries, dockerTimeout)
         println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
     }

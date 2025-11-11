@@ -216,7 +216,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
 
   /** Name of parameter that indicates if action is a feed. */
   protected[core] val Feed = "feed"
-  protected[core] val sizeLimit = 1 MB
+  protected[core] val sizeLimit = 150 MB
 
   protected[core] def apply(): Parameters = new Parameters(Map.empty)
 

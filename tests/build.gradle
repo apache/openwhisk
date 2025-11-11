@@ -259,11 +259,12 @@ createKeystore.mustRunAfter(testClasses)
 buildArtifacts.mustRunAfter(testClasses)
 
 gradle.projectsEvaluated {
+    ext.projectsWithCoverage = []
     task testCoverageLean(type: Test) {
         doFirst {
             logTestSetInfo()
         }
-        classpath = getScoverageClasspath(project, projectsWithCoverage)
+        // classpath = getScoverageClasspath(project, projectsWithCoverage)
         exclude getPattern(testSetName, "excludes")
         include getPattern(testSetName, "includes")
     }

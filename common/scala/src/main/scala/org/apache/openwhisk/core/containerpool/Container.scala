@@ -215,9 +215,28 @@ trait Container {
     }
     http
       .post(path, body, retry, reschedule)
-      .map { response =>
+      // .map { response =>
+      //   val finished = Instant.now()
+      //   // println("time taken at nanosecond:" + Interval(started, finished).duration.toNanos)
+      //   println("Path:"+ path + ", time taken at nanosecond: " + response)
+      //   RunResult(Interval(started, finished), response)
+      // }
+      .map { response =>        
         val finished = Instant.now()
-        RunResult(Interval(started, finished), response)
+        val result = RunResult(Interval(started, finished), response)
+        
+        // Afficher selon le type de response
+        result.response match {
+          case Right(containerResponse) =>
+            println(s"  Entity: ${containerResponse.entity}")
+            println(s"  Duration: ${result.interval.duration.toMillis}ms")
+
+          case Left(error) =>
+            println(s"✗ Error: $error")
+            println(s"  Duration: ${result.interval.duration.toMillis}ms")
+        }
+        
+        result
       }
   }
   private def openConnections(timeout: FiniteDuration, maxConcurrent: Int) = {
@@ -280,5 +299,13 @@ object Interval {
   def zero = {
     val now = Instant.now
     Interval(now, now)
+  }
+
+  // Méthode qui accepte une durée en nanosecondes et crée un Interval avec des instants fictifs
+  def fromDuration(durationNs: Long): Interval = {
+    // Calcul de start et end en fonction de la durée
+    val start = Instant.now() // Prendre l'instant actuel comme "start"
+    val end = start.plusNanos(durationNs) // Ajouter la durée en nanosecondes à l'instant start
+    Interval(start, end)
   }
 }
