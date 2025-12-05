@@ -32,6 +32,7 @@ whisk_api_localhost_name: "openwhisk"
 
 # Hardcoded for docker-machine since db init runs on host not inside VM
 db_prefix: whisk_dockermachine_
+db_confdir: "{{ config_root_dir }}/couchdb"
 
 # API GW connection configuration
 apigw_auth_user: ""
