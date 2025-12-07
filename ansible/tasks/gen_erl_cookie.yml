@@ -19,7 +19,7 @@
 # generate erlang cookie for CouchDB
 
 - name: "generate erlang cookie"
-  local_action: command openssl rand -base64 32op
+  local_action: command openssl rand -base64 32
   register: random_stdout
   run_once: true
   when: erlang_cookie is not defined
