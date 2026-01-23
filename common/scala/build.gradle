@@ -206,4 +206,10 @@ configurations {
         exclude group: 'commons-logging'
         exclude group: 'log4j'
     }
+    all {
+        resolutionStrategy.dependencySubstitution {
+            // CVE-2025-12183, CVE-2025-66566: org.lz4:lz4-java relocated to at.yawk.lz4 transitive dependency of kafka-clients
+            substitute module('org.lz4:lz4-java') using module('at.yawk.lz4:lz4-java:1.10.3')
+        }
+    }
 }
