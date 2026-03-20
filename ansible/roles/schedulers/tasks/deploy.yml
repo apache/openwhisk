@@ -94,10 +94,7 @@
     jmx_remote_rmi_port:
       "{{ jmx.rmiBasePortScheduler + (scheduler_index|int) }}"
   set_fact:
-    ports_to_expose: >-
-      {{ ports_to_expose }} +
-      [ '{{ jmx_remote_port }}:{{ jmx_remote_port }}' ] +
-      [ '{{ jmx_remote_rmi_port }}:{{ jmx_remote_rmi_port }}' ]
+    ports_to_expose: "{{ ports_to_expose + [ (jmx_remote_port | string) ~ ':' ~ (jmx_remote_port | string), (jmx_remote_rmi_port | string) ~ ':' ~ (jmx_remote_rmi_port | string) ] }}"
     scheduler_args: >-
       {{ scheduler.arguments }}
       {{ jmx.jvmCommonArgs }}
@@ -329,6 +326,10 @@
   delay: 5
   when: zeroDowntimeDeployment.enabled == true
   ignore_errors: "{{ scheduler.deployment_ignore_error }}"
+
+- name: normalize scheduler env values as strings
+  set_fact:
+    env: "{{ dict(env | dict2items | map(attribute='key') | zip(env | dict2items | map(attribute='value') | map('string'))) }}"
 
 - name: (re)start scheduler
   docker_container:

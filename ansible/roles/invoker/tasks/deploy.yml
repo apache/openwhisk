@@ -201,7 +201,7 @@
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
   set_fact:
-    invoker_ports_to_expose: "{{ invoker_ports_to_expose }} + [ \"{{ jmx.basePortInvoker + (invoker_index | int) }}:{{ jmx.basePortInvoker + (invoker_index | int) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}:{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}\" ]"
+    invoker_ports_to_expose: "{{ invoker_ports_to_expose + [ ((jmx.basePortInvoker + (invoker_index | int)) | string) ~ ':' ~ ((jmx.basePortInvoker + (invoker_index | int)) | string), ((jmx.rmiBasePortInvoker + (invoker_index | int)) | string) ~ ':' ~ ((jmx.rmiBasePortInvoker + (invoker_index | int)) | string) ] }}"
 
 
 - name: Load config from template
@@ -428,6 +428,10 @@
   set_fact:
     volumes: "{{ volumes|default('') }},{{ invoker.docker.volumes | join(',') }}"
   when: invoker.docker.volumes|length > 0
+
+- name: normalize invoker env values as strings
+  set_fact:
+    env: "{{ dict(env | dict2items | map(attribute='key') | zip(env | dict2items | map(attribute='value') | map('string'))) }}"
 
 - name: start invoker
   docker_container:

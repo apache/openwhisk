@@ -22,10 +22,7 @@
 
 - name: add pekko port to ports_to_expose
   set_fact:
-    ports_to_expose: >-
-      {{ ports_to_expose }} +
-      [ "{{ (controller.pekko.cluster.basePort + (controller_index | int)) }}:"
-      + "{{ controller.pekko.cluster.bindPort }}" ]
+    ports_to_expose: "{{ ports_to_expose + [ ((controller.pekko.cluster.basePort + (controller_index | int)) | string) ~ ':' ~ (controller.pekko.cluster.bindPort | string) ] }}"
 
 - name: add seed nodes to controller environment
   set_fact:

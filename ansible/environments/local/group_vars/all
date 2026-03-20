@@ -44,8 +44,14 @@ kafka_topics_invoker_retentionBytes: 104857600
 kafka_topics_invoker_retentionMS: 300000
 
 env_hosts_dir: "{{ playbook_dir }}/environments/local"
+ansible_python_interpreter: "/opt/miniconda3/bin/python"
 
 container_pool_pekko_client: true
+scheduler_enable: false
+controller_loadbalancer_spi: org.apache.openwhisk.core.loadBalancer.ShardingContainerPoolBalancer
+controller_entitlement_spi: org.apache.openwhisk.core.entitlement.LocalEntitlementProvider
+invokerReactive_spi: org.apache.openwhisk.core.invoker.InvokerReactive
+invokerServer_spi: org.apache.openwhisk.core.invoker.DefaultInvokerServer
 runtimes_enable_concurrency: true
 limit_action_concurrency_max: 500
 namespace_default_limit_action_concurrency_max: 500
