@@ -39,12 +39,15 @@ import org.apache.openwhisk.http._
  * For Swift actions, the source code to execute the action is required.
  * For Java actions, a base64-encoded string representing a jar file is
  * required, as well as the name of the entrypoint class.
+ * For WASM actions, the WASM binary to execute the action and the name of the entrypoint function are required.
  * An example exec looks like this:
  * { kind  : one of supported language runtimes,
  *   code  : code to execute if kind is supported,
  *   image : container name when kind is "blackbox",
  *   binary: for some runtimes that allow binary attachments,
- *   main  : name of the entry point function, when using a non-default value (for Java, the name of the main class)" }
+ *   main  : name of the entry point function, when using a non-default value
+ *            (For Java, the name of the main class, for WASM, the 'main' function)
+ * }
  */
 sealed abstract class Exec extends ByteSizeable {
   override def toString: String = Exec.serdes.write(this).compactPrint
@@ -127,7 +130,9 @@ protected[core] case class CodeExecAsString(manifest: RuntimeManifest,
                                             override val entryPoint: Option[String])
     extends CodeExec[String] {
   override val kind = manifest.kind
-  override val image = manifest.image
+  override val image = manifest.image.getOrElse {
+    throw new IllegalArgumentException(s"Missing image for runtime kind '${manifest.kind}'")
+  }
   override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
@@ -140,7 +145,9 @@ protected[core] case class CodeExecMetaDataAsString(manifest: RuntimeManifest,
                                                     override val entryPoint: Option[String])
     extends ExecMetaData {
   override val kind = manifest.kind
-  override val image = manifest.image
+  override val image = manifest.image.getOrElse {
+    throw new IllegalArgumentException(s"Missing image for runtime kind '${manifest.kind}'")
+  }
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
 }
@@ -152,7 +159,9 @@ protected[core] case class CodeExecAsAttachment(manifest: RuntimeManifest,
     extends CodeExec[Attachment[String]]
     with AttachedCode {
   override val kind = manifest.kind
-  override val image = manifest.image
+  override val image = manifest.image.getOrElse {
+    throw new IllegalArgumentException(s"Missing image for runtime kind '${manifest.kind}'")
+  }
   override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
@@ -173,7 +182,9 @@ protected[core] case class CodeExecMetaDataAsAttachment(manifest: RuntimeManifes
                                                         override val entryPoint: Option[String])
     extends ExecMetaData {
   override val kind = manifest.kind
-  override val image = manifest.image
+  override val image = manifest.image.getOrElse {
+    throw new IllegalArgumentException(s"Missing image for runtime kind '${manifest.kind}'")
+  }
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
 }

@@ -228,6 +228,18 @@
                     "attachmentType": "text/plain"
                 }
             }
+        ],
+        "wasm": [
+            {
+                "kind": "wasm:wasmtime",
+                "default": true,
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
+                "requireMain": true
+            }
         ]
     },
     "blackboxes": [

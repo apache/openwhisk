@@ -25,6 +25,6 @@ import org.apache.openwhisk.core.entity.ExecManifest
 object ExecManifestSupport {
   def getDefaultImage(familyName: String): Option[String] = {
     val runtimes = ExecManifest.runtimesManifest
-    runtimes.resolveDefaultRuntime(s"$familyName:default").map(_.image.resolveImageName())
+    runtimes.resolveDefaultRuntime(s"$familyName:default").flatMap(_.image.map(_.resolveImageName()))
   }
 }
