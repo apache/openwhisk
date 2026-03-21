@@ -25,3 +25,10 @@ wsk -i action invoke hello -r
 
 ### CouchDB
 You can navigate CouchDB using cURL commands, the web UI at (`http://127.0.0.1:5984/_utils`), or the CouchDB python client.
+
+### Using with WASM
+
+```
+# Create fib action
+wsk -i action create fib_wasm wasm_programs/fib.wasm --kind wasm:wasmtime --main fib
+```

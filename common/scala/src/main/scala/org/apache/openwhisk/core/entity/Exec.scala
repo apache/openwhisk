@@ -79,7 +79,7 @@ sealed abstract class CodeExec[+T](implicit ev: T => SizeConversion) extends Exe
   def codeAsJson: JsValue
 
   /** The runtime image (either built-in or a public image). */
-  val image: ImageName
+  val image: Option[ImageName]
 
   /** Indicates if the action execution generates log markers to stdout/stderr once action activation completes. */
   val sentinelledLogs: Boolean
@@ -95,6 +95,14 @@ sealed abstract class CodeExec[+T](implicit ev: T => SizeConversion) extends Exe
    */
   val binary: Boolean
 
+  /**
+   * Image required for Docker/container runtime execution.
+   * Native runtimes (e.g. WASM without a runtime image) may omit [[image]]; use this only on paths that run in a container.
+   */
+  def requireContainerImage: ImageName =
+    image.getOrElse(
+      throw new IllegalStateException(s"kind '$kind' has no container image; cannot run in a container runtime"))
+
   override def size = code.sizeInBytes + entryPoint.map(_.sizeInBytes).getOrElse(0.B)
 }
 
@@ -104,7 +112,7 @@ sealed abstract class ExecMetaData extends ExecMetaDataBase {
   val entryPoint: Option[String]
 
   /** The runtime image (either built-in or a public image). */
-  val image: ImageName
+  val image: Option[ImageName]
 
   /** Indicates if a container image is required from the registry to execute the action. */
   val pull: Boolean
@@ -130,9 +138,7 @@ protected[core] case class CodeExecAsString(manifest: RuntimeManifest,
                                             override val entryPoint: Option[String])
     extends CodeExec[String] {
   override val kind = manifest.kind
-  override val image = manifest.image.getOrElse {
-    throw new IllegalArgumentException(s"Missing image for runtime kind '${manifest.kind}'")
-  }
+  override val image = manifest.image
   override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
@@ -145,9 +151,7 @@ protected[core] case class CodeExecMetaDataAsString(manifest: RuntimeManifest,
                                                     override val entryPoint: Option[String])
     extends ExecMetaData {
   override val kind = manifest.kind
-  override val image = manifest.image.getOrElse {
-    throw new IllegalArgumentException(s"Missing image for runtime kind '${manifest.kind}'")
-  }
+  override val image = manifest.image
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
 }
@@ -159,9 +163,7 @@ protected[core] case class CodeExecAsAttachment(manifest: RuntimeManifest,
     extends CodeExec[Attachment[String]]
     with AttachedCode {
   override val kind = manifest.kind
-  override val image = manifest.image.getOrElse {
-    throw new IllegalArgumentException(s"Missing image for runtime kind '${manifest.kind}'")
-  }
+  override val image = manifest.image
   override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
@@ -182,9 +184,7 @@ protected[core] case class CodeExecMetaDataAsAttachment(manifest: RuntimeManifes
                                                         override val entryPoint: Option[String])
     extends ExecMetaData {
   override val kind = manifest.kind
-  override val image = manifest.image.getOrElse {
-    throw new IllegalArgumentException(s"Missing image for runtime kind '${manifest.kind}'")
-  }
+  override val image = manifest.image
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
 }
@@ -193,7 +193,7 @@ protected[core] case class CodeExecMetaDataAsAttachment(manifest: RuntimeManifes
  * @param image the image name
  * @param code an optional script or zip archive (as base64 encoded) string
  */
-protected[core] case class BlackBoxExec(override val image: ImageName,
+protected[core] case class BlackBoxExec(bbImage: ImageName,
                                         override val code: Option[Attachment[String]],
                                         override val entryPoint: Option[String],
                                         val native: Boolean,
@@ -201,11 +201,12 @@ protected[core] case class BlackBoxExec(override val image: ImageName,
     extends CodeExec[Option[Attachment[String]]]
     with AttachedCode {
   override val kind = Exec.BLACKBOX
+  override val image: Option[ImageName] = Some(bbImage)
   override val deprecated = false
   override def codeAsJson = code.toJson
   override val sentinelledLogs = native
   override val pull = !native
-  override def size = super.size + image.resolveImageName().sizeInBytes
+  override def size = super.size + bbImage.resolveImageName().sizeInBytes
 
   override def inline(bytes: Array[Byte]): BlackBoxExec = {
     val encoded = new String(bytes, StandardCharsets.UTF_8)
@@ -217,11 +218,12 @@ protected[core] case class BlackBoxExec(override val image: ImageName,
   }
 }
 
-protected[core] case class BlackBoxExecMetaData(override val image: ImageName,
+protected[core] case class BlackBoxExecMetaData(bbImage: ImageName,
                                                 override val entryPoint: Option[String],
                                                 val native: Boolean,
                                                 override val binary: Boolean = false)
     extends ExecMetaData {
+  override val image: Option[ImageName] = Some(bbImage)
   override val kind = ExecMetaDataBase.BLACKBOX
   override val deprecated = false
   override val pull = !native
@@ -282,7 +284,7 @@ object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
         val base =
           Map(
             "kind" -> JsString(b.kind),
-            "image" -> JsString(b.image.resolveImageName()),
+            "image" -> JsString(b.bbImage.resolveImageName()),
             "binary" -> JsBoolean(b.binary))
         val code = b.code.map("code" -> attFmt[String].write(_))
         val main = b.entryPoint.map("main" -> JsString(_))
@@ -416,7 +418,7 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
         val base =
           Map(
             "kind" -> JsString(b.kind),
-            "image" -> JsString(b.image.resolveImageName()),
+            "image" -> JsString(b.bbImage.resolveImageName()),
             "binary" -> JsBoolean(b.binary))
         val main = b.entryPoint.map("main" -> JsString(_))
         JsObject(base ++ main)
