@@ -209,18 +209,38 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+    // overwrite param defaults to false
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskActionPut]) { content =>
+        // Resolves something with SequenceExec types
         val request = content.resolve(user.namespace)
+        // This is done async
         val check = for {
+          // Check that action limits are within user namespace limit
           checkLimits <- checkActionLimits(user, content)
+          // Checks addl privileges for sequence execs, always returns true for non-sequence execs
           checkAdditionalPrivileges <- entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap(_ =>
             entitlementProvider.check(user, content.exec))
+        // Yields if checks are successful
         } yield (checkAdditionalPrivileges, checkLimits)
 
         onComplete(check) {
           case Success(_) =>
-            putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request), () => {
+            putEntity(
+            // Factory for the putEntity function to use, this makes putEntity generic
+            // Kinda like dep. injection
+            WhiskAction, 
+            // EntityStore is the datastore and is a member of this trait
+            entityStore, 
+            // DocID is the primary key in the datastore
+            entityName.toDocId, 
+            overwrite, 
+            // update accepts params in two steps, first the user and request, then the original action that already exists
+            // This creates a function which can accept an original action and update it based on request
+            // this is called currying, very cool
+            update(user, request), 
+            () => {
+              // Makes a WhiskAction from the WhiskActionPut by adding entity name and namespace info
               make(user, entityName, request)
             })
           case Failure(f) =>
