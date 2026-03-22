@@ -114,30 +114,50 @@ class InvokerWASM(
     activationStore.storeAfterCheck(activation, isBlocking, None, None, context)(tid, notifier = None, logging)
   }
 
-  private def resolveWasmModulePath(executable: ExecutableWhiskAction): Option[String] =
-    executable.annotations.get(wasmModulePathAnnotation).collect { case JsString(path) => path }
+  private def resolveWasmModulePath(executable: ExecutableWhiskAction): Option[String] = {
+    executable.annotations.get(wasmModulePathAnnotation).collect { case JsString(path) => path } orElse
+      extractInlineWasmToTempFile(executable)
+  }
+
+  private def extractInlineWasmToTempFile(executable: ExecutableWhiskAction): Option[String] = {
+    executable.exec match {
+      case CodeExecAsAttachment(_, Attachments.Inline(code), _, binary) if binary =>
+        Try {
+          val bytes = java.util.Base64.getDecoder.decode(code)
+          val tmp = java.io.File.createTempFile("wasm-health-", ".wasm")
+          tmp.deleteOnExit()
+          val fos = new java.io.FileOutputStream(tmp)
+          try fos.write(bytes)
+          finally fos.close()
+          logging.info(this, s"extracted inline WASM attachment to ${tmp.getAbsolutePath} for ${executable.fullyQualifiedName(false)}")
+          tmp.getAbsolutePath
+        }.toOption
+      case _ => None
+    }
+  }
 
   private def executeWithWasmtime(msg: ActivationMessage,
                                   executable: ExecutableWhiskAction): Future[(ActivationResponse, Instant, Instant)] = {
-    val inputJson = msg.content.getOrElse(JsObject.empty).compactPrint
+    logging.info(this, s"executable parameters: ${executable.parameters}")
+    val inputJson = executable.parameters.toJsObject.compactPrint
     val modulePathOpt = resolveWasmModulePath(executable)
 
     modulePathOpt match {
       case None =>
         val response = ActivationResponse.whiskError(
-          s"missing '$wasmModulePathAnnotation' annotation for action ${executable.fullyQualifiedName(false)}")
+          s"no WASM module: missing '$wasmModulePathAnnotation' annotation and no inline attachment for action ${executable.fullyQualifiedName(false)}")
         val now = Instant.now
         Future.successful((response, now, now))
       case Some(modulePath) =>
         Future {
           val started = Instant.now
-          val entryPoint = executable.exec.entryPoint.getOrElse("main")
-          val command = Seq(wasmtimeBinary, modulePath, "--invoke", entryPoint)
+          val command = Seq(wasmtimeBinary, modulePath)
           val processBuilder = new ProcessBuilder(command: _*)
           processBuilder.redirectErrorStream(true)
           val process = processBuilder.start()
 
           val writer = new java.io.OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
+          logging.info(this, s"writing input JSON to WASM module: $inputJson")
           try {
             writer.write(inputJson)
             writer.flush()
@@ -258,7 +278,8 @@ class InvokerWASM(
               ActivationResponse.applicationError(e.getMessage) // return generated failed message
             case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
               ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
-            case _ =>
+            case e =>
+              logging.error(this, s"unexpected error during activation ${msg.activationId}: ${e.getClass.getName}: ${e.getMessage}")
               ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
           }
           activationFeed ! MessageFeed.Processed

@@ -52,6 +52,7 @@ controller_loadbalancer_spi: org.apache.openwhisk.core.loadBalancer.ShardingCont
 controller_entitlement_spi: org.apache.openwhisk.core.entitlement.LocalEntitlementProvider
 invokerReactive_spi: org.apache.openwhisk.core.invoker.InvokerWASM
 invokerServer_spi: org.apache.openwhisk.core.invoker.DefaultInvokerServer
+invoker_health_test_action_name: "invokerHealthTestActionWASM"
 runtimes_enable_concurrency: true
 limit_action_concurrency_max: 500
 namespace_default_limit_action_concurrency_max: 500

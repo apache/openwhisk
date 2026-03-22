@@ -269,6 +269,8 @@
         "{{ controller.timeoutFactor }}"
       "CONFIG_whisk_loadbalancer_timeoutAddon":
         "{{ controller.timeoutAddon }}"
+      "CONFIG_whisk_loadbalancer_invokerHealthTestAction_name":
+        "{{ invoker_health_test_action_name | default('invokerHealthTestAction') }}"
 
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"

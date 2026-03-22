@@ -304,16 +304,21 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                        actionWithMergedParams: WhiskActionMetaData,
                        payload: Option[JsObject],
                        blocking: Boolean,
+                       // Max time to wait when blocking (query param)
                        waitOverride: FiniteDuration,
                        result: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
     val waitForResponse = if (blocking) Some(waitOverride) else None
     // Invokes action and returns response
+    // Match pattern once invokeAction future resolves
     onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
+      // If it only returned an activationId, it is non-blocking
       case Success(Left(activationId)) =>
-        // non-blocking invoke or blocking invoke which got queued instead
+        // non-blocking invoke or blocking invoke which got queued instead, responds 202
+        // Adds activationId to header so users can poll later
         respondWithActivationIdHeader(activationId) {
           complete(Accepted, activationId.toJsObject)
         }
+      // Blocking path
       case Success(Right(activation)) =>
         val response = activation.response.result match {
           case Some(JsArray(elements)) =>

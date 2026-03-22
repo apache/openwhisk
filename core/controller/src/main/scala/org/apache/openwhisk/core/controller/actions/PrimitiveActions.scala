@@ -113,9 +113,11 @@ protected[actions] trait PrimitiveActions {
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
+    // This is for conductor actions, we don't care about those for now
     if (action.annotations.isTruthy(WhiskActivation.conductorAnnotation)) {
       invokeComposition(user, action, payload, waitForResponse, cause)
     } else {
+      // This is what we care about for WASM
       invokeSimpleAction(user, action, payload, waitForResponse, cause)
     }
   }
@@ -162,8 +164,11 @@ protected[actions] trait PrimitiveActions {
       case Some(JsArray(elements)) => Some(JsArray(elements))
       case _                       => Some(action.parameters.toJsObject)
     }
+    // Activation id for querying/storage later
     val activationId = activationIdFactory.make()
 
+    // Logging utility which gives you a start marker which you can later use to calculate the time since that start marker
+    // Neat idea
     val startActivation = transid.started(
       this,
       waitForResponse
@@ -183,6 +188,7 @@ protected[actions] trait PrimitiveActions {
       action.rev,
       user,
       activationId, // activation id created here
+      // Class member
       activeAckTopicIndex,
       waitForResponse.isDefined,
       args,
@@ -191,6 +197,8 @@ protected[actions] trait PrimitiveActions {
       cause = cause,
       WhiskTracerProvider.tracer.getTraceContext(transid))
 
+    // We use the ShardingContainerPoolBalancer for now
+    // TODO: Write our own pool balancer with custom scheduling for WASM
     val postedFuture = loadBalancer.publish(action, message)
 
     postedFuture andThen {

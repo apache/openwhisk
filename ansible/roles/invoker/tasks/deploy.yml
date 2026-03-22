@@ -269,6 +269,8 @@
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
       "CONFIG_whisk_spi_InvokerProvider": "{{ invoker.reactiveSpi }}"
+      "CONFIG_whisk_loadbalancer_invokerHealthTestAction_name":
+        "{{ invoker_health_test_action_name | default('invokerHealthTestAction') }}"
       "CONFIG_whisk_spi_InvokerServerProvider": "{{ invoker.serverSpi }}"
       "CONFIG_logback_log_level": "{{ invoker.loglevel }}"
       "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"

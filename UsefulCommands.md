@@ -32,3 +32,13 @@ You can navigate CouchDB using cURL commands, the web UI at (`http://127.0.0.1:5
 # Create fib action
 wsk -i action create fib_wasm wasm_programs/fib.wasm --kind wasm:wasmtime --main fib
 ```
+
+### Developing
+
+```
+# Rebuilding a particular container
+./gradlew :core:invoker:distDocker
+
+# Re-deploying a particular component
+ansible-playbook -i environments/$ENVIRONMENT invoker.yml
+```
