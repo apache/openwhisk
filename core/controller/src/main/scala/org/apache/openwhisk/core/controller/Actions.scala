@@ -269,16 +269,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       'timeout.as[FiniteDuration] ? controllerActivationConfig.maxWaitForBlockingActivation) {
       (blocking, result, waitOverride) =>
         entity(as[Option[JsObject]]) { payload =>
+          // This resolves an action name if its inside a package + grabs the WhiskActionMetaData object from the DB
           getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
             act: WhiskActionMetaData =>
               // resolve the action --- special case for sequences that may contain components with '_' as default package
               val action = act.resolve(user.namespace)
+              // Checks permissions
               onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
                 case Success(_) =>
                   val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
 
                   // incoming parameters may not override final parameters (i.e., parameters with already defined values)
                   // on an action once its parameters are resolved across package and binding
+                  // Makes sure that incoming params don't collide with actions immutable default params
                   val allowInvoke = payload
                     .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
                     .getOrElse(true)
@@ -304,6 +307,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                        waitOverride: FiniteDuration,
                        result: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
     val waitForResponse = if (blocking) Some(waitOverride) else None
+    // Invokes action and returns response
     onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
       case Success(Left(activationId)) =>
         // non-blocking invoke or blocking invoke which got queued instead

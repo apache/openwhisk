@@ -50,7 +50,7 @@ container_pool_pekko_client: true
 scheduler_enable: false
 controller_loadbalancer_spi: org.apache.openwhisk.core.loadBalancer.ShardingContainerPoolBalancer
 controller_entitlement_spi: org.apache.openwhisk.core.entitlement.LocalEntitlementProvider
-invokerReactive_spi: org.apache.openwhisk.core.invoker.InvokerReactive
+invokerReactive_spi: org.apache.openwhisk.core.invoker.InvokerWASM
 invokerServer_spi: org.apache.openwhisk.core.invoker.DefaultInvokerServer
 runtimes_enable_concurrency: true
 limit_action_concurrency_max: 500
