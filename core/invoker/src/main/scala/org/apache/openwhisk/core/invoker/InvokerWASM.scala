@@ -67,7 +67,6 @@ class InvokerWASM(
   implicit val cfg: WhiskConfig = config
 
   private val wasmtimeBinary = "wasmtime"
-  private val wasmModulePathAnnotation = "wasmModulePath"
   private val wasmtimeInvokeTimeout = 60.seconds
 
   /** Initialize needed databases */
@@ -114,80 +113,74 @@ class InvokerWASM(
     activationStore.storeAfterCheck(activation, isBlocking, None, None, context)(tid, notifier = None, logging)
   }
 
-  private def resolveWasmModulePath(executable: ExecutableWhiskAction): Option[String] = {
-    executable.annotations.get(wasmModulePathAnnotation).collect { case JsString(path) => path } orElse
-      extractInlineWasmToTempFile(executable)
-  }
-
-  private def extractInlineWasmToTempFile(executable: ExecutableWhiskAction): Option[String] = {
-    executable.exec match {
-      case CodeExecAsAttachment(_, Attachments.Inline(code), _, binary) if binary =>
-        Try {
-          val bytes = java.util.Base64.getDecoder.decode(code)
-          val tmp = java.io.File.createTempFile("wasm-health-", ".wasm")
-          tmp.deleteOnExit()
-          val fos = new java.io.FileOutputStream(tmp)
-          try fos.write(bytes)
-          finally fos.close()
-          logging.info(this, s"extracted inline WASM attachment to ${tmp.getAbsolutePath} for ${executable.fullyQualifiedName(false)}")
-          tmp.getAbsolutePath
-        }.toOption
-      case _ => None
-    }
-  }
-
   private def executeWithWasmtime(msg: ActivationMessage,
                                   executable: ExecutableWhiskAction): Future[(ActivationResponse, Instant, Instant)] = {
-    logging.info(this, s"executable parameters: ${executable.parameters}")
     val inputJson = executable.parameters.toJsObject.compactPrint
-    val modulePathOpt = resolveWasmModulePath(executable)
 
-    modulePathOpt match {
-      case None =>
-        val response = ActivationResponse.whiskError(
-          s"no WASM module: missing '$wasmModulePathAnnotation' annotation and no inline attachment for action ${executable.fullyQualifiedName(false)}")
-        val now = Instant.now
-        Future.successful((response, now, now))
-      case Some(modulePath) =>
+    logging.info(this, s"action ${msg.action}")
+    logging.info(this, s"executable.exec.binary: ${executable.exec.binary}")
+    logging.info(this, s"executable.exec.code length: ${executable.exec.codeAsJson.compactPrint.length}")
+    executable.exec match {
+      case CodeExecAsAttachment(_, _, _, binary) if binary => logging.info(this, s"binary")
+      case CodeExecAsAttachment(_, _, _, _) => logging.info(this, s"code exec attachment not binary")
+      case _ => logging.info(this, s"not an attachment exec")
+    }
+
+    executable.exec match {
+      case CodeExecAsAttachment(_, Attachments.Inline(code), _, binary) if binary =>
         Future {
-          val started = Instant.now
-          val command = Seq(wasmtimeBinary, modulePath)
-          val processBuilder = new ProcessBuilder(command: _*)
-          processBuilder.redirectErrorStream(true)
-          val process = processBuilder.start()
-
-          val writer = new java.io.OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
-          logging.info(this, s"writing input JSON to WASM module: $inputJson")
+          val bytes = java.util.Base64.getDecoder.decode(code)
+          val tmp = java.io.File.createTempFile("wasm-action-", ".wasm")
           try {
-            writer.write(inputJson)
-            writer.flush()
-          } finally {
-            writer.close()
-          }
+            val fos = new java.io.FileOutputStream(tmp)
+            try fos.write(bytes) finally fos.close()
 
-          val output = scala.io.Source.fromInputStream(process.getInputStream, StandardCharsets.UTF_8.name()).mkString
-          val finished = process.waitFor(wasmtimeInvokeTimeout.toMillis, TimeUnit.MILLISECONDS)
-          val response =
-            if (!finished) {
-              process.destroyForcibly()
-              ActivationResponse.whiskError(s"wasmtime timed out after ${wasmtimeInvokeTimeout.toSeconds} seconds")
-            } else {
-              val exit = process.exitValue()
-              if (exit == 0) {
-                val json = Try(output.parseJson).getOrElse(JsObject("result" -> JsString(output.trim)))
-                json match {
-                  case JsObject(fields) if fields.contains(ActivationResponse.ERROR_FIELD) =>
-                    ActivationResponse.applicationError(fields(ActivationResponse.ERROR_FIELD))
-                  case _ =>
-                    ActivationResponse.success(Some(json))
-                }
-              } else {
-                ActivationResponse.developerError(s"wasmtime exited with code $exit: ${output.trim}")
-              }
+            val started = Instant.now
+            val command = Seq(wasmtimeBinary, tmp.getAbsolutePath)
+            val processBuilder = new ProcessBuilder(command: _*)
+            processBuilder.redirectErrorStream(true)
+            val process = processBuilder.start()
+
+            val writer = new java.io.OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
+            try {
+              writer.write(inputJson)
+              writer.flush()
+            } finally {
+              writer.close()
             }
 
-          (response, started, Instant.now)
+            val output = scala.io.Source.fromInputStream(process.getInputStream, StandardCharsets.UTF_8.name()).mkString
+            val finished = process.waitFor(wasmtimeInvokeTimeout.toMillis, TimeUnit.MILLISECONDS)
+            val response =
+              if (!finished) {
+                process.destroyForcibly()
+                ActivationResponse.whiskError(s"wasmtime timed out after ${wasmtimeInvokeTimeout.toSeconds} seconds")
+              } else {
+                val exit = process.exitValue()
+                if (exit == 0) {
+                  val json = Try(output.parseJson).getOrElse(JsObject("result" -> JsString(output.trim)))
+                  json match {
+                    case JsObject(fields) if fields.contains(ActivationResponse.ERROR_FIELD) =>
+                      ActivationResponse.applicationError(fields(ActivationResponse.ERROR_FIELD))
+                    case _ =>
+                      ActivationResponse.success(Some(json))
+                  }
+                } else {
+                  ActivationResponse.developerError(s"wasmtime exited with code $exit: ${output.trim}")
+                }
+              }
+
+            (response, started, Instant.now)
+          } finally {
+            tmp.delete()
+          }
         }
+
+      case _ =>
+        val response = ActivationResponse.whiskError(
+          s"action ${executable.fullyQualifiedName(false)} is not a valid WASM binary")
+        val now = Instant.now
+        Future.successful((response, now, now))
     }
   }
 

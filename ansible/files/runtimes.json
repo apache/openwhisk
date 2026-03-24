@@ -236,7 +236,7 @@
                 "deprecated": false,
                 "attached": {
                     "attachmentName": "codefile",
-                    "attachmentType": "text/plain"
+                    "attachmentType": "application/octet-stream"
                 },
                 "requireMain": true
             }

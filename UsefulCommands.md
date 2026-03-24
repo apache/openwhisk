@@ -30,7 +30,8 @@ You can navigate CouchDB using cURL commands, the web UI at (`http://127.0.0.1:5
 
 ```
 # Create fib action
-wsk -i action create fib_wasm wasm_programs/fib.wasm --kind wasm:wasmtime --main fib
+# when compiling from Rust, "main" gets renamed to "_start"
+wsk -i action create fib_wasm wasm_programs/fib.wasm --kind wasm:wasmtime --main _start
 ```
 
 ### Developing
@@ -41,4 +42,7 @@ wsk -i action create fib_wasm wasm_programs/fib.wasm --kind wasm:wasmtime --main
 
 # Re-deploying a particular component
 ansible-playbook -i environments/$ENVIRONMENT invoker.yml
+
+# Compiling a rs file with wasmtime
+rustc --target wasm32-wasip1 -O "wasm_programs/fib.rs" -o "wasm_programs/fib.wasm"
 ```
