@@ -113,18 +113,30 @@ class InvokerWASM(
     activationStore.storeAfterCheck(activation, isBlocking, None, None, context)(tid, notifier = None, logging)
   }
 
+  private def argToString(v: JsValue): String = v match {
+    case JsString(s)  => s
+    case JsNumber(n)  => n.toString
+    case JsBoolean(b) => b.toString
+    case JsNull       => ""
+    case other        => other.compactPrint
+  }
+
   private def executeWithWasmtime(msg: ActivationMessage,
                                   executable: ExecutableWhiskAction): Future[(ActivationResponse, Instant, Instant)] = {
-    val inputJson = executable.parameters.toJsObject.compactPrint
-
-    logging.info(this, s"action ${msg.action}")
-    logging.info(this, s"executable.exec.binary: ${executable.exec.binary}")
-    logging.info(this, s"executable.exec.code length: ${executable.exec.codeAsJson.compactPrint.length}")
-    executable.exec match {
-      case CodeExecAsAttachment(_, _, _, binary) if binary => logging.info(this, s"binary")
-      case CodeExecAsAttachment(_, _, _, _) => logging.info(this, s"code exec attachment not binary")
-      case _ => logging.info(this, s"not an attachment exec")
+    // TODO: Here we require parameters to be accepted in alphabetical order, not so great
+    // msg.content are the parameters passed to the action by the user at call time
+    // executable.parameters are the default parameters bound to an action are creation time, they are a fallback
+    val params: JsObject = msg.content match {
+      case Some(obj: JsObject) if obj.fields.nonEmpty => obj
+      case _ => executable.parameters.toJsObject
     }
+    val args = params.fields.toSeq
+      .sortBy(_._1)
+      .map(p => argToString(p._2))
+
+    logging.info(this, s"msg.content: ${msg.content.getOrElse(JsObject.empty).compactPrint}")
+    logging.info(this, s"parameters: ${executable.parameters.toJsObject.compactPrint}")
+    logging.info(this, s"args: ${args.mkString(" ")}")
 
     executable.exec match {
       case CodeExecAsAttachment(_, Attachments.Inline(code), _, binary) if binary =>
@@ -136,18 +148,12 @@ class InvokerWASM(
             try fos.write(bytes) finally fos.close()
 
             val started = Instant.now
-            val command = Seq(wasmtimeBinary, tmp.getAbsolutePath)
+            val command = Seq(wasmtimeBinary, tmp.getAbsolutePath) ++ args
+            logging.info(this, s"executing: ${command.mkString(" ")}")
             val processBuilder = new ProcessBuilder(command: _*)
             processBuilder.redirectErrorStream(true)
             val process = processBuilder.start()
-
-            val writer = new java.io.OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
-            try {
-              writer.write(inputJson)
-              writer.flush()
-            } finally {
-              writer.close()
-            }
+            process.getOutputStream.close()
 
             val output = scala.io.Source.fromInputStream(process.getInputStream, StandardCharsets.UTF_8.name()).mkString
             val finished = process.waitFor(wasmtimeInvokeTimeout.toMillis, TimeUnit.MILLISECONDS)
