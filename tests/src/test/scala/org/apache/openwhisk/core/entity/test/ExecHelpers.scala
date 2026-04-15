@@ -43,7 +43,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 
   protected def imageName(name: String) =
-    ExecManifest.runtimesManifest.runtimes.flatMap(_.versions).find(_.kind == name).get.image
+    ExecManifest.runtimesManifest.runtimes.flatMap(_.versions).find(_.kind == name).flatMap(_.image).get
 
   protected def jsOld(code: String, main: Option[String] = None) = {
     CodeExecAsString(

@@ -976,7 +976,7 @@ class ContainerManagerTests
 
     val exec = BlackBoxExec(ExecManifest.ImageName("image"), None, None, native = false, binary = false)
     val action = ExecutableWhiskAction(EntityPath(testNamespace), EntityName(testAction), exec)
-    val execMetadata = BlackBoxExecMetaData(exec.image, exec.entryPoint, exec.native, exec.binary)
+    val execMetadata = BlackBoxExecMetaData(exec.bbImage, exec.entryPoint, exec.native, exec.binary)
     val actionMetadata =
       WhiskActionMetaData(
         action.namespace,

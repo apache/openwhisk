@@ -118,15 +118,15 @@ class ExecManifestTests extends AnyFlatSpec with WskActorSystem with StreamLoggi
     val rmc = RuntimeManifestConfig()
     val runtimes = ExecManifest.runtimes(mf, rmc).get
 
-    runtimes.resolveDefaultRuntime("i1").get.image.resolveImageName() shouldBe "???"
-    runtimes.resolveDefaultRuntime("i2").get.image.resolveImageName() shouldBe "rrr/???"
-    runtimes.resolveDefaultRuntime("i3").get.image.resolveImageName() shouldBe "rrr/ppp/???"
-    runtimes.resolveDefaultRuntime("i4").get.image.resolveImageName() shouldBe "rrr/ppp/???:ttt"
-    runtimes.resolveDefaultRuntime("j1").get.image.resolveImageName() shouldBe "???:ttt"
-    runtimes.resolveDefaultRuntime("k1").get.image.resolveImageName() shouldBe "ppp/???"
-    runtimes.resolveDefaultRuntime("p1").get.image.resolveImageName() shouldBe "ppp/???:ttt"
-    runtimes.resolveDefaultRuntime("q1").get.image.resolveImageName() shouldBe "rrr/???:ttt"
-    runtimes.resolveDefaultRuntime("s1").get.image.resolveImageName() shouldBe "???"
+    runtimes.resolveDefaultRuntime("i1").get.image.get.resolveImageName() shouldBe "???"
+    runtimes.resolveDefaultRuntime("i2").get.image.get.resolveImageName() shouldBe "rrr/???"
+    runtimes.resolveDefaultRuntime("i3").get.image.get.resolveImageName() shouldBe "rrr/ppp/???"
+    runtimes.resolveDefaultRuntime("i4").get.image.get.resolveImageName() shouldBe "rrr/ppp/???:ttt"
+    runtimes.resolveDefaultRuntime("j1").get.image.get.resolveImageName() shouldBe "???:ttt"
+    runtimes.resolveDefaultRuntime("k1").get.image.get.resolveImageName() shouldBe "ppp/???"
+    runtimes.resolveDefaultRuntime("p1").get.image.get.resolveImageName() shouldBe "ppp/???:ttt"
+    runtimes.resolveDefaultRuntime("q1").get.image.get.resolveImageName() shouldBe "rrr/???:ttt"
+    runtimes.resolveDefaultRuntime("s1").get.image.get.resolveImageName() shouldBe "???"
     runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).initialCount shouldBe 2
     runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).memory shouldBe 256.MB
   }

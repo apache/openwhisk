@@ -68,7 +68,7 @@ class DockerContainerFactoryTests
 
   it should "set the docker run args based on ContainerArgsConfig" in {
 
-    val image = ExecManifest.runtimesManifest.manifests("nodejs:20").image
+    val image = ExecManifest.runtimesManifest.manifests("nodejs:20").image.get
 
     implicit val tid = TransactionId.testing
     val dockerApiStub = mock[DockerApiWithFileAccess]
@@ -150,7 +150,7 @@ class DockerContainerFactoryTests
 
   it should "set the docker run args with cpu limit when provided" in {
 
-    val image = ExecManifest.runtimesManifest.manifests("nodejs:20").image
+    val image = ExecManifest.runtimesManifest.manifests("nodejs:20").image.get
 
     implicit val tid = TransactionId.testing
     val dockerApiStub = mock[DockerApiWithFileAccess]
