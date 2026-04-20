@@ -80,7 +80,7 @@
   when: environmentInformation.type == "docker-machine"
 
 - name: "determine docker root dir"
-  shell: docker info -f json
+  shell: docker info -f {{ '"{{' }}json .{{ '}}"' }}
   args:
     executable: /bin/bash
   register: dockerInfo_output
