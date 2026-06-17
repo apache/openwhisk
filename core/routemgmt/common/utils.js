@@ -237,7 +237,6 @@ function deleteApiFromGateway(gwInfo, gwApiId) {
   var options = {
     followAllRedirects: true,
     url: gwInfo.gwUrl+'/apis/'+gwApiId,
-    agentOptions: {rejectUnauthorized: false},
     headers: {
       'Accept': 'application/json'
     }
