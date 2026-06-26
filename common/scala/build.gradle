@@ -109,7 +109,7 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core'
         exclude group: 'com.fasterxml.jackson.dataformat'
     }
-    api "com.amazonaws:aws-java-sdk-cloudfront:1.12.792" // Upgraded to remove ion-java dependency (CVE-2024-21634)
+    api "software.amazon.awssdk:cloudfront:2.46.17" // Upgraded to remove ion-java dependency (CVE-2024-21634)
 
     api ("com.azure:azure-storage-blob:12.18.0") {
         exclude group: "com.azure", module: "azure-core-test"
@@ -159,8 +159,8 @@ dependencies {
 
         api("org.apache.commons:commons-lang3:3.18.0")
 
-        api("io.projectreactor.netty:reactor-netty-core:1.2.8")
-        api("io.projectreactor.netty:reactor-netty-http:1.2.8")
+        api("io.projectreactor.netty:reactor-netty-core:1.2.18")
+        api("io.projectreactor.netty:reactor-netty-http:1.2.18")
 
         api("io.grpc:grpc-api:${gradle.grpc.version}") {
             version { strictly gradle.grpc.version }
