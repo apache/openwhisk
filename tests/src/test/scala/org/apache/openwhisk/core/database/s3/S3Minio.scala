@@ -89,14 +89,16 @@ trait S3Minio extends AnyFlatSpec with BeforeAndAfterAll with StreamLogging {
   }
 
   def createTestBucket(): Unit = {
-    val client = S3Client.builder()
+    val client = S3Client
+      .builder()
       .forcePathStyle(true)
       .endpointOverride(URI.create(s"http://localhost:$port"))
       .region(Region.US_WEST_2)
       .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretAccessKey)))
       .build()
 
-    org.apache.openwhisk.utils.retry(client.createBucket((b: CreateBucketRequest.Builder) => b.bucket(bucket)), 6, Some(1.minute))
+    org.apache.openwhisk.utils
+      .retry(client.createBucket((b: CreateBucketRequest.Builder) => b.bucket(bucket)), 6, Some(1.minute))
     println(s"Created bucket $bucket")
   }
 

@@ -39,7 +39,8 @@ case class CloudFrontSigner(config: CloudFrontConfig) extends UrlSigner {
   override def getSignedURL(s3ObjectKey: String): Uri = {
     val resourceUrl = s"https://${config.domainName}/$s3ObjectKey"
     val date = Instant.now().plusSeconds(config.timeout.toSeconds)
-    val cannedRequest = CannedSignerRequest.builder()
+    val cannedRequest = CannedSignerRequest
+      .builder()
       .resourceUrl(resourceUrl)
       .privateKey(privateKey)
       .keyPairId(config.keyPairId)
