@@ -17,19 +17,19 @@
 
 package org.apache.openwhisk.core.database.s3
 
-import java.net.ServerSocket
-
+import java.net.{ServerSocket, URI}
 import actionContainers.ActionContainer
 import org.apache.pekko.actor.ActorSystem
-import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
-import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.typesafe.config.ConfigFactory
 import common.{SimpleExec, StreamLogging}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.openwhisk.common.{Logging, TransactionId}
 import org.apache.openwhisk.core.database.{AttachmentStore, DocumentSerializer}
+import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
@@ -89,14 +89,16 @@ trait S3Minio extends AnyFlatSpec with BeforeAndAfterAll with StreamLogging {
   }
 
   def createTestBucket(): Unit = {
-    val endpoint = new EndpointConfiguration(s"http://localhost:$port", "us-west-2")
-    val client = AmazonS3ClientBuilder.standard
-      .withPathStyleAccessEnabled(true)
-      .withEndpointConfiguration(endpoint)
-      .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretAccessKey)))
-      .build
+    val client = S3Client
+      .builder()
+      .forcePathStyle(true)
+      .endpointOverride(URI.create(s"http://localhost:$port"))
+      .region(Region.US_WEST_2)
+      .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretAccessKey)))
+      .build()
 
-    org.apache.openwhisk.utils.retry(client.createBucket(bucket), 6, Some(1.minute))
+    org.apache.openwhisk.utils
+      .retry(client.createBucket((b: CreateBucketRequest.Builder) => b.bucket(bucket)), 6, Some(1.minute))
     println(s"Created bucket $bucket")
   }
 

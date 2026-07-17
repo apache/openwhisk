@@ -19,7 +19,7 @@ package org.apache.openwhisk.core.containerpool.v2.test
 
 import org.apache.pekko.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import org.apache.pekko.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import org.apache.pekko.testkit.{ImplicitSender, TestActor, TestFSMRef, TestKit, TestProbe}
+import org.apache.pekko.testkit.{ImplicitSender, TestFSMRef, TestKit, TestProbe}
 import common.StreamLogging
 import org.apache.openwhisk.common.InvokerState.{Healthy, Offline, Unhealthy}
 import org.apache.openwhisk.common.{Enable, GracefulShutdown, RingBuffer}
@@ -331,26 +331,13 @@ class InvokerHealthManagerTests
           instanceId.tags,
           instanceId.dedicatedNamespaces).serialize))
 
-    val mockHealthActionProxy = TestProbe()
-
-    mockHealthActionProxy.setAutoPilot((sender, msg) =>
-      msg match {
-        case _: Initialize =>
-          (1 to InvokerHealthManager.bufferSize - InvokerHealthManager.bufferErrorTolerance) foreach { _ =>
-            sender ! HealthMessage(true)
-          }
-          TestActor.KeepRunning
-
-        case GracefulShutdown =>
-          TestActor.KeepRunning
-    })
-
-    fsm.underlyingActor.healthActionProxy = Some(mockHealthActionProxy.ref)
-
     fsm ! Enable
+    (1 to InvokerHealthManager.bufferSize - InvokerHealthManager.bufferErrorTolerance) foreach { _ =>
+      fsm ! HealthMessage(true)
+    }
 
     probe.expectMsg(Transition(fsm, Offline, Unhealthy))
-    probe.expectMsg(10.seconds, Transition(fsm, Unhealthy, Healthy))
+    probe.expectMsg(Transition(fsm, Unhealthy, Healthy))
 
     dataManagementService.expectMsg(
       UpdateDataOnChange(

@@ -20,13 +20,10 @@ import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
 import java.security.PrivateKey
 import java.time.Instant
-import java.util.Date
-
 import org.apache.pekko.http.scaladsl.model.Uri
-import com.amazonaws.auth.PEM
-import com.amazonaws.services.cloudfront.CloudFrontUrlSigner
-import com.amazonaws.services.cloudfront.util.SignerUtils
-import com.amazonaws.services.cloudfront.util.SignerUtils.Protocol
+import software.amazon.awssdk.services.cloudfront.CloudFrontUtilities
+import software.amazon.awssdk.services.cloudfront.internal.auth.Pem
+import software.amazon.awssdk.services.cloudfront.model.CannedSignerRequest
 
 import scala.concurrent.duration._
 
@@ -37,18 +34,25 @@ case class CloudFrontConfig(domainName: String,
 
 case class CloudFrontSigner(config: CloudFrontConfig) extends UrlSigner {
   private val privateKey = createPrivateKey(config.privateKey)
+  private val cloudFrontUtils = CloudFrontUtilities.create();
 
   override def getSignedURL(s3ObjectKey: String): Uri = {
-    val resourcePath = SignerUtils.generateResourcePath(Protocol.https, config.domainName, s3ObjectKey)
-    val date = Date.from(Instant.now().plusSeconds(config.timeout.toSeconds))
-    val url = CloudFrontUrlSigner.getSignedURLWithCannedPolicy(resourcePath, config.keyPairId, privateKey, date)
-    Uri(url)
+    val resourceUrl = s"https://${config.domainName}/$s3ObjectKey"
+    val date = Instant.now().plusSeconds(config.timeout.toSeconds)
+    val cannedRequest = CannedSignerRequest
+      .builder()
+      .resourceUrl(resourceUrl)
+      .privateKey(privateKey)
+      .keyPairId(config.keyPairId)
+      .expirationDate(date)
+      .build()
+    Uri(cloudFrontUtils.getSignedUrlWithCannedPolicy(cannedRequest).url())
   }
 
   override def toString: String = s"CloudFront Signer - ${config.domainName}"
 
   private def createPrivateKey(keyContent: String): PrivateKey = {
     val is = new ByteArrayInputStream(keyContent.getBytes(UTF_8))
-    PEM.readPrivateKey(is)
+    Pem.readPrivateKey(is)
   }
 }
