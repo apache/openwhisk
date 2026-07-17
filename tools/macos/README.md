@@ -102,9 +102,12 @@ Bellow are the ansible commands required to prepare your machine:
 cd ./ansible
 
 ansible-playbook setup.yml -e mode=HA
+ansible-playbook prereq.yml
 ansible-playbook couchdb.yml
 ansible-playbook initdb.yml
 ansible-playbook wipe.yml
+ansible-playbook elasticsearch.yml
+ansible-playbook etcd.yml
 ansible-playbook downloadcli-github.yml
 
 ansible-playbook properties.yml
@@ -114,5 +117,8 @@ To run the unit tests execute the command bellow from the project's root folder:
 ```bash
 # go back to project's root folder
 cd ../
+
+export TESTCONTAINERS_RYUK_DISABLED="true"
+
 ./gradlew -PtestSetName="REQUIRE_ONLY_DB" :tests:testCoverageLean
 ```
