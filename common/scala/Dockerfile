@@ -19,7 +19,7 @@
 # OpenWhisk will use a 21-jre multi arch image, compilation will be done with a jdk 17 temurin based image.
 # as wsk CLI is compiled against glibc we need touse a GLIBC based JRE Image (alpine it is not GLIBC based)
 # Use Eclipse Temurin 17 JRE
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre-alpine
 
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
