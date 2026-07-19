@@ -37,12 +37,21 @@
     env:
         TZ: "{{ docker.timezone }}"
         ZOO_MY_ID: "{{ groups['zookeepers'].index(inventory_hostname) + 1 }}"
+        # CRITICAL FIX 1: Turn off standalone mode capabilities completely
+        ZOO_STANDALONE_ENABLED: "false"
+        # Disable the embedded Jetty AdminServer to prevent port 8080 conflicts globally
+        ZOO_ADMINSERVER_ENABLED: "false"
+        # Disable 3.5 dynamic reconfiguration to keep OpenWhisk's static host lists working
+        ZOO_RECONFIG_ENABLED: "false"
+        # Whitelist the health status command so the netcat step passes
+        ZOO_4LW_COMMANDS_WHITELIST: "ruok,dump"
+        # CRITICAL FIX 2: Append ';2181' client configuration suffix to server entries for 3.5 quorum rules
         ZOO_SERVERS: "{% set zhosts = [] %}
                       {% for host in groups['zookeepers'] %}
                         {% if host == inventory_hostname %}
-                          {{ zhosts.append('server.' + (loop.index|string) + '=' + '0.0.0.0:2888:3888') }}
+                          {{ zhosts.append('server.' + (loop.index|string) + '=0.0.0.0:2888:3888;2181') }}
                         {% else %}
-                          {{ zhosts.append('server.' + (loop.index|string) + '=' + hostvars[host].ansible_host + ':' + ((2888+loop.index-1)|string) + ':' + ((3888+loop.index-1)|string) ) }}
+                          {{ zhosts.append('server.' + (loop.index|string) + '=' + hostvars[host].ansible_host + ':' + ((2888+loop.index-1)|string) + ':' + ((3888+loop.index-1)|string) + ';2181' ) }}
                         {% endif %}
                       {% endfor %}
                       {{ zhosts | join(' ') }}"
@@ -53,8 +62,8 @@
     pull: "{{ zookeeper.pull_zookeeper | default(true) }}"
 
 - name: wait until the Zookeeper in this host is up and running
-  action: shell (echo ruok; sleep 1) | nc {{ ansible_host }} {{ zookeeper.port + groups['zookeepers'].index(inventory_hostname) }}
+  shell: docker exec zookeeper{{ groups['zookeepers'].index(inventory_hostname) }} zkServer.sh status
   register: result
-  until: (result.rc == 0) and (result.stdout == 'imok')
+  until: result.rc == 0
   retries: 36
   delay: 5
