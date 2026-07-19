@@ -256,8 +256,8 @@ dependencies {
 
     implementation "software.amazon.awssdk:s3:2.46.17"
     implementation "com.microsoft.azure:azure-cosmos:3.7.6"
-    implementation 'org.testcontainers:elasticsearch:1.17.6'
-    implementation 'org.testcontainers:mongodb:1.17.1'
+    implementation 'org.testcontainers:elasticsearch:1.19.8'
+    implementation 'org.testcontainers:mongodb:1.19.8'
     implementation project(':common:scala')
     implementation project(':core:controller')
     implementation project(':core:scheduler')

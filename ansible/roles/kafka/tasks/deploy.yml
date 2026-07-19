@@ -100,11 +100,10 @@
     pull: "{{ kafka.pull_kafka | default(true) }}"
 
 - name: wait until the kafka server started up
-  shell:
-    (echo dump; sleep 1) |
-    nc {{hostvars[groups['zookeepers']|first].ansible_host}} {{zookeeper.port}} |
-    grep /brokers/ids/{{ groups['kafkas'].index(inventory_hostname) }}
+  shell: |
+    docker exec zookeeper0 /bin/bash -c "echo dump | nc 127.0.0.1 2181" |
+    grep "/brokers/ids/{{ groups['kafkas'].index(inventory_hostname) }}"
   register: result
   until: (result.rc == 0)
-  retries: 10
+  retries: 20
   delay: 5
