@@ -25,11 +25,11 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import org.apache.openwhisk.core.{ConfigKeys, WhiskConfig}
 import org.apache.openwhisk.core.entity.Attachments._
-import org.apache.openwhisk.core.entity.Attachments.Attached._
 import fastparse._
 import NoWhitespace._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.language.implicitConversions
 
 /**
  * Reads manifest of supported runtimes from configuration file and stores
@@ -83,7 +83,7 @@ protected[core] object ExecManifest {
       .map(_.convertTo[Map[String, Set[RuntimeManifest]]].map {
         case (name, versions) =>
           RuntimeFamily(name, versions.map { mf =>
-            val img = ImageName(mf.image.name, mf.image.registry, mf.image.prefix, mf.image.tag)
+            val img = mf.image.map(i => ImageName(i.name, i.registry, i.prefix, i.tag))
             mf.copy(image = img)
           })
       }.toSet)
@@ -127,7 +127,7 @@ protected[core] object ExecManifest {
    * @param stemCells       optional list of stemCells to be initialized by invoker per kind
    */
   protected[core] case class RuntimeManifest(kind: String,
-                                             image: ImageName,
+                                             image: Option[ImageName] = None,
                                              deprecated: Option[Boolean] = None,
                                              default: Option[Boolean] = None,
                                              attached: Option[Attached] = None,
@@ -324,7 +324,7 @@ protected[core] object ExecManifest {
             case rt =>
               JsObject(
                 "kind" -> rt.kind.toJson,
-                "image" -> rt.image.resolveImageName().toJson,
+                "image" -> rt.image.map(_.resolveImageName()).toJson,
                 "deprecated" -> rt.deprecated.getOrElse(false).toJson,
                 "default" -> rt.default.getOrElse(false).toJson,
                 "attached" -> rt.attached.isDefined.toJson,
@@ -372,6 +372,7 @@ protected[core] object ExecManifest {
   }
 
   protected[entity] implicit val imageNameSerdes: RootJsonFormat[ImageName] = jsonFormat4(ImageName.apply)
+  protected[core] implicit def runtimeImageToOption(image: ImageName): Option[ImageName] = Some(image)
 
   protected[entity] implicit val ttlSerdes: RootJsonFormat[FiniteDuration] = new RootJsonFormat[FiniteDuration] {
     override def write(finiteDuration: FiniteDuration): JsValue = JsString(finiteDuration.toString)
@@ -414,6 +415,15 @@ protected[core] object ExecManifest {
     override def write(s: StemCell) = defaultSerdes.write(s)
   }
 
-  protected[entity] implicit val runtimeManifestSerdes: RootJsonFormat[RuntimeManifest] = jsonFormat8(RuntimeManifest)
+  protected[entity] implicit val runtimeManifestSerdes: RootJsonFormat[RuntimeManifest] = jsonFormat8(
+    (kind: String,
+     image: Option[ImageName],
+     deprecated: Option[Boolean],
+     default: Option[Boolean],
+     attached: Option[Attached],
+     requireMain: Option[Boolean],
+     sentinelledLogs: Option[Boolean],
+     stemCells: Option[List[StemCell]]) =>
+      RuntimeManifest(kind, image, deprecated, default, attached, requireMain, sentinelledLogs, stemCells))
 
 }

@@ -22,10 +22,7 @@
 
 - name: add pekko port to ports_to_expose
   set_fact:
-    ports_to_expose: >-
-      {{ ports_to_expose }} +
-      [ "{{ (scheduler.pekko.cluster.basePort + (scheduler_index | int)) }}:"
-      + "{{ scheduler.pekko.cluster.bindPort }}" ]
+    ports_to_expose: "{{ ports_to_expose + [ ((scheduler.pekko.cluster.basePort + (scheduler_index | int)) | string) ~ ':' ~ (scheduler.pekko.cluster.bindPort | string) ] }}"
 
 - name: add seed nodes to scheduler environment
   set_fact:

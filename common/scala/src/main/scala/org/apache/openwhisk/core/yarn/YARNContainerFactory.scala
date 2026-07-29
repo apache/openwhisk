@@ -65,7 +65,7 @@ class YARNContainerFactory(actorSystem: ActorSystem,
                            yarnConfig: YARNConfig = loadConfigOrThrow[YARNConfig](ConfigKeys.yarn))
     extends ContainerFactory {
 
-  val images: Set[ImageName] = ExecManifest.runtimesManifest.runtimes.flatMap(a => a.versions.map(b => b.image))
+  val images: Set[ImageName] = ExecManifest.runtimesManifest.runtimes.flatMap(a => a.versions.flatMap(_.image))
 
   //One actor of each type per image for parallelism
   private var yarnComponentActors: Map[ImageName, ActorRef] = HashMap[ImageName, ActorRef]()

@@ -255,8 +255,15 @@ class ShardingContainerPoolBalancer(
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
 
+    logging.info(this, s"managed invokers ${schedulingState.managedInvokers}")
+
+    // Should be false for us
+    logging.info(this, s"[PUBLISH] action.exec.pull ${action.exec.pull}")
     val isBlackboxInvocation = action.exec.pull
+    // Should be managed for us
     val actionType = if (!isBlackboxInvocation) "managed" else "blackbox"
+    // invokersToUse is gathered from healthy invokers
+    // stepSize will be based on pairwise coprime numbers
     val (invokersToUse, stepSizes) =
       if (!isBlackboxInvocation) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
       else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
@@ -341,7 +348,8 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
         messagingProducer: MessageProducer,
         sendActivationToInvoker: (MessageProducer, ActivationMessage, InvokerInstanceId) => Future[ResultMetadata],
         monitor: Option[ActorRef]): ActorRef = {
-
+        
+        logging.info(this, s"preparing invoker pool including health test action $instance")
         InvokerPool.prepare(instance, WhiskEntityStore.datastore())
 
         actorRefFactory.actorOf(
@@ -509,6 +517,7 @@ case class ShardingContainerPoolBalancerState(
    *
    * It is important that this method does not run concurrently to itself and/or to [[updateCluster]]
    */
+  // Essentially just takes known invokers and partition them into managed/blackbox then create stepSizes for both
   def updateInvokers(newInvokers: IndexedSeq[InvokerHealth]): Unit = {
     val oldSize = _invokers.size
     val newSize = newInvokers.size

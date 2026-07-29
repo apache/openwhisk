@@ -74,7 +74,7 @@ whisk:
 #
 
 manifestfile: "{{ manifest_file | default('/ansible/files/runtimes.json') }}"
-runtimesManifest: "{{ runtimes_manifest | default(lookup('file', openwhisk_home ~ '{{ manifestfile }}') | from_json) }}"
+runtimesManifest: "{{ runtimes_manifest | default(lookup('file', openwhisk_home ~ manifestfile) | from_json) }}"
 
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
@@ -143,7 +143,7 @@ jmx:
   user: "{{ jmxuser | default('jmxuser') }}"
   pass: "{{ jmxuser | default('jmxpass') }}"
   jvmCommonArgs: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/home/owuser/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/home/owuser/jmxremote.access"
-  enabled: "{{ jmxremote_enabled | default('true') }}"
+  enabled: "{{ jmxremote_enabled | default(true) | bool }}"
 
 transactions:
   header: "{{ transactions_header | default('X-Request-ID') }}"

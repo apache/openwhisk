@@ -237,7 +237,7 @@ class FunctionPullingContainerProxy(
       factory(
         TransactionId.invokerWarmup,
         containerName(instance, "prewarm", job.exec.kind),
-        job.exec.image,
+        job.exec.requireContainerImage,
         job.exec.pull,
         job.memoryLimit,
         poolConfig.cpuShare(job.memoryLimit),
@@ -252,7 +252,7 @@ class FunctionPullingContainerProxy(
       factory( // create a new container
         TransactionId.invokerColdstart,
         containerName(instance, job.action.namespace.namespace, job.action.name.asString),
-        job.action.exec.image,
+        job.action.exec.requireContainerImage,
         job.action.exec.pull,
         job.action.limits.memory.megabytes.MB,
         poolConfig.cpuShare(job.action.limits.memory.megabytes.MB),

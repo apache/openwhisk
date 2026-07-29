@@ -47,7 +47,7 @@
 #
 - name: "pull runtime action images per manifest"
   shell: "docker pull {{runtimes_registry | default()}}{{inv_item.prefix}}/{{inv_item.name}}:{{inv_item.tag | default()}}"
-  loop: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image') | list | unique }}"
+  loop: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false) | selectattr('image', 'defined')  | map(attribute='image') | list | unique }}"
   when: skip_pull_runtimes is not defined or not (skip_pull_runtimes == True or skip_pull_runtimes.lower() == "true")
   register: result
   until: (result.rc == 0)
@@ -201,7 +201,7 @@
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
   set_fact:
-    invoker_ports_to_expose: "{{ invoker_ports_to_expose }} + [ \"{{ jmx.basePortInvoker + (invoker_index | int) }}:{{ jmx.basePortInvoker + (invoker_index | int) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}:{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}\" ]"
+    invoker_ports_to_expose: "{{ invoker_ports_to_expose + [ ((jmx.basePortInvoker + (invoker_index | int)) | string) ~ ':' ~ ((jmx.basePortInvoker + (invoker_index | int)) | string), ((jmx.rmiBasePortInvoker + (invoker_index | int)) | string) ~ ':' ~ ((jmx.rmiBasePortInvoker + (invoker_index | int)) | string) ] }}"
 
 
 - name: Load config from template
@@ -269,6 +269,8 @@
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
       "CONFIG_whisk_spi_InvokerProvider": "{{ invoker.reactiveSpi }}"
+      "CONFIG_whisk_loadbalancer_invokerHealthTestAction_name":
+        "{{ invoker_health_test_action_name | default('invokerHealthTestAction') }}"
       "CONFIG_whisk_spi_InvokerServerProvider": "{{ invoker.serverSpi }}"
       "CONFIG_logback_log_level": "{{ invoker.loglevel }}"
       "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"
@@ -428,6 +430,10 @@
   set_fact:
     volumes: "{{ volumes|default('') }},{{ invoker.docker.volumes | join(',') }}"
   when: invoker.docker.volumes|length > 0
+
+- name: normalize invoker env values as strings
+  set_fact:
+    env: "{{ dict(env | dict2items | map(attribute='key') | zip(env | dict2items | map(attribute='value') | map('string'))) }}"
 
 - name: start invoker
   docker_container:

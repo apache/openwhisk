@@ -203,6 +203,8 @@ object WhiskConfig {
 object ConfigKeys {
   val cluster = "whisk.cluster"
   val loadbalancer = "whisk.loadbalancer"
+  /** Invoker health test action (Node.js vs WASM). */
+  val loadbalancerInvokerHealthTestAction = s"$loadbalancer.invoker-health-test-action"
   val fpcLoadBalancer = "whisk.loadbalancer.fpc"
   val fraction = "whisk.fraction"
   val buildInformation = "whisk.info"

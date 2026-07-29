@@ -26,7 +26,6 @@ import org.apache.openwhisk.core.connector._
 import org.apache.openwhisk.core.containerpool.ContainerRemoved
 import org.apache.openwhisk.core.database.{ArtifactStore, NoDocumentException}
 import org.apache.openwhisk.core.entitlement.Privilege
-import org.apache.openwhisk.core.entity.size._
 import org.apache.openwhisk.core.entity.types.EntityStore
 import org.apache.openwhisk.core.entity.{ActivationResponse => _, _}
 import org.apache.openwhisk.core.etcd.EtcdKV.InvokerKeys
@@ -269,7 +268,8 @@ case class HealthActivationServiceClient() extends Actor {
 }
 
 object InvokerHealthManager {
-  val healthActionNamePrefix = "invokerHealthTestAction"
+  /** Prefix or full name from `whisk.loadbalancer.invoker-health-test-action` (used for etcd key tests). */
+  val healthActionNamePrefix: String = InvokerHealthTestActionConfig.load().name
   val bufferSize = 10
   val bufferErrorTolerance = 3
   val healthActionIdentity: Identity = {
@@ -283,13 +283,7 @@ object InvokerHealthManager {
   }
 
   def healthAction(i: InvokerInstanceId): Option[WhiskAction] =
-    ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:default").map { manifest =>
-      new WhiskAction(
-        namespace = InvokerHealthManager.healthActionIdentity.namespace.name.toPath,
-        name = EntityName(s"$healthActionNamePrefix${i.toInt}"),
-        exec = CodeExecAsString(manifest, """function main(params) { return params; }""", None),
-        limits = ActionLimits(memory = MemoryLimit(MemoryLimit.MIN_MEMORY), logs = LogLimit(0.B)))
-    }
+    InvokerHealthTestActionBuilder.forInvoker(InvokerHealthManager.healthActionIdentity, i)
 
   var healthActivation: Option[ActivationMessage] = None
 

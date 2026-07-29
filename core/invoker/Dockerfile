@@ -34,6 +34,16 @@ RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://download.docker.com/linux/
     chmod +x /usr/bin/docker && \
     chmod +x /usr/bin/runc
 
+# Install wasmtime for WASM action execution (InvokerWASM)
+ENV WASMTIME_VERSION=v43.0.0
+RUN apt-get update && apt-get install -y xz-utils && apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    ARCH=$(uname -m) && \
+    curl -sSL -o /tmp/wasmtime.tar.xz \
+      "https://github.com/bytecodealliance/wasmtime/releases/download/${WASMTIME_VERSION}/wasmtime-${WASMTIME_VERSION}-${ARCH}-linux.tar.xz" && \
+    tar -xJf /tmp/wasmtime.tar.xz --strip-components=1 -C /usr/bin "wasmtime-${WASMTIME_VERSION}-${ARCH}-linux/wasmtime" && \
+    rm /tmp/wasmtime.tar.xz && \
+    chmod +x /usr/bin/wasmtime
+
 ADD build/distributions/invoker.tar ./
 
 COPY init.sh /

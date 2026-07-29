@@ -209,18 +209,38 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+    // overwrite param defaults to false
     parameter('overwrite ? false) { overwrite =>
       entity(as[WhiskActionPut]) { content =>
+        // Resolves something with SequenceExec types
         val request = content.resolve(user.namespace)
+        // This is done async
         val check = for {
+          // Check that action limits are within user namespace limit
           checkLimits <- checkActionLimits(user, content)
+          // Checks addl privileges for sequence execs, always returns true for non-sequence execs
           checkAdditionalPrivileges <- entitleReferencedEntities(user, Privilege.READ, request.exec).flatMap(_ =>
             entitlementProvider.check(user, content.exec))
+        // Yields if checks are successful
         } yield (checkAdditionalPrivileges, checkLimits)
 
         onComplete(check) {
           case Success(_) =>
-            putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite, update(user, request), () => {
+            putEntity(
+            // Factory for the putEntity function to use, this makes putEntity generic
+            // Kinda like dep. injection
+            WhiskAction, 
+            // EntityStore is the datastore and is a member of this trait
+            entityStore, 
+            // DocID is the primary key in the datastore
+            entityName.toDocId, 
+            overwrite, 
+            // update accepts params in two steps, first the user and request, then the original action that already exists
+            // This creates a function which can accept an original action and update it based on request
+            // this is called currying, very cool
+            update(user, request), 
+            () => {
+              // Makes a WhiskAction from the WhiskActionPut by adding entity name and namespace info
               make(user, entityName, request)
             })
           case Failure(f) =>
@@ -249,16 +269,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       'timeout.as[FiniteDuration] ? controllerActivationConfig.maxWaitForBlockingActivation) {
       (blocking, result, waitOverride) =>
         entity(as[Option[JsObject]]) { payload =>
+          // This resolves an action name if its inside a package + grabs the WhiskActionMetaData object from the DB
           getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
             act: WhiskActionMetaData =>
               // resolve the action --- special case for sequences that may contain components with '_' as default package
               val action = act.resolve(user.namespace)
+              // Checks permissions
               onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
                 case Success(_) =>
                   val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
 
                   // incoming parameters may not override final parameters (i.e., parameters with already defined values)
                   // on an action once its parameters are resolved across package and binding
+                  // Makes sure that incoming params don't collide with actions immutable default params
                   val allowInvoke = payload
                     .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
                     .getOrElse(true)
@@ -281,15 +304,21 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                        actionWithMergedParams: WhiskActionMetaData,
                        payload: Option[JsObject],
                        blocking: Boolean,
+                       // Max time to wait when blocking (query param)
                        waitOverride: FiniteDuration,
                        result: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
     val waitForResponse = if (blocking) Some(waitOverride) else None
+    // Invokes action and returns response
+    // Match pattern once invokeAction future resolves
     onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
+      // If it only returned an activationId, it is non-blocking
       case Success(Left(activationId)) =>
-        // non-blocking invoke or blocking invoke which got queued instead
+        // non-blocking invoke or blocking invoke which got queued instead, responds 202
+        // Adds activationId to header so users can poll later
         respondWithActivationIdHeader(activationId) {
           complete(Accepted, activationId.toJsObject)
         }
+      // Blocking path
       case Success(Right(activation)) =>
         val response = activation.response.result match {
           case Some(JsArray(elements)) =>

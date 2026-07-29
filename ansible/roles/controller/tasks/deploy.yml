@@ -121,10 +121,7 @@
     jmx_remote_rmi_port:
       "{{ jmx.rmiBasePortController + (controller_index|int) }}"
   set_fact:
-    ports_to_expose: >-
-      {{ ports_to_expose }} +
-      [ '{{ jmx_remote_port }}:{{ jmx_remote_port }}' ] +
-      [ '{{ jmx_remote_rmi_port }}:{{ jmx_remote_rmi_port }}' ]
+    ports_to_expose: "{{ ports_to_expose + [ (jmx_remote_port | string) ~ ':' ~ (jmx_remote_port | string), (jmx_remote_rmi_port | string) ~ ':' ~ (jmx_remote_rmi_port | string) ] }}"
     controller_args: >-
       {{ controller.arguments }}
       {{ jmx.jvmCommonArgs }}
@@ -147,7 +144,7 @@
         -XX:+HeapDumpOnOutOfMemoryError
         -XX:HeapDumpPath=/logs
       "CONTROLLER_OPTS": "{{ controller_args | default(controller.arguments) }}"
-      "JMX_REMOTE": "{{ jmx.enabled }}"
+      "JMX_REMOTE": "{{ jmx.enabled | string }}"
       "OPENWHISK_ENCODED_CONFIG": "{{ openwhisk_config }}"
       "PORT": "8080"
       "TZ": "{{ docker.timezone }}"
@@ -272,6 +269,8 @@
         "{{ controller.timeoutFactor }}"
       "CONFIG_whisk_loadbalancer_timeoutAddon":
         "{{ controller.timeoutAddon }}"
+      "CONFIG_whisk_loadbalancer_invokerHealthTestAction_name":
+        "{{ invoker_health_test_action_name | default('invokerHealthTestAction') }}"
 
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
@@ -421,6 +420,10 @@
   shell: sleep 5s
   when: zeroDowntimeDeployment.enabled == true
 
+- name: normalize controller env values as strings
+  set_fact:
+    env: "{{ dict(env | dict2items | map(attribute='key') | zip(env | dict2items | map(attribute='value') | map('string'))) }}"
+
 - name: (re)start controller
   docker_container:
     name: "{{ controller_name }}"
@@ -483,7 +486,7 @@
 - name: warm up activation path
   uri:
     url:
-      "{{controller.protocol}}://{{ lookup('file', '{{ catalog_auth_key }}')}}@{{ansible_host}}:{{controller_port}}/api/v1/namespaces/_/actions/invokerHealthTestAction{{controller_index}}?blocking=false&result=false"
+      "{{controller.protocol}}://{{ lookup('file', catalog_auth_key)}}@{{ansible_host}}:{{controller_port}}/api/v1/namespaces/_/actions/invokerHealthTestAction{{controller_index}}?blocking=false&result=false"
     validate_certs: "no"
     client_key:
       "{{ controller.confdir }}/{{ controller_name }}/{{ controller.ssl.key }}"

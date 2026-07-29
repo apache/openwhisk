@@ -39,12 +39,15 @@ import org.apache.openwhisk.http._
  * For Swift actions, the source code to execute the action is required.
  * For Java actions, a base64-encoded string representing a jar file is
  * required, as well as the name of the entrypoint class.
+ * For WASM actions, the WASM binary to execute the action and the name of the entrypoint function are required.
  * An example exec looks like this:
  * { kind  : one of supported language runtimes,
  *   code  : code to execute if kind is supported,
  *   image : container name when kind is "blackbox",
  *   binary: for some runtimes that allow binary attachments,
- *   main  : name of the entry point function, when using a non-default value (for Java, the name of the main class)" }
+ *   main  : name of the entry point function, when using a non-default value
+ *            (For Java, the name of the main class, for WASM, the 'main' function)
+ * }
  */
 sealed abstract class Exec extends ByteSizeable {
   override def toString: String = Exec.serdes.write(this).compactPrint
@@ -76,7 +79,7 @@ sealed abstract class CodeExec[+T](implicit ev: T => SizeConversion) extends Exe
   def codeAsJson: JsValue
 
   /** The runtime image (either built-in or a public image). */
-  val image: ImageName
+  val image: Option[ImageName]
 
   /** Indicates if the action execution generates log markers to stdout/stderr once action activation completes. */
   val sentinelledLogs: Boolean
@@ -92,6 +95,14 @@ sealed abstract class CodeExec[+T](implicit ev: T => SizeConversion) extends Exe
    */
   val binary: Boolean
 
+  /**
+   * Image required for Docker/container runtime execution.
+   * Native runtimes (e.g. WASM without a runtime image) may omit [[image]]; use this only on paths that run in a container.
+   */
+  def requireContainerImage: ImageName =
+    image.getOrElse(
+      throw new IllegalStateException(s"kind '$kind' has no container image; cannot run in a container runtime"))
+
   override def size = code.sizeInBytes + entryPoint.map(_.sizeInBytes).getOrElse(0.B)
 }
 
@@ -101,7 +112,7 @@ sealed abstract class ExecMetaData extends ExecMetaDataBase {
   val entryPoint: Option[String]
 
   /** The runtime image (either built-in or a public image). */
-  val image: ImageName
+  val image: Option[ImageName]
 
   /** Indicates if a container image is required from the registry to execute the action. */
   val pull: Boolean
@@ -182,7 +193,7 @@ protected[core] case class CodeExecMetaDataAsAttachment(manifest: RuntimeManifes
  * @param image the image name
  * @param code an optional script or zip archive (as base64 encoded) string
  */
-protected[core] case class BlackBoxExec(override val image: ImageName,
+protected[core] case class BlackBoxExec(bbImage: ImageName,
                                         override val code: Option[Attachment[String]],
                                         override val entryPoint: Option[String],
                                         val native: Boolean,
@@ -190,11 +201,12 @@ protected[core] case class BlackBoxExec(override val image: ImageName,
     extends CodeExec[Option[Attachment[String]]]
     with AttachedCode {
   override val kind = Exec.BLACKBOX
+  override val image: Option[ImageName] = Some(bbImage)
   override val deprecated = false
   override def codeAsJson = code.toJson
   override val sentinelledLogs = native
   override val pull = !native
-  override def size = super.size + image.resolveImageName().sizeInBytes
+  override def size = super.size + bbImage.resolveImageName().sizeInBytes
 
   override def inline(bytes: Array[Byte]): BlackBoxExec = {
     val encoded = new String(bytes, StandardCharsets.UTF_8)
@@ -206,11 +218,12 @@ protected[core] case class BlackBoxExec(override val image: ImageName,
   }
 }
 
-protected[core] case class BlackBoxExecMetaData(override val image: ImageName,
+protected[core] case class BlackBoxExecMetaData(bbImage: ImageName,
                                                 override val entryPoint: Option[String],
                                                 val native: Boolean,
                                                 override val binary: Boolean = false)
     extends ExecMetaData {
+  override val image: Option[ImageName] = Some(bbImage)
   override val kind = ExecMetaDataBase.BLACKBOX
   override val deprecated = false
   override val pull = !native
@@ -271,7 +284,7 @@ object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol {
         val base =
           Map(
             "kind" -> JsString(b.kind),
-            "image" -> JsString(b.image.resolveImageName()),
+            "image" -> JsString(b.bbImage.resolveImageName()),
             "binary" -> JsBoolean(b.binary))
         val code = b.code.map("code" -> attFmt[String].write(_))
         val main = b.entryPoint.map("main" -> JsString(_))
@@ -405,7 +418,7 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
         val base =
           Map(
             "kind" -> JsString(b.kind),
-            "image" -> JsString(b.image.resolveImageName()),
+            "image" -> JsString(b.bbImage.resolveImageName()),
             "binary" -> JsBoolean(b.binary))
         val main = b.entryPoint.map("main" -> JsString(_))
         JsObject(base ++ main)
