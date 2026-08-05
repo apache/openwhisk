@@ -52,7 +52,10 @@ class ElasticSearchActivationStoreTests
                                      upto: Option[Instant] = None,
                                      context: UserContext,
                                      expected: IndexedSeq[WhiskActivation])(implicit transid: TransactionId): Unit = {
-    retry(super.checkQueryActivations(namespace, name, skip, limit, includeDocs, since, upto, context, expected), 10)
+    retry(
+      super.checkQueryActivations(namespace, name, skip, limit, includeDocs, since, upto, context, expected),
+      10,
+      Some(500.milliseconds))
   }
 
   override def checkCountActivations(namespace: String,
@@ -62,6 +65,9 @@ class ElasticSearchActivationStoreTests
                                      upto: Option[Instant] = None,
                                      context: UserContext,
                                      expected: Long)(implicit transid: TransactionId): Unit = {
-    retry(super.checkCountActivations(namespace, name, skip, since, upto, context, expected), 10)
+    retry(
+      super.checkCountActivations(namespace, name, skip, since, upto, context, expected),
+      10,
+      Some(500.milliseconds))
   }
 }

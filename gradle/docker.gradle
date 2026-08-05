@@ -69,6 +69,10 @@ if( !project.hasProperty('dockerBuildArgs') && dockerMultiArchBuild ) {
     dockerBuildArg += ['--build-arg','BASE='+scalaBaseImageName]
 }
 
+if( project.hasProperty('dockerTargetPlatformsArgs') ) {
+    dockerBuildArg += ['--build-arg','TARGETPLATFORM='+project.dockerTargetPlatformsArgs]
+}
+
 def builDockerCommand(dockerFile) {
     def cmd = dockerBinary
 
@@ -134,12 +138,14 @@ task distDockerCoverage() {
 
 def prepareBuildArgs(List buildArgs) {
     def result = ['build']
+
     if(project.hasProperty('dockerBuildArgs')) {
         buildArgs.addAll(dockerBuildArgs)
     }
     buildArgs.each {arg ->
         result += ['--build-arg', arg]
     }
+
     result
 }
 

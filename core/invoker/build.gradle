@@ -48,10 +48,17 @@ dependencies {
     implementation ("org.apache.curator:curator-recipes:${gradle.curator.version}") {
         exclude group: 'org.apache.zookeeper', module:'zookeeper'
     }
-    implementation ("org.apache.zookeeper:zookeeper:3.4.14") {
-        exclude group: 'org.slf4j'
-        exclude group: 'log4j'
-        exclude group: 'jline'
+
+    // Force absolute isolation so ZooKeeper cannot impact Elasticsearch client configurations globally
+    implementation("org.apache.zookeeper:zookeeper:3.5.9") {
+        transitive = false
+        exclude group: 'io.netty'
+        exclude group: 'com.fasterxml.jackson.core'
+    }
+
+    // Manually add only the companion Jute data framework if the Invoker fails class lookups for it
+    implementation("org.apache.zookeeper:zookeeper-jute:3.5.9") {
+        transitive = false
     }
 }
 

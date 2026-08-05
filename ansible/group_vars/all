@@ -187,8 +187,8 @@ kafka_protocol_for_setup: "{{ kafka_protocol | default('PLAINTEXT') }}"
 
 zookeeper:
   image:
-    amd64: zookeeper:3.4
-    arm64: arm64v8/zookeeper:3.4
+    amd64: zookeeper:3.5.9
+    arm64: arm64v8/zookeeper:3.5.9
   port: 2181
 
 zookeeper_connect_string: "{% set ret = [] %}\

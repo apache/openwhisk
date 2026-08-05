@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -14,27 +16,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# if you change version of openjdk, also update tools/github/setup.sh to download the corresponding jdk
-# NOTE:
-# OpenWhisk will use a 21-jre multi arch image, compilation will be done with a jdk 17 temurin based image.
-# as wsk CLI is compiled against glibc we need touse a GLIBC based JRE Image (alpine it is not GLIBC based)
-# Use Eclipse Temurin 17 JRE
-FROM eclipse-temurin:21-jre
 
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US:en
-ENV LC_ALL=en_US.UTF-8
+set -e
 
-# Install curl, bash, sed
-RUN apt-get update && \
-    apt-get install -y curl bash sed openssl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+SCRIPTDIR=$(cd $(dirname "$0") && pwd)
+ROOTDIR="$SCRIPTDIR/../.."
 
-RUN mkdir /logs
+cd $ROOTDIR/ansible
 
-COPY transformEnvironment.sh /
-RUN chmod +x transformEnvironment.sh
+ansible-playbook setup.yml -e mode=HA
+ansible-playbook prereq.yml
+ansible-playbook couchdb.yml
+ansible-playbook initdb.yml
+ansible-playbook wipe.yml
+ansible-playbook elasticsearch.yml
+ansible-playbook etcd.yml
+ansible-playbook properties.yml
 
-COPY copyJMXFiles.sh /
-RUN chmod +x copyJMXFiles.sh
+
+cd $ROOTDIR
+# ./gradlew distDocker
+
+./gradlew -PtestSetName="REQUIRE_ONLY_DB" :tests:testCoverageLean

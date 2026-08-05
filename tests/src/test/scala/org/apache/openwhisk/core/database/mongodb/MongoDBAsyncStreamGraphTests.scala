@@ -59,15 +59,16 @@ class MongoDBAsyncStreamGraphTests
 
   it should "close the stream when done" in {
     val bytes = randomBytes(4000)
-    val inputStream = new ByteArrayInputStream(bytes)
-    val spiedStream = spy(inputStream)
-    val asyncStream = AsyncStreamHelper.toAsyncInputStream(spiedStream)
+    // Replace the mockito spy with our safe native recording stream
+    val safeStream = new CloseRecordingInputStream(bytes)
+    val asyncStream = AsyncStreamHelper.toAsyncInputStream(safeStream)
 
     val readStream = MongoDBAsyncStreamSource(asyncStream, 42).runWith(StreamConverters.asInputStream())
     val readBytes = IOUtils.toByteArray(readStream)
 
     bytes shouldBe readBytes
-    verify(spiedStream).close()
+    // Replace mockito verify() with a bulletproof boolean assertion
+    safeStream.closed shouldBe true
   }
 
   it should "onError with failure and return a failed IOResult when reading from failed stream" in {
@@ -131,5 +132,13 @@ class MongoDBAsyncStreamGraphTests
   private class CloseRecordingStream extends ByteArrayOutputStream {
     var closed: Boolean = _
     override def close() = { super.close(); closed = true }
+  }
+
+  private class CloseRecordingInputStream(bytes: Array[Byte]) extends ByteArrayInputStream(bytes) {
+    @volatile var closed: Boolean = false
+    override def close(): Unit = {
+      super.close()
+      closed = true
+    }
   }
 }
