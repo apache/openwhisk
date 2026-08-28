@@ -1,0 +1,17 @@
+name: Check Spelling
+
+on: [pull_request]
+
+jobs:
+  misc:
+    name: misspell
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Install
+        run: |
+          wget -O - -q https://git.io/misspell | sh -s -- -b .
+      - name: Misspell
+        run: |
+          find *.md -type f | xargs ./misspell -error
