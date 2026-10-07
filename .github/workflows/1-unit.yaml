@@ -70,6 +70,12 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Check free space
         run: df -h
+      - name: Setup Docker
+        uses: gradle/develocity-actions/setup-docker@f852d93dada312948b1ba533226c28e05d756866 # v2.4
+        with:
+          develocity-url: https://develocity.apache.org
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          develocity-project-id: openwhisk
       - id: tests
         name: Run Tests
         run: "./tools/github/run${{ env.TEST_SUITE }}Tests.sh"
