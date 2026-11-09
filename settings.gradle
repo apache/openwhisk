@@ -108,5 +108,5 @@ gradle.ext.grpc = [version : '1.82.1']
 
 gradle.ext.curator = [version : '5.7.0']
 gradle.ext.kube_client = [version: '4.10.3']
-gradle.ext.jackson = [version: '2.22.2']
-gradle.ext.netty = [version : '4.2.17.Final']
+gradle.ext.jackson = [version: '2.22.4']
+gradle.ext.netty = [version : '4.2.19.Final']
