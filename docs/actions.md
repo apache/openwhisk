@@ -283,6 +283,10 @@ ok: got activation 5a64676ec8aa46b5a4676ec8aaf6b5d2
 }
 ```
 
+For an asynchronous web action, use the `x-openwhisk-activation-id` response header as the ID with
+`wsk activation get <id>` or `wsk activation result <id>`. Retrieving an activation requires credentials
+for its namespace; making a web action publicly invokable does not make its activation record public.
+
 Sometimes it is helpful to invoke an action in a blocking style and receiving the activation record entirely
 instead of just the result. This is achieved using the `--blocking` command line parameter.
 
