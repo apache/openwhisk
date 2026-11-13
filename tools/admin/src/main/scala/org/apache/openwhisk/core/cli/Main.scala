@@ -154,7 +154,7 @@ object Main {
 
   private def printErr(message: String): Unit = {
     val useColor = overrideColorOutput.value.getOrElse(System.console() != null)
-    val name = if (useColor) s"\u001b[31m${Main.printedName}\u001b[0m" else Main.printedName
+    val name = if (useColor) s"${Console.RED}${Main.printedName}${Console.RESET}" else Main.printedName
     Console.err.println(s"[$name] Error: $message")
   }
 }
