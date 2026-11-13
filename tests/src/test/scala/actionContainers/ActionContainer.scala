@@ -220,7 +220,9 @@ object ActionContainer {
       } else {
         // not "mac" i.e., docker-for-mac, use direct container IP directly (this is OK for Ubuntu, and docker-machine)
         createContainer()
-        val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10.seconds)
+        val ipOut = awaitDocker(
+          s"""inspect --format '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $name""",
+          10.seconds)
         assert(ipOut._1 == 0, "'docker inspect did not exit with 0")
         (ipOut._2.replaceAll("""[^0-9.]""", ""), 8080)
       }
