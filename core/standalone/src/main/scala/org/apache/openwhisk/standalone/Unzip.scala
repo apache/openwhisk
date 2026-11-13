@@ -17,31 +17,42 @@
 
 package org.apache.openwhisk.standalone
 
-import java.io.{File, FileOutputStream, InputStream}
+import java.io.{File, InputStream}
+import java.nio.file.Files
 import java.util.zip.ZipInputStream
 
 object Unzip {
 
   def apply(is: InputStream, dir: File): Unit = {
-    //Based on https://stackoverflow.com/a/40547896/1035417
-    val zis = new ZipInputStream((is))
+    val zis = new ZipInputStream(is)
     val dest = dir.toPath
-    Stream.continually(zis.getNextEntry).takeWhile(_ != null).foreach { zipEntry =>
-      if (!zipEntry.isDirectory) {
-        val outPath = dest.resolve(zipEntry.getName)
-        val outPathParent = outPath.getParent
-        if (!outPathParent.toFile.exists()) {
-          outPathParent.toFile.mkdirs()
-        }
+    val buffer = new Array[Byte](4096)
 
-        val outFile = outPath.toFile
-        val out = new FileOutputStream(outFile)
-        val buffer = new Array[Byte](4096)
-        Stream.continually(zis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
-        out.close()
+    try {
+      var zipEntry = zis.getNextEntry
+      while (zipEntry != null) {
+        val outPath = dest.resolve(zipEntry.getName)
+        if (zipEntry.isDirectory) {
+          Files.createDirectories(outPath)
+        } else {
+          Files.createDirectories(outPath.getParent)
+          val out = Files.newOutputStream(outPath)
+          try {
+            var bytesRead = zis.read(buffer)
+            while (bytesRead != -1) {
+              out.write(buffer, 0, bytesRead)
+              bytesRead = zis.read(buffer)
+            }
+          } finally {
+            out.close()
+          }
+        }
+        zis.closeEntry()
+        zipEntry = zis.getNextEntry
       }
+    } finally {
+      zis.close()
     }
-    zis.close()
   }
 
 }

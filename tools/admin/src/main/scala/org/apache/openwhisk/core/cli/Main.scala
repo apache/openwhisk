@@ -153,13 +153,9 @@ object Main {
   }
 
   private def printErr(message: String): Unit = {
-    //Taken from ScallopConf
-    if (overrideColorOutput.value.getOrElse(System.console() != null)) {
-      Console.err.println("[\u001b[31m%s\u001b[0m] Error: %s" format (printedName, message))
-    } else {
-      // no colors on output
-      Console.err.println("[%s] Error: %s" format (printedName, message))
-    }
+    val useColor = overrideColorOutput.value.getOrElse(System.console() != null)
+    val name = if (useColor) s"${Console.RED}${Main.printedName}${Console.RESET}" else Main.printedName
+    Console.err.println(s"[$name] Error: $message")
   }
 }
 

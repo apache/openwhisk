@@ -170,7 +170,8 @@ object OwSink {
 
   /**
    * Combines two sinks into one sink using the given strategy. The materialized value is a Tuple2 of the materialized
-   * values of either sink. Code basically copied from {@code Sink.combine}
+   * values of either sink. Adapted from Akka Streams 2.5.6's {@code Sink.combine}.
+   * Copyright (C) 2009-2020 Lightbend Inc. <https://www.lightbend.com>
    */
   def combine[T, U, M1, M2](first: Sink[U, M1], second: Sink[U, M2])(
     strategy: Int => Graph[UniformFanOutShape[T, U], NotUsed]): Sink[T, (M1, M2)] = {
